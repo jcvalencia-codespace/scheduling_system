@@ -12,7 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { getUsers, removeUser } from './_actions';
 import AddEditUserModal from './_components/AddEditUserModal';
-import { toast } from 'react-hot-toast';
+import Swal from 'sweetalert2';
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
@@ -59,27 +59,60 @@ export default function UsersPage() {
       if (result.users) {
         setUsers(result.users);
       } else if (result.error) {
-        toast.error(result.error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: result.error
+        });
       }
     } catch (error) {
-      toast.error('Failed to load users');
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to load users'
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDelete = async (userId) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "You won't be able to revert this!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#323E8F',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
       try {
-        const result = await removeUser(userId);
-        if (result.success) {
-          toast.success('User deleted successfully');
+        const response = await removeUser(userId);
+        if (response.success) {
+          await Swal.fire({
+            icon: 'success',
+            title: 'Deleted!',
+            text: 'User has been deleted successfully.',
+            confirmButtonColor: '#323E8F'
+          });
           loadUsers();
         } else {
-          toast.error(result.error || 'Failed to delete user');
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: response.error || 'Failed to delete user',
+            confirmButtonColor: '#323E8F'
+          });
         }
       } catch (error) {
-        toast.error('Failed to delete user');
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to delete user',
+          confirmButtonColor: '#323E8F'
+        });
       }
     }
   };

@@ -4,7 +4,7 @@ import { Fragment, useEffect, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { addUser, editUser } from '../_actions';
-import { toast } from 'react-hot-toast';
+import Swal from 'sweetalert2';
 
 const initialFormState = {
   firstName: '',
@@ -63,15 +63,30 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
       console.log('Server response:', result);
 
       if (result.error) {
-        toast.error(result.error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: result.error,
+          confirmButtonColor: '#323E8F'
+        });
       } else {
-        toast.success(user ? 'User updated successfully!' : 'User created successfully!');
+        await Swal.fire({
+          icon: 'success',
+          title: 'Success',
+          text: user ? 'User updated successfully!' : 'User created successfully!',
+          confirmButtonColor: '#323E8F'
+        });
         setFormData(initialFormState);
         onSuccess();
       }
     } catch (error) {
       console.error('Error submitting form:', error);
-      toast.error('An error occurred while saving');
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'An error occurred while saving',
+        confirmButtonColor: '#323E8F'
+      });
     } finally {
       setIsSubmitting(false);
     }
