@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
+const { Schema } = mongoose;
 
-const userSchema = new mongoose.Schema({
+const UserSchema = new Schema({
   lastName: {
     type: String,
     required: true,
@@ -52,4 +53,50 @@ const userSchema = new mongoose.Schema({
   collection: 'users'
 });
 
-export const User = mongoose.models.User || mongoose.model('User', userSchema);
+const SubjectSchema = new Schema({
+  schoolYear: {
+    type: String,
+    required: true,
+  },
+  term: {
+    type: Number,
+    required: true,
+    enum: [1, 2, 3],
+  },
+  subjectCode: {
+    type: String,
+    required: true,
+    unique: true,
+  },
+  subjectName: {
+    type: String,
+    required: true,
+  },
+  lectureHours: {
+    type: Number,
+    required: true,
+    min: 0,
+  },
+  labHours: {
+    type: Number,
+    required: true,
+    min: 0,
+  },
+  course: {
+    type: String,
+    required: true,
+  },
+  isActive: {
+    type: Boolean,
+    default: true,
+  }
+}, {
+  timestamps: true,
+  collection: 'subjects'
+});
+
+
+export {
+  UserSchema,
+  SubjectSchema
+};
