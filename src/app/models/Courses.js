@@ -1,0 +1,65 @@
+import { CourseSchema } from '../../../db/schema';
+import connectDB from '../../../lib/mongo';
+import mongoose from 'mongoose';
+
+class CoursesModel {
+  constructor() {
+    this.MODEL = null;
+  }
+
+  async initModel() {
+    if (!this.MODEL) {
+      await connectDB();
+      this.MODEL = mongoose.models.Courses || mongoose.model("Courses", CourseSchema);
+    }
+    return this.MODEL;
+  }
+
+  async createCourse(courseData) {
+    const Course = await this.initModel();
+    const course = new Course(courseData);
+    const savedCourse = await course.save();
+    return JSON.parse(JSON.stringify(savedCourse));
+  }
+
+  async getAllCourses() {
+    const Course = await this.initModel();
+    const courses = await Course.find({ isActive: true });
+    return JSON.parse(JSON.stringify(courses));
+  }
+
+  async getCourseByCode(courseCode) {
+    const Course = await this.initModel();
+    const course = await Course.findOne({ courseCode, isActive: true });
+    return course ? JSON.parse(JSON.stringify(course)) : null;
+  }
+
+  async updateCourse(courseCode, updateData) {
+    const Course = await this.initModel();
+    const course = await Course.findOneAndUpdate(
+      { courseCode, isActive: true },
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+    return course ? JSON.parse(JSON.stringify(course)) : null;
+  }
+
+  async deleteCourse(courseCode) {
+    const Course = await this.initModel();
+    const course = await Course.findOneAndUpdate(
+      { courseCode, isActive: true },
+      { $set: { isActive: false } },
+      { new: true }
+    );
+    return course ? JSON.parse(JSON.stringify(course)) : null;
+  }
+
+  async getCoursesByDepartment(departmentCode) {
+    const Course = await this.initModel();
+    const courses = await Course.find({ departmentCode, isActive: true });
+    return JSON.parse(JSON.stringify(courses));
+  }
+}
+
+const coursesModel = new CoursesModel();
+export default coursesModel;

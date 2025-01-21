@@ -1,51 +1,136 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import Image from 'next/image';
-import AddSectionModal from './_components/AddSectionModal';
+import { useState, useEffect, useMemo } from 'react';
 import {
   MagnifyingGlassIcon,
   ChevronUpDownIcon,
   PencilSquareIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline';
+import { getSections, removeSection, getCourses } from './_actions';
+import AddEditSectionModal from './_components/AddEditSectionModal';
+import Swal from 'sweetalert2';
 
 export default function SectionsPage() {
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [sections, setSections] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedSection, setSelectedSection] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({
     key: null,
     direction: 'asc',
   });
 
-  // Sample data - replace with actual data fetching
-  const sections = [
-    {
-      id: 1,
-      code: 'BSCS-1A',
-      program: 'BS Computer Science',
-      yearLevel: '1st Year',
-      semester: '1st Semester',
-      academicYear: '2024-2025',
-      adviser: 'John Smith',
-      maxStudents: 40,
-      currentStudents: 35,
-    },
-    {
-      id: 2,
-      code: 'BSIT-2B',
-      program: 'BS Information Technology',
-      yearLevel: '2nd Year',
-      semester: '1st Semester',
-      academicYear: '2024-2025',
-      adviser: 'Jane Doe',
-      maxStudents: 40,
-      currentStudents: 38,
-    },
-    // Add more sample data as needed
-  ];
+  useEffect(() => {
+    loadSections();
+    loadCourses();
+  }, []);
 
-  // Sorting function
+  const loadSections = async () => {
+    try {
+      const result = await getSections();
+      if (result.sections) {
+        setSections(result.sections);
+      } else if (result.error) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: result.error
+        });
+      }
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to load sections'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadCourses = async () => {
+    try {
+      const result = await getCourses();
+      if (result.courses) {
+        setCourses(result.courses);
+      } else if (result.error) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: result.error
+        });
+      }
+    } catch (error) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to load courses'
+      });
+    }
+  };
+
+  const handleSort = (key) => {
+    setSortConfig((prevConfig) => ({
+      key,
+      direction:
+        prevConfig.key === key && prevConfig.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
+  const handleDelete = async (sectionName) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "You won't be able to revert this!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#323E8F',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const response = await removeSection(sectionName);
+        if (response.success) {
+          await Swal.fire({
+            icon: 'success',
+            title: 'Deleted!',
+            text: 'Section has been deleted successfully.',
+            confirmButtonColor: '#323E8F'
+          });
+          loadSections();
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: response.error || 'Failed to delete section',
+            confirmButtonColor: '#323E8F'
+          });
+        }
+      } catch (error) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to delete section',
+          confirmButtonColor: '#323E8F'
+        });
+      }
+    }
+  };
+
+  const handleEdit = (section) => {
+    setSelectedSection(section);
+    setShowModal(true);
+  };
+
+  const handleAddNew = () => {
+    setSelectedSection(null);
+    setShowModal(true);
+  };
+
   const sortedSections = useMemo(() => {
     if (!sortConfig.key) return sections;
 
@@ -60,24 +145,22 @@ export default function SectionsPage() {
     });
   }, [sections, sortConfig]);
 
-  // Filtering function
   const filteredSections = useMemo(() => {
-    return sortedSections.filter((section) =>
-      Object.values(section).some(
-        (value) =>
-          value &&
-          value.toString().toLowerCase().includes(searchQuery.toLowerCase())
-      )
+    return sortedSections.filter(section => 
+      section.sectionName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      section.courseCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      section.yearLevel.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [sortedSections, searchQuery]);
+  }, [sortedSections, searchTerm]);
 
-  // Sorting handler
-  const handleSort = (key) => {
-    setSortConfig((prevConfig) => ({
-      key,
-      direction:
-        prevConfig.key === key && prevConfig.direction === 'asc' ? 'desc' : 'asc',
-    }));
+  const getCourseTitle = (courseCode) => {
+    const course = courses.find(c => c.courseCode === courseCode);
+    return course ? course.courseTitle : courseCode;
+  };
+
+  const getDepartmentCode = (courseCode) => {
+    const course = courses.find(c => c.courseCode === courseCode);
+    return course ? course.departmentCode : 'N/A';
   };
 
   return (
@@ -86,13 +169,13 @@ export default function SectionsPage() {
         <div className="sm:flex-auto">
           <h1 className="text-2xl font-semibold text-gray-900">Class Sections</h1>
           <p className="mt-2 text-sm text-gray-700">
-            A list of all class sections including their details, advisers, and student count.
+            A list of all class sections including their details.
           </p>
         </div>
         <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
           <button
             type="button"
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={handleAddNew}
             className="inline-flex items-center justify-center rounded-md border border-transparent bg-[#323E8F] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#35408E] focus:outline-none focus:ring-2 focus:ring-[#323E8F] focus:ring-offset-2 sm:w-auto"
           >
             Add Section
@@ -112,8 +195,8 @@ export default function SectionsPage() {
             </div>
             <input
               type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="block w-full rounded-md border-0 py-2 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
               placeholder="Search sections..."
             />
@@ -129,118 +212,76 @@ export default function SectionsPage() {
               <table className="min-w-full divide-y divide-gray-300">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
+                    <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
                       <button
-                        onClick={() => handleSort('code')}
-                        className="group inline-flex"
+                        onClick={() => handleSort('sectionName')}
+                        className="group inline-flex items-center"
                       >
-                        Section Code
-                        <span className="ml-2 flex-none rounded text-gray-400">
-                          <ChevronUpDownIcon
-                            className="h-5 w-5"
-                            aria-hidden="true"
-                          />
-                        </span>
+                        Section Name
+                        <ChevronUpDownIcon className="ml-2 h-5 w-5 text-gray-400" aria-hidden="true" />
                       </button>
                     </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                       <button
-                        onClick={() => handleSort('program')}
-                        className="group inline-flex"
+                        onClick={() => handleSort('courseCode')}
+                        className="group inline-flex items-center"
                       >
-                        Program
-                        <span className="ml-2 flex-none rounded text-gray-400">
-                          <ChevronUpDownIcon
-                            className="h-5 w-5"
-                            aria-hidden="true"
-                          />
-                        </span>
+                        Course
+                        <ChevronUpDownIcon className="ml-2 h-5 w-5 text-gray-400" aria-hidden="true" />
                       </button>
                     </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Year Level
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <button
+                        onClick={() => handleSort('departmentCode')}
+                        className="group inline-flex items-center"
+                      >
+                        Department
+                        <ChevronUpDownIcon className="ml-2 h-5 w-5 text-gray-400" aria-hidden="true" />
+                      </button>
                     </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Semester
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <button
+                        onClick={() => handleSort('yearLevel')}
+                        className="group inline-flex items-center"
+                      >
+                        Year Level
+                        <ChevronUpDownIcon className="ml-2 h-5 w-5 text-gray-400" aria-hidden="true" />
+                      </button>
                     </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Academic Year
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Adviser
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Students
-                    </th>
-                    <th
-                      scope="col"
-                      className="relative py-3.5 pl-3 pr-4 sm:pr-6"
-                    >
+                    <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
                       <span className="sr-only">Actions</span>
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {filteredSections.map((section) => (
-                    <tr key={section.id}>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900">
-                        {section.code}
+                    <tr key={section.sectionName}>
+                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                        {section.sectionName}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {section.program}
+                        {getCourseTitle(section.courseCode)}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {getDepartmentCode(section.courseCode)}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                         {section.yearLevel}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {section.semester}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {section.academicYear}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {section.adviser}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {section.currentStudents}/{section.maxStudents}
-                      </td>
                       <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                         <button
+                          onClick={() => handleEdit(section)}
                           className="text-[#323E8F] hover:text-[#35408E] mr-4"
-                          onClick={() => {
-                            // Handle edit
-                          }}
                         >
                           <PencilSquareIcon className="h-5 w-5" />
+                          <span className="sr-only">Edit</span>
                         </button>
                         <button
+                          onClick={() => handleDelete(section.sectionName)}
                           className="text-red-600 hover:text-red-900"
-                          onClick={() => {
-                            // Handle delete
-                          }}
                         >
                           <TrashIcon className="h-5 w-5" />
+                          <span className="sr-only">Delete</span>
                         </button>
                       </td>
                     </tr>
@@ -252,155 +293,16 @@ export default function SectionsPage() {
         </div>
       </div>
 
-      {/* Add Section Modal */}
-      <AddSectionModal
-        open={isAddModalOpen}
-        setOpen={setIsAddModalOpen}
-        title="Add New Section"
-      >
-        <form className="space-y-4">
-          <div>
-            <label
-              htmlFor="code"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Section Code
-            </label>
-            <input
-              type="text"
-              name="code"
-              id="code"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
-              placeholder="e.g., BSCS-1A"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="program"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Program
-            </label>
-            <select
-              id="program"
-              name="program"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
-            >
-              <option value="">Select a program</option>
-              <option value="BS Computer Science">BS Computer Science</option>
-              <option value="BS Information Technology">BS Information Technology</option>
-              <option value="BS Information Systems">BS Information Systems</option>
-            </select>
-          </div>
-
-          <div>
-            <label
-              htmlFor="yearLevel"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Year Level
-            </label>
-            <select
-              id="yearLevel"
-              name="yearLevel"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
-            >
-              <option value="">Select a year level</option>
-              <option value="1st Year">1st Year</option>
-              <option value="2nd Year">2nd Year</option>
-              <option value="3rd Year">3rd Year</option>
-              <option value="4th Year">4th Year</option>
-            </select>
-          </div>
-
-          <div>
-            <label
-              htmlFor="semester"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Semester
-            </label>
-            <select
-              id="semester"
-              name="semester"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
-            >
-              <option value="">Select a semester</option>
-              <option value="1st Semester">1st Semester</option>
-              <option value="2nd Semester">2nd Semester</option>
-              <option value="Summer">Summer</option>
-            </select>
-          </div>
-
-          <div>
-            <label
-              htmlFor="academicYear"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Academic Year
-            </label>
-            <input
-              type="text"
-              name="academicYear"
-              id="academicYear"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
-              placeholder="e.g., 2024-2025"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="adviser"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Adviser
-            </label>
-            <select
-              id="adviser"
-              name="adviser"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
-            >
-              <option value="">Select an adviser</option>
-              <option value="John Smith">John Smith</option>
-              <option value="Jane Doe">Jane Doe</option>
-              {/* Add more advisers */}
-            </select>
-          </div>
-
-          <div>
-            <label
-              htmlFor="maxStudents"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Maximum Students
-            </label>
-            <input
-              type="number"
-              name="maxStudents"
-              id="maxStudents"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
-              placeholder="e.g., 40"
-            />
-          </div>
-
-          <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
-            <button
-              type="submit"
-              className="inline-flex w-full justify-center rounded-md bg-[#323E8F] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#35408E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#323E8F] sm:col-start-2"
-            >
-              Add Section
-            </button>
-            <button
-              type="button"
-              className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:col-start-1 sm:mt-0"
-              onClick={() => setIsAddModalOpen(false)}
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </AddSectionModal>
+      <AddEditSectionModal
+        show={showModal}
+        onClose={() => setShowModal(false)}
+        section={selectedSection}
+        courses={courses}
+        onSuccess={() => {
+          setShowModal(false);
+          loadSections();
+        }}
+      />
     </div>
   );
 }
