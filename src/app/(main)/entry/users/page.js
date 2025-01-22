@@ -13,13 +13,14 @@ import {
 import { getUsers, removeUser } from './_actions';
 import AddEditUserModal from './_components/AddEditUserModal';
 import Swal from 'sweetalert2';
+import { useLoading } from '../../../context/LoadingContext';
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const { isLoading, setIsLoading } = useLoading();
   const [showModal, setShowModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({
     key: null,
@@ -28,8 +29,27 @@ export default function UsersPage() {
   const itemsPerPage = 10;
 
   useEffect(() => {
-    loadUsers();
-  }, []);
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const usersData = await getUsers();
+        if (usersData.error) {
+          throw new Error(usersData.error);
+        }
+        setUsers(usersData.users || []);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to load users'
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, [setIsLoading]);
 
   const handleSort = (key) => {
     setSortConfig((prevConfig) => ({
@@ -53,29 +73,6 @@ export default function UsersPage() {
     });
   }, [users, sortConfig]);
 
-  const loadUsers = async () => {
-    try {
-      const result = await getUsers();
-      if (result.users) {
-        setUsers(result.users);
-      } else if (result.error) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: result.error
-        });
-      }
-    } catch (error) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Failed to load users'
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleDelete = async (userId) => {
     const result = await Swal.fire({
       title: 'Are you sure?',
@@ -97,7 +94,26 @@ export default function UsersPage() {
             text: 'User has been deleted successfully.',
             confirmButtonColor: '#323E8F'
           });
-          loadUsers();
+          const fetchData = async () => {
+            setIsLoading(true);
+            try {
+              const usersData = await getUsers();
+              if (usersData.error) {
+                throw new Error(usersData.error);
+              }
+              setUsers(usersData.users || []);
+            } catch (error) {
+              console.error('Error fetching data:', error);
+              Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Failed to load users'
+              });
+            } finally {
+              setIsLoading(false);
+            }
+          };
+          fetchData();
         } else {
           Swal.fire({
             icon: 'error',
@@ -346,7 +362,26 @@ export default function UsersPage() {
         onSuccess={() => {
           setShowModal(false);
           setSelectedUser(null);
-          loadUsers();
+          const fetchData = async () => {
+            setIsLoading(true);
+            try {
+              const usersData = await getUsers();
+              if (usersData.error) {
+                throw new Error(usersData.error);
+              }
+              setUsers(usersData.users || []);
+            } catch (error) {
+              console.error('Error fetching data:', error);
+              Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Failed to load users'
+              });
+            } finally {
+              setIsLoading(false);
+            }
+          };
+          fetchData();
         }}
       />
     </div>

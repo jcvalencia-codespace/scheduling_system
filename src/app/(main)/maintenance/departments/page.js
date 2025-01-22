@@ -10,10 +10,11 @@ import {
 import AddEditDepartmentModal from './_components/AddEditDepartmentModal';
 import { getDepartments, removeDepartment, getCoursesByDepartment } from './_actions';
 import Swal from 'sweetalert2';
+import { useLoading } from '../../../context/LoadingContext';
 
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { isLoading, setIsLoading } = useLoading();
   const [showModal, setShowModal] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,8 +25,28 @@ export default function DepartmentsPage() {
   const [departmentCourses, setDepartmentCourses] = useState({});
 
   useEffect(() => {
-    loadDepartments();
-  }, []);
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const departmentsData = await getDepartments();
+        if (departmentsData.error) {
+          throw new Error(departmentsData.error);
+        }
+        setDepartments(departmentsData.departments || []);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to load departments',
+          confirmButtonColor: '#323E8F'
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, [setIsLoading]);
 
   useEffect(() => {
     // Load courses for all departments when departments are loaded
@@ -35,26 +56,6 @@ export default function DepartmentsPage() {
       }
     });
   }, [departments]);
-
-  const loadDepartments = async () => {
-    try {
-      const result = await getDepartments();
-      if (result.error) {
-        throw new Error(result.error);
-      }
-      setDepartments(result.departments || []);
-    } catch (error) {
-      console.error('Error loading departments:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Failed to load departments',
-        confirmButtonColor: '#323E8F'
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const loadDepartmentCourses = async (departmentCode) => {
     try {
@@ -120,7 +121,13 @@ export default function DepartmentsPage() {
         if (response.error) {
           throw new Error(response.error);
         }
-        await loadDepartments();
+        setIsLoading(true);
+        const departmentsData = await getDepartments();
+        if (departmentsData.error) {
+          throw new Error(departmentsData.error);
+        }
+        setDepartments(departmentsData.departments || []);
+        setIsLoading(false);
         Swal.fire({
           icon: 'success',
           title: 'Deleted!',
@@ -157,7 +164,27 @@ export default function DepartmentsPage() {
   const handleModalSuccess = () => {
     setShowModal(false);
     setSelectedDepartment(null);
-    loadDepartments();
+    setIsLoading(true);
+    const fetchData = async () => {
+      try {
+        const departmentsData = await getDepartments();
+        if (departmentsData.error) {
+          throw new Error(departmentsData.error);
+        }
+        setDepartments(departmentsData.departments || []);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to load departments',
+          confirmButtonColor: '#323E8F'
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
   };
 
   const getSortIcon = (key) => {

@@ -10,11 +10,13 @@ import {
 import { getSections, removeSection, getCourses } from './_actions';
 import AddEditSectionModal from './_components/AddEditSectionModal';
 import Swal from 'sweetalert2';
+import Loading from '../../../components/Loading';
+import { useLoading } from '../../../context/LoadingContext';
 
 export default function SectionsPage() {
   const [sections, setSections] = useState([]);
   const [courses, setCourses] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { isLoading, setIsLoading } = useLoading();
   const [showModal, setShowModal] = useState(false);
   const [selectedSection, setSelectedSection] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -24,53 +26,43 @@ export default function SectionsPage() {
   });
 
   useEffect(() => {
-    loadSections();
-    loadCourses();
-  }, []);
-
-  const loadSections = async () => {
-    try {
-      const result = await getSections();
-      if (result.sections) {
-        setSections(result.sections);
-      } else if (result.error) {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const [sectionsData, coursesData] = await Promise.all([
+          getSections(),
+          getCourses()
+        ]);
+        if (sectionsData.sections) {
+          setSections(sectionsData.sections);
+        } else if (sectionsData.error) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: sectionsData.error
+          });
+        }
+        if (coursesData.courses) {
+          setCourses(coursesData.courses);
+        } else if (coursesData.error) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: coursesData.error
+          });
+        }
+      } catch (error) {
         Swal.fire({
           icon: 'error',
           title: 'Error',
-          text: result.error
+          text: 'Failed to load sections and courses'
         });
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Failed to load sections'
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadCourses = async () => {
-    try {
-      const result = await getCourses();
-      if (result.courses) {
-        setCourses(result.courses);
-      } else if (result.error) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: result.error
-        });
-      }
-    } catch (error) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Failed to load courses'
-      });
-    }
-  };
+    };
+    fetchData();
+  }, [setIsLoading]);
 
   const handleSort = (key) => {
     setSortConfig((prevConfig) => ({
@@ -101,7 +93,16 @@ export default function SectionsPage() {
             text: 'Section has been deleted successfully.',
             confirmButtonColor: '#323E8F'
           });
-          loadSections();
+          const sectionsData = await getSections();
+          if (sectionsData.sections) {
+            setSections(sectionsData.sections);
+          } else if (sectionsData.error) {
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: sectionsData.error
+            });
+          }
         } else {
           Swal.fire({
             icon: 'error',
@@ -300,7 +301,16 @@ export default function SectionsPage() {
         courses={courses}
         onSuccess={() => {
           setShowModal(false);
-          loadSections();
+          const sectionsData = getSections();
+          if (sectionsData.sections) {
+            setSections(sectionsData.sections);
+          } else if (sectionsData.error) {
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: sectionsData.error
+            });
+          }
         }}
       />
     </div>

@@ -10,11 +10,12 @@ import {
 import AddEditRoomModal from './_components/AddEditRoomModal';
 import { getRooms, getDepartments, removeRoom } from './_actions';
 import Swal from 'sweetalert2';
+import { useLoading } from '../../../context/LoadingContext';
 
 export default function RoomsPage() {
   const [rooms, setRooms] = useState([]);
   const [departments, setDepartments] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { isLoading, setIsLoading } = useLoading();
   const [showModal, setShowModal] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,47 +25,35 @@ export default function RoomsPage() {
   });
 
   useEffect(() => {
-    loadRooms();
-    loadDepartments();
-  }, []);
-
-  const loadRooms = async () => {
-    try {
-      const result = await getRooms();
-      if (result.error) {
-        throw new Error(result.error);
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const [roomsData, departmentsData] = await Promise.all([
+          getRooms(),
+          getDepartments()
+        ]);
+        if (roomsData.error) {
+          throw new Error(roomsData.error);
+        }
+        if (departmentsData.error) {
+          throw new Error(departmentsData.error);
+        }
+        setRooms(roomsData.rooms || []);
+        setDepartments(departmentsData.departments || []);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to load data',
+          confirmButtonColor: '#323E8F'
+        });
+      } finally {
+        setIsLoading(false);
       }
-      setRooms(result.rooms || []);
-    } catch (error) {
-      console.error('Error loading rooms:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Failed to load rooms',
-        confirmButtonColor: '#323E8F'
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadDepartments = async () => {
-    try {
-      const result = await getDepartments();
-      if (result.error) {
-        throw new Error(result.error);
-      }
-      setDepartments(result.departments || []);
-    } catch (error) {
-      console.error('Error loading departments:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Failed to load departments',
-        confirmButtonColor: '#323E8F'
-      });
-    }
-  };
+    };
+    fetchData();
+  }, [setIsLoading]);
 
   const handleSort = (key) => {
     setSortConfig((prevConfig) => ({
@@ -117,7 +106,7 @@ export default function RoomsPage() {
         if (response.error) {
           throw new Error(response.error);
         }
-        await loadRooms();
+        setRooms(rooms.filter(room => room.roomCode !== roomCode));
         Swal.fire({
           icon: 'success',
           title: 'Deleted!',
@@ -154,7 +143,27 @@ export default function RoomsPage() {
   const handleModalSuccess = () => {
     setShowModal(false);
     setSelectedRoom(null);
-    loadRooms();
+    setIsLoading(true);
+    const fetchData = async () => {
+      try {
+        const roomsData = await getRooms();
+        if (roomsData.error) {
+          throw new Error(roomsData.error);
+        }
+        setRooms(roomsData.rooms || []);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to load data',
+          confirmButtonColor: '#323E8F'
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
   };
 
   const getDepartmentName = (departmentCode) => {

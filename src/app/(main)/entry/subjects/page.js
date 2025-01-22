@@ -13,13 +13,15 @@ import {
 import { getSubjects, removeSubject } from './_actions';
 import AddEditSubjectForm from './_components/AddEditSubjectForm';
 import Swal from 'sweetalert2';
+import { useLoading } from '../../../context/LoadingContext';
 
 export default function SubjectsPage() {
   const [subjects, setSubjects] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [departments, setDepartments] = useState([]);
+  const { isLoading, setIsLoading } = useLoading();
   const [showModal, setShowModal] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({
     key: null,
@@ -28,8 +30,26 @@ export default function SubjectsPage() {
   const itemsPerPage = 10;
 
   useEffect(() => {
-    loadSubjects();
-  }, []);
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const [subjectsData] = await Promise.all([
+          getSubjects()
+        ]);
+        setSubjects(subjectsData.subjects || []);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to load data'
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, [setIsLoading]);
 
   const handleSort = (key) => {
     setSortConfig((prevConfig) => ({
@@ -71,26 +91,6 @@ export default function SubjectsPage() {
 
   const totalPages = Math.ceil(filteredSubjects.length / itemsPerPage);
 
-  const loadSubjects = async () => {
-    try {
-      const result = await getSubjects();
-      if (result.error) {
-        throw new Error(result.error);
-      }
-      setSubjects(result.subjects || []);
-    } catch (error) {
-      console.error('Error loading subjects:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Failed to load subjects',
-        confirmButtonColor: '#323E8F'
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleDelete = async (subjectCode) => {
     const result = await Swal.fire({
       title: 'Are you sure?',
@@ -108,7 +108,7 @@ export default function SubjectsPage() {
         if (response.error) {
           throw new Error(response.error);
         }
-        await loadSubjects();
+        setSubjects(subjects.filter(subject => subject.subjectCode !== subjectCode));
         Swal.fire({
           icon: 'success',
           title: 'Deleted!',
@@ -145,7 +145,28 @@ export default function SubjectsPage() {
   const handleModalSuccess = () => {
     setShowModal(false);
     setSelectedSubject(null);
-    loadSubjects();
+    setSubjects([]);
+    useEffect(() => {
+      const fetchData = async () => {
+        setIsLoading(true);
+        try {
+          const [subjectsData] = await Promise.all([
+            getSubjects()
+          ]);
+          setSubjects(subjectsData.subjects || []);
+        } catch (error) {
+          console.error('Error fetching data:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to load data'
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchData();
+    }, [setIsLoading]);
   };
 
   const getSortIcon = (key) => {

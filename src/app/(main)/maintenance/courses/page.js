@@ -10,10 +10,11 @@ import {
 import AddEditCourseModal from './_components/AddEditCourseModal';
 import { getCourses, removeCourse } from './_actions';
 import Swal from 'sweetalert2';
+import { useLoading } from '../../../context/LoadingContext';
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { isLoading, setIsLoading } = useLoading();
   const [showModal, setShowModal] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -23,28 +24,28 @@ export default function CoursesPage() {
   });
 
   useEffect(() => {
-    loadCourses();
-  }, []);
-
-  const loadCourses = async () => {
-    try {
-      const result = await getCourses();
-      if (result.error) {
-        throw new Error(result.error);
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const result = await getCourses();
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        setCourses(result.courses || []);
+      } catch (error) {
+        console.error('Error loading courses:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to load courses',
+          confirmButtonColor: '#323E8F'
+        });
+      } finally {
+        setIsLoading(false);
       }
-      setCourses(result.courses || []);
-    } catch (error) {
-      console.error('Error loading courses:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Failed to load courses',
-        confirmButtonColor: '#323E8F'
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+    fetchData();
+  }, [setIsLoading]);
 
   const handleSort = (key) => {
     setSortConfig((prevConfig) => ({
@@ -95,7 +96,7 @@ export default function CoursesPage() {
         if (response.error) {
           throw new Error(response.error);
         }
-        await loadCourses();
+        setCourses(courses.filter(course => course.courseCode !== courseCode));
         Swal.fire({
           icon: 'success',
           title: 'Deleted!',
@@ -132,7 +133,27 @@ export default function CoursesPage() {
   const handleModalSuccess = () => {
     setShowModal(false);
     setSelectedCourse(null);
-    loadCourses();
+    setIsLoading(true);
+    const fetchData = async () => {
+      try {
+        const result = await getCourses();
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        setCourses(result.courses || []);
+      } catch (error) {
+        console.error('Error loading courses:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to load courses',
+          confirmButtonColor: '#323E8F'
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
   };
 
   const getSortIcon = (key) => {
