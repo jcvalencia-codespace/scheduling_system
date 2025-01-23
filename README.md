@@ -44,4 +44,4 @@ To run the application locally, follow these steps:
 - Filter schedules by section using the dropdown menu.
 
 ## License
-This project is licensed under the kupals Ruben, Jairus and Lance
+This project is licensed under the kupals Ruben, Jairus, and Lance
