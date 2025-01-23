@@ -1,4 +1,4 @@
-# Schedule Management Application
+# SCHEDNU (NUB Schedule Management Application)
 
 ## Overview
 This project is a Schedule Management Application designed to help users manage and view class schedules. It provides a user-friendly interface for viewing, adding, and editing schedules, utilizing modern UI components and mock data for testing.
