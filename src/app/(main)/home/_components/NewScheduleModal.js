@@ -35,13 +35,13 @@ export default function NewScheduleModal({ isOpen, onClose }) {
               leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel className="w-full max-w-3xl transform overflow-hidden rounded-lg bg-white p-6 text-left align-middle shadow-xl transition-all">
-                <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900 mb-4">
+                <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-black mb-4">
                   New Schedule
                 </Dialog.Title>
 
                 {/* School Year and Term Info */}
                 <div className="bg-blue-50 p-4 rounded-lg mb-6">
-                  <div className="space-y-1">
+                  <div className="space-y-1 text-black">
                     <div className="flex gap-2">
                       <span className="font-medium">School Year:</span>
                       <span>{schoolYear}</span>
@@ -55,12 +55,12 @@ export default function NewScheduleModal({ isOpen, onClose }) {
 
                 {/* Checkboxes */}
                 <div className="flex gap-6 mb-6">
-                  <label className="flex items-center gap-2">
-                    <input type="checkbox" className="rounded border-gray-300" />
+                  <label className="flex items-center gap-2 text-black">
+                    <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                     <span>Pairing Schedule</span>
                   </label>
-                  <label className="flex items-center gap-2">
-                    <input type="checkbox" className="rounded border-gray-300" />
+                  <label className="flex items-center gap-2 text-black">
+                    <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                     <span>Multiple Sections</span>
                   </label>
                 </div>
@@ -70,34 +70,34 @@ export default function NewScheduleModal({ isOpen, onClose }) {
                   {/* Left Column */}
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Class</label>
-                      <select className="w-full rounded-md border border-gray-300 p-2">
-                        <option value="">Select a Class</option>
+                      <label className="block text-sm font-medium text-black mb-1">Section</label>
+                      <select className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">Select a Section</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Faculty</label>
-                      <select className="w-full rounded-md border border-gray-300 p-2">
+                      <label className="block text-sm font-medium text-black mb-1">Faculty</label>
+                      <select className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Select a User</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-                      <select className="w-full rounded-md border border-gray-300 p-2">
+                      <label className="block text-sm font-medium text-black mb-1">Subject</label>
+                      <select className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Select a Subject</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Class Limit</label>
+                      <label className="block text-sm font-medium text-black mb-1">Class Limit</label>
                       <input
                         type="number"
-                        className="w-full rounded-md border border-gray-300 p-2"
+                        className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
                         placeholder="Enter class limit"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Student Type</label>
-                      <select className="w-full rounded-md border border-gray-300 p-2">
+                      <label className="block text-sm font-medium text-black mb-1">Student Type</label>
+                      <select className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Select Student Type</option>
                       </select>
                     </div>
@@ -106,20 +106,20 @@ export default function NewScheduleModal({ isOpen, onClose }) {
                   {/* Right Column */}
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Days of Week</label>
-                      <select className="w-full rounded-md border border-gray-300 p-2">
+                      <label className="block text-sm font-medium text-black mb-1">Days of Week</label>
+                      <select className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Select a Day</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Room</label>
-                      <select className="w-full rounded-md border border-gray-300 p-2">
+                      <label className="block text-sm font-medium text-black mb-1">Room</label>
+                      <select className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Select a Room</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Schedule Type</label>
-                      <select className="w-full rounded-md border border-gray-300 p-2">
+                      <label className="block text-sm font-medium text-black mb-1">Schedule Type</label>
+                      <select className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500">
                         {scheduleTypes.map((type) => (
                           <option key={type} value={type.toLowerCase()}>
                             {type}
@@ -128,14 +128,14 @@ export default function NewScheduleModal({ isOpen, onClose }) {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Time From</label>
-                      <select className="w-full rounded-md border border-gray-300 p-2">
+                      <label className="block text-sm font-medium text-black mb-1">Time From</label>
+                      <select className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Select Time From</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Time To</label>
-                      <select className="w-full rounded-md border border-gray-300 p-2">
+                      <label className="block text-sm font-medium text-black mb-1">Time To</label>
+                      <select className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500">
                         <option value="">Select Time To</option>
                       </select>
                     </div>
@@ -146,7 +146,7 @@ export default function NewScheduleModal({ isOpen, onClose }) {
                 <div className="flex justify-end gap-3">
                   <button
                     type="button"
-                    className="rounded-md bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 border border-gray-300"
+                    className="rounded-md bg-white px-4 py-2 text-sm font-medium text-black hover:bg-gray-50 border border-gray-300"
                     onClick={onClose}
                   >
                     Cancel

@@ -1,54 +1,161 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import {
   PencilSquareIcon,
   TrashIcon,
   CheckCircleIcon,
 } from '@heroicons/react/24/outline';
-import AddTermModal from './_components/AddTermModal';
+import AddEditTermModal from './_components/AddEditTermModal';
+import { getTerms, activateTerm, deactivateTerm, removeTerm } from './_actions';
+import Swal from 'sweetalert2';
+import { useLoading } from '../../context/LoadingContext';
 
 export default function TermPage() {
+  const [terms, setTerms] = useState([]);
+  const { isLoading, setIsLoading } = useLoading();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedTerm, setSelectedTerm] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [entriesPerPage, setEntriesPerPage] = useState(10);
 
-  // Sample data - replace with actual data fetching
-  const terms = [
-    {
-      id: 1,
-      academicYear: '2024-2025',
-      term: 'Term 1',
-      startDate: '2024-08-05',
-      endDate: '2024-11-06',
-      status: 'Active',
-    },
-    {
-      id: 2,
-      academicYear: '2024-2025',
-      term: 'Term 2',
-      startDate: '2024-11-18',
-      endDate: '2025-03-25',
-      status: 'Inactive',
-    },
-    {
-      id: 3,
-      academicYear: '2024-2025',
-      term: 'Term 3',
-      startDate: '2025-03-17',
-      endDate: '2025-06-02',
-      status: 'Inactive',
-    },
-    {
-      id: 4,
-      academicYear: '2025-2026',
-      term: 'Term 1',
-      startDate: '2025-08-11',
-      endDate: '2025-11-11',
-      status: 'Inactive',
-    },
-  ];
+  useEffect(() => {
+    fetchTerms();
+  }, []);
+
+  const fetchTerms = async () => {
+    setIsLoading(true);
+    try {
+      const response = await getTerms();
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      setTerms(response.terms || []);
+    } catch (error) {
+      console.error('Error fetching terms:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to load terms',
+        confirmButtonColor: '#323E8F'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleActivate = async (id, currentStatus, termInfo) => {
+    try {
+      const activeTerm = terms.find(t => t.status === 'Active');
+      
+      if (currentStatus === 'Active') {
+        const result = await Swal.fire({
+          title: 'Deactivate Term?',
+          text: 'Are you sure you want to deactivate this term? This will leave no active term in the system.',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#d33',
+          cancelButtonColor: '#323E8F',
+          confirmButtonText: 'Yes, deactivate it'
+        });
+        
+        if (!result.isConfirmed) return;
+        
+        // Call API to deactivate
+        const response = await deactivateTerm(id);
+        if (response.error) {
+          throw new Error(response.error);
+        }
+        await fetchTerms();
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Term Deactivated',
+          text: 'The term has been deactivated successfully.',
+          confirmButtonColor: '#323E8F'
+        });
+      } else {
+        // Activating a term
+        let confirmText = `Are you sure you want to activate ${termInfo.term} (${termInfo.academicYear})?`;
+        if (activeTerm) {
+          confirmText += `\n\nThis will deactivate the current active term: ${activeTerm.term} (${activeTerm.academicYear})`;
+        }
+        
+        const result = await Swal.fire({
+          title: 'Activate Term?',
+          text: confirmText,
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#323E8F',
+          cancelButtonColor: '#d33',
+          confirmButtonText: 'Yes, activate it'
+        });
+        
+        if (!result.isConfirmed) return;
+        
+        // Call API to activate
+        const response = await activateTerm(id);
+        if (response.error) {
+          throw new Error(response.error);
+        }
+        await fetchTerms();
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Term Activated',
+          text: activeTerm 
+            ? 'The term has been activated and the previous active term has been deactivated.'
+            : 'The term has been activated successfully.',
+          confirmButtonColor: '#323E8F'
+        });
+      }
+    } catch (error) {
+      console.error('Error managing term status:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error.message || 'Failed to update term status',
+        confirmButtonColor: '#323E8F'
+      });
+    }
+  };
+
+  const handleDelete = async (id) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: 'You will not be able to recover this term!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#323E8F',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const response = await removeTerm(id);
+        if (response.error) {
+          throw new Error(response.error);
+        }
+        await fetchTerms();
+        Swal.fire({
+          icon: 'success',
+          title: 'Deleted!',
+          text: 'Term has been deleted.',
+          confirmButtonColor: '#323E8F'
+        });
+      } catch (error) {
+        console.error('Error deleting term:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: error.message || 'Failed to delete term',
+          confirmButtonColor: '#323E8F'
+        });
+      }
+    }
+  };
 
   // Filtering function
   const filteredTerms = useMemo(() => {
@@ -60,11 +167,6 @@ export default function TermPage() {
       )
     );
   }, [terms, searchQuery]);
-
-  const handleActivate = (termId) => {
-    // Handle activation logic here
-    console.log('Activating term:', termId);
-  };
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -81,10 +183,14 @@ export default function TermPage() {
               Manage academic terms and their schedules.
             </p>
           </div>
-          <div className="mt-4 sm:mt-0">
+          <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
             <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="inline-flex items-center justify-center rounded-md border border-transparent bg-[#323E8F] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#35408E] focus:outline-none focus:ring-2 focus:ring-[#323E8F] focus:ring-offset-2 sm:w-auto"
+              type="button"
+              onClick={() => {
+                setSelectedTerm(null);
+                setIsAddModalOpen(true);
+              }}
+              className="block rounded-md bg-[#323E8F] px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-[#35408E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#323E8F]"
             >
               Add Term
             </button>
@@ -168,37 +274,40 @@ export default function TermPage() {
                               {formatDate(term.endDate)}
                             </td>
                             <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                              <div className="flex justify-end space-x-2">
+                              <div className="flex justify-end items-center space-x-3">
                                 <button
-                                  className="text-[#323E8F] hover:text-[#35408E]"
+                                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-[#323E8F] hover:text-[#35408E] hover:bg-[#323E8F]/5 transition-colors duration-200"
                                   onClick={() => {
-                                    // Handle edit
+                                    setSelectedTerm(term);
+                                    setIsAddModalOpen(true);
                                   }}
                                 >
-                                  <PencilSquareIcon className="h-5 w-5" />
+                                  <PencilSquareIcon className="h-4 w-4 mr-1.5" />
+                                  <span>Edit</span>
                                 </button>
                                 <button
-                                  className="text-red-600 hover:text-red-900"
-                                  onClick={() => {
-                                    // Handle delete
-                                  }}
+                                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors duration-200"
+                                  onClick={() => handleDelete(term.id)}
                                 >
-                                  <TrashIcon className="h-5 w-5" />
+                                  <TrashIcon className="h-4 w-4 mr-1.5" />
+                                  <span>Delete</span>
                                 </button>
-                                {term.status !== 'Active' && (
-                                  <button
-                                    onClick={() => handleActivate(term.id)}
-                                    className="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 hover:bg-yellow-100"
-                                  >
-                                    Activate
-                                  </button>
-                                )}
-                                {term.status === 'Active' && (
-                                  <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700">
-                                    <CheckCircleIcon className="mr-1 h-4 w-4" />
-                                    Active
-                                  </span>
-                                )}
+                                <button
+                                  className={`inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-200 ${
+                                    term.status === 'Active'
+                                      ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                                      : 'text-gray-600 hover:text-gray-700 hover:bg-gray-50'
+                                  }`}
+                                  onClick={() =>
+                                    handleActivate(term.id, term.status, {
+                                      term: term.term,
+                                      academicYear: term.academicYear,
+                                    })
+                                  }
+                                >
+                                  <CheckCircleIcon className="h-4 w-4 mr-1.5" />
+                                  <span>{term.status === 'Active' ? 'Active' : 'Activate'}</span>
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -211,10 +320,13 @@ export default function TermPage() {
             </div>
 
             {/* Add Term Modal */}
-            <AddTermModal
+            <AddEditTermModal
               open={isAddModalOpen}
               setOpen={setIsAddModalOpen}
-              title="Add New Term"
+              title={selectedTerm ? 'Edit Term' : 'Add Term'}
+              selectedTerm={selectedTerm}
+              onSuccess={fetchTerms}
+              terms={terms}
             />
           </div>
         </div>

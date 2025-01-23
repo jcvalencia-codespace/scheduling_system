@@ -224,11 +224,45 @@ const SectionSchema = new Schema({
   collection: 'sections'
 });
 
+const TermSchema = new Schema({
+  academicYear: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  term: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  startDate: {
+    type: Date,
+    required: true
+  },
+  endDate: {
+    type: Date,
+    required: true
+  },
+  status: {
+    type: String,
+    required: true,
+    enum: ['Active', 'Inactive'],
+    default: 'Inactive'
+  }
+}, {
+  timestamps: true,
+  collection: 'terms'
+});
+
+TermSchema.index({ academicYear: 1, term: 1 }, { unique: true });
+TermSchema.index({ status: 1 });
+
 export {
   UserSchema,
   SubjectSchema,
   DepartmentSchema,
   CourseSchema,
   RoomSchema,
-  SectionSchema
+  SectionSchema,
+  TermSchema
 };

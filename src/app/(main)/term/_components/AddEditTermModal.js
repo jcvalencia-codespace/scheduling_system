@@ -1,22 +1,170 @@
 'use client';
 
-import { Fragment, useState } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { addTerm, editTerm } from '../_actions';
+import Swal from 'sweetalert2';
 
-export default function AddTermModal({ open, setOpen, title }) {
+export default function AddEditTermModal({ open, setOpen, title, selectedTerm, onSuccess, terms }) {
   const [formData, setFormData] = useState({
     academicYear: '',
     term: '',
     startDate: '',
     endDate: '',
   });
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  // Reset form when modal opens/closes or when selectedTerm changes
+  useEffect(() => {
+    // Reset form data and error
+    if (selectedTerm) {
+      // Convert dates from YYYY-MM-DD to the format expected by the date input
+      setFormData({
+        academicYear: selectedTerm.academicYear,
+        term: selectedTerm.term,
+        startDate: selectedTerm.startDate, // Keep as YYYY-MM-DD for date input
+        endDate: selectedTerm.endDate, // Keep as YYYY-MM-DD for date input
+      });
+    } else {
+      setFormData({
+        academicYear: '',
+        term: '',
+        startDate: '',
+        endDate: '',
+      });
+    }
+    setError('');
+  }, [selectedTerm]);
+
+  // Clear form when modal closes
+  useEffect(() => {
+    if (!open) {
+      setFormData({
+        academicYear: '',
+        term: '',
+        startDate: '',
+        endDate: '',
+      });
+      setError('');
+    }
+  }, [open]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Handle form submission
-    console.log('Form submitted:', formData);
-    setOpen(false);
+    setError(''); // Clear any existing errors
+    try {
+      // Parse dates handling both MM/DD/YYYY and YYYY-MM-DD formats
+      const parseDate = (dateStr) => {
+        if (!dateStr) return null;
+        
+        // Check if date is already in YYYY-MM-DD format
+        if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          const [year, month, day] = dateStr.split('-');
+          return new Date(year, month - 1, day);
+        }
+        
+        // Parse MM/DD/YYYY format
+        const parts = dateStr.split('/');
+        if (parts.length !== 3) {
+          setError('Invalid date format. Please use MM/DD/YYYY');
+          return null;
+        }
+        
+        const [month, day, year] = parts;
+        return new Date(year, month - 1, day);
+      };
+
+      const formatDate = (date) => {
+        const months = [
+          'January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+      };
+
+      const startDate = parseDate(formData.startDate);
+      const endDate = parseDate(formData.endDate);
+      
+      // Validate dates are valid
+      if (!startDate || !endDate || isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        setError('Invalid date format');
+        return;
+      }
+
+      // Compare dates without time components
+      const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+      const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+      
+      if (startDateOnly >= endDateOnly) {
+        setError('End date must be after start date');
+        return;
+      }
+
+      // Check for overlapping terms
+      const existingTerms = terms.filter(term => 
+        // Exclude current term when editing
+        selectedTerm ? term.id !== selectedTerm.id : true
+      );
+
+      for (const term of existingTerms) {
+        const termStart = parseDate(term.startDate);
+        const termEnd = parseDate(term.endDate);
+        
+        // Check if either the start or end date falls within another term's range
+        const overlap = (
+          (startDate >= termStart && startDate <= termEnd) || // New start date overlaps
+          (endDate >= termStart && endDate <= termEnd) ||     // New end date overlaps
+          (startDate <= termStart && endDate >= termEnd)      // New term completely encompasses existing term
+        );
+
+        if (overlap) {
+          setError(`Date range overlaps with ${term.term} (${term.academicYear}): ${formatDate(termStart)} - ${formatDate(termEnd)}`);
+          return;
+        }
+      }
+
+      const formDataToSend = new FormData();
+      Object.entries(formData).forEach(([key, value]) => {
+        // Convert dates to ISO format for sending to server
+        if (key === 'startDate' || key === 'endDate') {
+          const date = parseDate(value);
+          formDataToSend.append(key, date.toISOString().split('T')[0]);
+        } else {
+          formDataToSend.append(key, value);
+        }
+      });
+
+      const response = selectedTerm
+        ? await editTerm(selectedTerm.id, formDataToSend)
+        : await addTerm(formDataToSend);
+
+      if (response.error) {
+        setError(response.error);
+        return;
+      }
+
+      // Reset form data
+      setFormData({
+        academicYear: '',
+        term: '',
+        startDate: '',
+        endDate: '',
+      });
+
+      onSuccess?.();
+      setOpen(false);
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Success',
+        text: `Term ${selectedTerm ? 'updated' : 'added'} successfully`,
+        confirmButtonColor: '#323E8F'
+      });
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      setError(error.message || `Failed to ${selectedTerm ? 'update' : 'add'} term`);
+    }
   };
 
   const handleChange = (e) => {
@@ -80,6 +228,11 @@ export default function AddTermModal({ open, setOpen, title }) {
                     >
                       {title}
                     </Dialog.Title>
+                    {error && (
+                      <div className="mb-4 p-3 rounded-md bg-red-50 border border-red-200">
+                        <p className="text-sm text-red-600">{error}</p>
+                      </div>
+                    )}
                     <form onSubmit={handleSubmit} className="space-y-4">
                       <div>
                         <label
@@ -93,7 +246,7 @@ export default function AddTermModal({ open, setOpen, title }) {
                           name="academicYear"
                           value={formData.academicYear}
                           onChange={handleChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black"
                           required
                         >
                           <option value="">Select Academic Year</option>
@@ -117,7 +270,7 @@ export default function AddTermModal({ open, setOpen, title }) {
                           name="term"
                           value={formData.term}
                           onChange={handleChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black"
                           required
                         >
                           <option value="">Select Term</option>
@@ -136,11 +289,11 @@ export default function AddTermModal({ open, setOpen, title }) {
                         </label>
                         <input
                           type="date"
-                          name="startDate"
                           id="startDate"
+                          name="startDate"
                           value={formData.startDate}
                           onChange={handleChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black"
                           required
                         />
                       </div>
@@ -154,11 +307,11 @@ export default function AddTermModal({ open, setOpen, title }) {
                         </label>
                         <input
                           type="date"
-                          name="endDate"
                           id="endDate"
+                          name="endDate"
                           value={formData.endDate}
                           onChange={handleChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black"
                           required
                         />
                       </div>
@@ -168,7 +321,7 @@ export default function AddTermModal({ open, setOpen, title }) {
                           type="submit"
                           className="inline-flex w-full justify-center rounded-md bg-[#323E8F] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#35408E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#323E8F] sm:col-start-2"
                         >
-                          Add Term
+                          {selectedTerm ? 'Update Term' : 'Add Term'}
                         </button>
                         <button
                           type="button"
