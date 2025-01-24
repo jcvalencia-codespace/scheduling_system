@@ -1,21 +1,35 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 const Loading = () => {
+  const [error, setError] = useState(null);
+
+  const handleError = (err) => {
+    console.error('Lottie Animation Error:', err);
+    setError(err);
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="flex flex-col items-center">
         <div className="w-[200px] h-[200px] flex items-center justify-center">
           <div className="w-full h-full">
-            <DotLottieReact
-              src="https://lottie.host/880ae3cb-096a-4b88-aba6-652a75fcfdfb/qiL4H5TrzZ.json"
-              loop
-              autoplay
-              className="w-full h-full"
-              renderer="svg"
-            />
+            {error ? (
+              <div className="text-red-500">
+                Failed to load animation. Please refresh or try again later.
+              </div>
+            ) : (
+              <DotLottieReact
+                src="https://lottie.host/880ae3cb-096a-4b88-aba6-652a75fcfdfb/qiL4H5TrzZ.json"
+                loop
+                autoplay
+                className="w-full h-full"
+                renderer="svg"
+                onError={handleError}
+              />
+            )}
           </div>
         </div>
         <div className="text-white text-xl font-semibold mt-4 flex items-center space-x-1">

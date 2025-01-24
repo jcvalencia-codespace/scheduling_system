@@ -6,7 +6,7 @@ const publicPaths = ['/login', '/forgot-password']
 
 export async function middleware(request) {
   const { pathname } = request.nextUrl
-  
+
   // Get session cookie
   const sessionCookie = request.cookies.get('schednu-session')
   const isAuthenticated = !!sessionCookie?.value
@@ -32,16 +32,4 @@ export async function middleware(request) {
 }
 
 // Configure paths that should be checked by middleware
-export const config = {
-  matcher: [
-    /*
-     * Match all request paths except:
-     * - api routes
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico|public/).*)',
-  ],
-}
+export const config = { matcher: ["/((?!api|_next/static|_next/image|.*\\.png$|.*\\.jpg$).*)"] };
