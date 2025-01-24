@@ -33,7 +33,6 @@ export async function middleware(request) {
 
 // Configure paths that should be checked by middleware
 export const config = {
-  runtime: 'edge',
   matcher: [
     /*
      * Match all request paths except:
