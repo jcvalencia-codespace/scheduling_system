@@ -4,17 +4,42 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
+import { login } from '../_actions';
+import useAuthStore from '@/store/useAuthStore';
 
 export default function LoginPage() {
   const router = useRouter();
+  const setUser = useAuthStore((state) => state.setUser);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    router.push('/home');
+    setError('');
+    setLoading(true);
+
+    const formData = new FormData(e.target);
+    try {
+      const response = await login(formData);
+      
+      if (response.error) {
+        setError(response.error);
+        return;
+      }
+
+      if (response.success) {
+        setUser(response.user);
+        router.push('/home');
+      }
+    } catch (err) {
+      setError('An error occurred during login');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleClear = () => {
@@ -22,6 +47,7 @@ export default function LoginPage() {
       email: '',
       password: ''
     });
+    setError('');
   };
 
   const handleChange = (e) => {
@@ -64,6 +90,12 @@ export default function LoginPage() {
             </div>
           </div>
 
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="flex items-center text-gray-700 text-sm font-medium mb-2">
@@ -74,12 +106,13 @@ export default function LoginPage() {
                 </svg>
               </label>
               <input
-                type="text"
+                type="email"
                 name="email"
-                placeholder="Enter your username"
                 value={formData.email}
                 onChange={handleChange}
+                required
                 className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-500"
+                placeholder="Enter your email"
               />
             </div>
 
@@ -93,19 +126,21 @@ export default function LoginPage() {
               <input
                 type="password"
                 name="password"
-                placeholder="Enter your password"
                 value={formData.password}
                 onChange={handleChange}
+                required
                 className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-500"
+                placeholder="Enter your password"
               />
             </div>
 
             <div className="flex gap-4">
               <button
                 type="submit"
-                className="w-full bg-[#00204A] text-white py-2 px-4 rounded-md hover:bg-[#002b63] transition-colors"
+                disabled={loading}
+                className="w-full bg-[#00204A] text-white py-2 px-4 rounded-md hover:bg-[#002b63] transition-colors disabled:opacity-50"
               >
-                Login
+                {loading ? 'Logging in...' : 'Login'}
               </button>
               <button
                 type="button"

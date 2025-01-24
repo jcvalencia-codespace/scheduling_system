@@ -6,12 +6,17 @@ import { MagnifyingGlassIcon, BellIcon, ChevronDownIcon, Bars3Icon } from '@hero
 import { SunIcon, MoonIcon } from '@heroicons/react/24/solid';
 import { useTheme } from '../context/ThemeContext';
 import { useSidebar } from '../context/SidebarContext';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import useAuthStore from '@/store/useAuthStore';
+import { logout } from '../(login)/_actions';
 
 export default function TopBar() {
   const { theme, setTheme } = useTheme();
   const { toggleSidebar } = useSidebar();
   const pathname = usePathname();
+  const router = useRouter();
+  const [showDropdown, setShowDropdown] = useState(false);
+  const { user, logout: logoutStore } = useAuthStore();
 
   // Function to get page title from pathname
   const getPageTitle = (path) => {
@@ -25,6 +30,16 @@ export default function TopBar() {
       .split('-')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      logoutStore();
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   return (
@@ -45,18 +60,6 @@ export default function TopBar() {
 
         {/* Right: Search, Theme Toggle, Notifications, Profile */}
         <div className="flex items-center space-x-4">
-          {/* Search */}
-          {/* <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
-            </div>
-            <input
-              type="search"
-              placeholder="Search"
-              className="w-full rounded-full border-0 bg-gray-100 py-2 pl-10 pr-4 text-sm text-gray-900 placeholder:text-gray-500 focus:bg-white focus:ring-2 focus:ring-[#323E8F] dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-400"
-            />
-          </div> */}
-
           {/* Theme Toggle */}
           <div className="flex items-center rounded-full bg-gray-100 p-1 dark:bg-gray-800">
             <button
@@ -89,22 +92,47 @@ export default function TopBar() {
             </span>
           </button>
 
-          {/* Profile */}
-          <button className="flex items-center space-x-3">
-            <div className="relative h-10 w-10 overflow-hidden rounded-full">
-              <Image
-                src="/nu-shield.png"
-                alt="Profile"
-                fill
-                className="object-cover"
-              />
-            </div>
-            <div className="hidden sm:block text-left">
-              <div className="text-sm font-medium text-gray-900 dark:text-white">Jhon Smith</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">Administrator</div>
-            </div>
-            <ChevronDownIcon className="h-5 w-5 text-gray-400" />
-          </button>
+          {/* Profile Dropdown */}
+          <div className="relative">
+            <button 
+              className="flex items-center space-x-3"
+              onClick={() => setShowDropdown(!showDropdown)}
+            >
+              <div className="relative h-10 w-10 overflow-hidden rounded-full">
+                <Image
+                  src="/nu-shield.png"
+                  alt="Profile"
+                  fill
+                  className="object-cover"
+                />
+              </div>
+              <div className="hidden md:block text-left">
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {user?.firstName} {user?.lastName}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {user?.role}
+                </p>
+              </div>
+              <ChevronDownIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+            </button>
+
+            {/* Dropdown Menu */}
+            {showDropdown && (
+              <div className="absolute right-0 mt-2 w-48 rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-gray-800">
+                <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 border-b dark:border-gray-700">
+                  <p className="font-medium">{user?.email}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{user?.department}</p>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
