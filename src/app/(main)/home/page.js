@@ -7,6 +7,10 @@ import { getActiveTerm } from './_actions';
 import { format } from 'date-fns';
 import { useLoading } from '../../context/LoadingContext';
 import { mockSchedules, mockSections } from '../../mockdata/mockSchedules';
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import SchedulePDF from './_components/SchedulePDF';
+import PreviewPDFModal from './_components/PreviewPDFModal';
+
 
 export default function HomePage() {
   const [selectedSection, setSelectedSection] = useState('');
@@ -16,7 +20,9 @@ export default function HomePage() {
   const [activeTerm, setActiveTerm] = useState(null);
   const { isLoading, setIsLoading } = useLoading();
   const [schedules, setSchedules] = useState([]);
-  
+  const [isPDFPreviewOpen, setIsPDFPreviewOpen] = useState(false);
+
+
   useEffect(() => {
     fetchActiveTerm();
     // Set mock schedules
@@ -69,14 +75,14 @@ export default function HomePage() {
     // Convert timeSlot format "7:00 am" to hour number
     const [time] = timeSlot.split(' ');
     const currentHour = parseInt(time);
-    
+
     const schedule = schedules.find(schedule => {
       const fromHour = parseTime(schedule.timeFrom);
       const toHour = parseTime(schedule.timeTo);
-      
-      return schedule.days.includes(day) && 
-             (selectedSection === '' || schedule.sectionName === selectedSection) &&
-             currentHour === fromHour; // Only show at starting hour
+
+      return schedule.days.includes(day) &&
+        (selectedSection === '' || schedule.sectionName === selectedSection) &&
+        currentHour === fromHour; // Only show at starting hour
     });
 
     return schedule;
@@ -96,13 +102,13 @@ export default function HomePage() {
 
   const renderScheduleCell = (schedule) => {
     if (!schedule) return null;
-    
+
     const height = getScheduleHeight(schedule);
-    
+
     return (
-      <div 
+      <div
         className="absolute inset-x-0 bg-[#4285F4] text-white overflow-hidden z-10 cursor-pointer hover:bg-blue-600 transition-colors"
-        style={{ 
+        style={{
           height: `${height}rem`,
           top: '0',
           left: '1px',
@@ -135,10 +141,14 @@ export default function HomePage() {
             >
               + New Entry
             </button>
-            <button className="flex-1 sm:flex-initial flex items-center justify-center rounded-md bg-[#4A5568] px-3 sm:px-4 py-2 text-sm font-medium text-white hover:bg-gray-600 focus:outline-none">
+            <button
+              onClick={() => setIsPDFPreviewOpen(true)}
+              className="flex-1 sm:flex-initial flex items-center justify-center rounded-md bg-[#4A5568] px-3 sm:px-4 py-2 text-sm font-medium text-white hover:bg-gray-600 focus:outline-none"
+            >
               Print Schedule
             </button>
           </div>
+
         </div>
 
         {/* Section Selection */}
@@ -216,7 +226,7 @@ export default function HomePage() {
                           <td
                             key={`${day}-${time}`}
                             className="relative h-16 border-r last:border-r-0"
-                            style={{ 
+                            style={{
                               minHeight: '4rem',
                               position: 'relative'
                             }}
@@ -242,6 +252,17 @@ export default function HomePage() {
           isOpen={isViewScheduleModalOpen}
           onClose={() => setIsViewScheduleModalOpen(false)}
           schedule={selectedSchedule}
+        />
+        <PreviewPDFModal
+          isOpen={isPDFPreviewOpen}
+          onClose={() => setIsPDFPreviewOpen(false)}
+          pdfProps={{
+            activeTerm,
+            schedules,
+            timeSlots,
+            weekDays,
+            selectedSection
+          }}
         />
       </div>
     </div>

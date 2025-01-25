@@ -19,7 +19,7 @@ export const mockSchedules = [
     scheduleType: 'Lecture',
     days: ['Wednesday'],
     timeFrom: '7:00 am',
-    timeTo: '11:00 am',
+    timeTo: '11:20 am',
     classLimit: 40,
     studentType: 'Regular',
     building: 'ARC 221',
@@ -54,6 +54,68 @@ export const mockSchedules = [
     classLimit: 45,
     studentType: 'Regular',
     building: 'ARC 301',
+    term: {
+      academicYear: '2024-2025',
+      term: 'Term 1',
+      startDate: '2024-08-01',
+      endDate: '2024-12-20'
+    }
+  },
+  {
+    id: '3',
+    sectionName: 'BSCS 2A',
+    subjectCode: 'PROG101',
+    subjectName: 'Introduction to Programming',
+    faculty: {
+      id: 'f3',
+      firstName: 'A.',
+      lastName: 'Villanueva',
+      department: 'College of Computer Studies'
+    },
+    room: {
+      roomCode: 'Lab 2',
+      roomName: 'Laboratory 2',
+      type: 'Laboratory',
+      floor: '2nd Floor'
+    },
+    scheduleType: 'Laboratory',
+    days: ['Friday'],
+    timeFrom: '9:00 am',
+    timeTo: '12:00 pm',
+    classLimit: 30,
+    studentType: 'Regular',
+    building: 'Main Building',
+    term: {
+      academicYear: '2024-2025',
+      term: 'Term 1',
+      startDate: '2024-08-01',
+      endDate: '2024-12-20'
+    }
+  },
+  {
+    id: '4',
+    sectionName: 'BSCS 1A',
+    subjectCode: 'MATH101',
+    subjectName: 'Basic Mathematics',
+    faculty: {
+      id: 'f4',
+      firstName: 'R.',
+      lastName: 'Santos',
+      department: 'College of Computer Studies'
+    },
+    room: {
+      roomCode: 'R101',
+      roomName: 'Room 101',
+      type: 'Lecture',
+      floor: '1st Floor'
+    },
+    scheduleType: 'Lecture',
+    days: ['Tuesday', 'Thursday'],
+    timeFrom: '10:00 am',
+    timeTo: '11:30 am',
+    classLimit: 35,
+    studentType: 'Regular',
+    building: 'North Wing',
     term: {
       academicYear: '2024-2025',
       term: 'Term 1',

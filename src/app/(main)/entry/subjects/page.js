@@ -29,27 +29,28 @@ export default function SubjectsPage() {
   });
   const itemsPerPage = 10;
 
+  const fetchSubjects = async () => {
+    setIsLoading(true);
+    try {
+      const [subjectsData] = await Promise.all([
+        getSubjects()
+      ]);
+      setSubjects(subjectsData.subjects || []);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to load data'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const [subjectsData] = await Promise.all([
-          getSubjects()
-        ]);
-        setSubjects(subjectsData.subjects || []);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'Failed to load data'
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
-  }, [setIsLoading]);
+    fetchSubjects();
+  }, []);
 
   const handleSort = (key) => {
     setSortConfig((prevConfig) => ({
@@ -145,29 +146,9 @@ export default function SubjectsPage() {
   const handleModalSuccess = () => {
     setShowModal(false);
     setSelectedSubject(null);
-    setSubjects([]);
-    useEffect(() => {
-      const fetchData = async () => {
-        setIsLoading(true);
-        try {
-          const [subjectsData] = await Promise.all([
-            getSubjects()
-          ]);
-          setSubjects(subjectsData.subjects || []);
-        } catch (error) {
-          console.error('Error fetching data:', error);
-          Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Failed to load data'
-          });
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      fetchData();
-    }, [setIsLoading]);
+    fetchSubjects(); // Reuse the fetchSubjects function to refresh data
   };
+
 
   const getSortIcon = (key) => {
     if (sortConfig.key === key) {
