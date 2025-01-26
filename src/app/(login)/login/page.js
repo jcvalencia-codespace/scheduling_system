@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { login, requestOTP } from '../_actions';
+import { login, requestOTP, resendOTP } from '../_actions';
 import useAuthStore from '@/store/useAuthStore';
 
 export default function LoginPage() {
@@ -18,6 +18,11 @@ export default function LoginPage() {
     password: '',
     otp: ''
   });
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState(''); // 'success' or 'error'
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -29,14 +34,14 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
-
+    setAlertMessage('');
+    setAlertType('');
+    
     // If in initial stage, validate email and password
     if (formStage === 'initial') {
       if (!formData.email || !formData.password) {
-        setError('Please enter email and password');
-        setLoading(false);
+        setAlertMessage('Please enter email and password');
+        setAlertType('error');
         return;
       }
       
@@ -49,15 +54,17 @@ export default function LoginPage() {
         const response = await requestOTP(otpFormData);
         
         if (response.error) {
-          setError(response.error);
+          setAlertMessage(response.error);
+          setAlertType('error');
           return;
         }
 
         setFormStage('otp');
+        setAlertMessage('OTP sent successfully (Check Email)');
+        setAlertType('success');
       } catch (err) {
-        setError('An error occurred while requesting OTP');
-      } finally {
-        setLoading(false);
+        setAlertMessage('An error occurred while requesting OTP');
+        setAlertType('error');
       }
       return;
     }
@@ -69,10 +76,12 @@ export default function LoginPage() {
     loginFormData.append('otp', formData.otp);
 
     try {
+      setVerifyLoading(true);
       const response = await login(loginFormData);
       
       if (response.error) {
-        setError(response.error);
+        setAlertMessage(response.error);
+        setAlertType('error');
         return;
       }
 
@@ -81,9 +90,10 @@ export default function LoginPage() {
         router.push('/home');
       }
     } catch (err) {
-      setError('An error occurred during login');
+      setAlertMessage('An error occurred during login');
+      setAlertType('error');
     } finally {
-      setLoading(false);
+      setVerifyLoading(false);
     }
   };
 
@@ -93,7 +103,8 @@ export default function LoginPage() {
       password: '',
       otp: ''
     });
-    setError('');
+    setAlertMessage('');
+    setAlertType('');
     setFormStage('initial');
   };
 
@@ -102,8 +113,49 @@ export default function LoginPage() {
       ...prev,
       otp: '' // Clear OTP
     }));
-    setError('');
+    setAlertMessage('');
+    setAlertType('');
     setFormStage('initial');
+  };
+
+  const handleResendOTP = async () => {
+    if (resendCooldown > 0) return;
+
+    setResendLoading(true);
+    setAlertMessage('');
+    setAlertType('');
+
+    try {
+      const otpFormData = new FormData();
+      otpFormData.append('email', formData.email);
+      
+      const response = await resendOTP(otpFormData);
+      
+      if (response.error) {
+        setAlertMessage(response.error);
+        setAlertType('error');
+      } else {
+        // Start cooldown timer
+        setResendCooldown(60);
+        const cooldownInterval = setInterval(() => {
+          setResendCooldown((prev) => {
+            if (prev <= 1) {
+              clearInterval(cooldownInterval);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+
+        setAlertMessage('OTP resent successfully');
+        setAlertType('success');
+      }
+    } catch (err) {
+      setAlertMessage('An error occurred while resending OTP');
+      setAlertType('error');
+    } finally {
+      setResendLoading(false);
+    }
   };
 
   return (
@@ -138,9 +190,9 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {error && (
-            <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
-              {error}
+          {alertMessage && (
+            <div className={`mb-4 p-3 ${alertType === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'} rounded-lg`}>
+              {alertMessage}
             </div>
           )}
 
@@ -187,22 +239,50 @@ export default function LoginPage() {
               )}
 
               {formStage === 'otp' && (
-                <div>
-                  <label className="flex items-center text-gray-700 text-sm font-medium mb-2">
-                    <span className="mr-2">OTP</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M10 2a5 5 0 00-5 5v2a2 2 0 00-2 2v5a2 2 0 102 2h10a2 2 0 012 2v-5a2 2 0 002-2H7V9a3 3 0 016 0V7a3 3 0 00-3-3H5a2 2 0 00-2 2v2h2V7a3 3 0 013-3h5a2 2 0 012 2v1z" />
-                    </svg>
-                  </label>
-                  <input
-                    type="text"
-                    name="otp"
-                    value={formData.otp}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-500"
-                    placeholder="Enter 6-digit OTP"
-                  />
+                <div className="space-y-4">
+                  <div>
+                    <label className="flex items-center text-gray-700 text-sm font-medium mb-2">
+                      <span className="mr-2">OTP</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0110 0v4"/>
+                        <path d="M12 16a1 1 0 100-2 1 1 0 000 2z"/>
+                      </svg>
+                    </label>
+                    <input
+                      type="text"
+                      name="otp"
+                      value={formData.otp}
+                      onChange={handleChange}
+                      required
+                      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-500"
+                      placeholder="Enter 6-digit OTP"
+                    />
+                  </div>
+                  <div className="flex flex-col items-center space-y-4">
+                    <div className="flex justify-between space-x-4 w-full max-w-xs">
+                      <button
+                        type="submit"
+                        className="w-1/2 bg-[#00204A] text-white py-2 px-4 rounded-md hover:bg-[#002b63] transition-colors disabled:opacity-50"
+                      >
+                        {verifyLoading ? 'Verifying...' : 'Verify OTP'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleResendOTP}
+                        className={`w-1/2 bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition-colors ${resendCooldown > 0 || resendLoading ? 'disabled:opacity-50' : ''}`}
+                      >
+                        {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : resendLoading ? 'Resending...' : 'Resend OTP'}
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleBack}
+                      className="w-full max-w-xs bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 transition-colors"
+                    >
+                      Back
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -214,7 +294,7 @@ export default function LoginPage() {
                     type="submit"
                     className="w-full bg-[#00204A] text-white py-2 px-4 rounded-md hover:bg-[#002b63] transition-colors disabled:opacity-50"
                   >
-                    {loading ? 'Processing...' : 'Login'}
+                    {verifyLoading ? 'Processing...' : 'Login'}
                   </button>
                   <button
                     type="button"
@@ -225,31 +305,15 @@ export default function LoginPage() {
                   </button>
                 </>
               ) : (
-                <>
-                  <button
-                    type="submit"
-                    className="w-full bg-[#00204A] text-white py-2 px-4 rounded-md hover:bg-[#002b63] transition-colors disabled:opacity-50"
-                  >
-                    {loading ? 'Verifying...' : 'Verify OTP'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleBack}
-                    className="w-full bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition-colors disabled:opacity-50"
-                  >
-                    Back
-                  </button>
-                </>
+                <></>
               )}
             </div>
-
-            <div className="text-right">
+          </form>
+          <div className="text-right mt-2">
               <Link href="/forgot-password" className="text-blue-500 hover:text-blue-600 text-sm">
                 Forgot Password?
               </Link>
             </div>
-          </form>
-
           <div className="mt-4 text-center text-xs text-gray-500">
             <div className="text-align max-w-sm mx-auto">
               <p>All rights reserved. The trademarks and logos of National University® are used with permission from National University Inc. for educational purposes only. Unauthorized use is strictly prohibited.</p>

@@ -27,9 +27,11 @@ export async function generateOTP(email) {
 }
 
 export async function sendOTPEmail(email, otp) {
-  // Configure nodemailer with environment variables
+  // Configure nodemailer with Gmail SMTP
   const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // Use TLS
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS
@@ -37,9 +39,9 @@ export async function sendOTPEmail(email, otp) {
   });
 
   const mailOptions = {
-    from: `"SchedNu" <${process.env.EMAIL_USER}>`,
+    from: `"SchedNU" <${process.env.EMAIL_USER}>`,
     to: email,
-    subject: 'Your SchedNu Login OTP',
+    subject: 'OTP',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
         <div style="background-color: #00204A; color: white; padding: 10px; text-align: center;">
@@ -112,6 +114,32 @@ export async function requestOTP(formData) {
   } catch (error) {
     console.error('OTP request error:', error);
     return { error: 'An error occurred while requesting OTP' };
+  }
+}
+
+export async function resendOTP(formData) {
+  try {
+    await connectDB();
+
+    const email = formData.get('email');
+    const user = await User.getUserByEmail(email);
+    
+    if (!user) {
+      return { error: 'User not found' }
+    }
+
+    // Check if the user can request a new OTP (optional: add a cooldown)
+    const otp = await generateOTP(email);
+    const emailSent = await sendOTPEmail(email, otp);
+
+    if (!emailSent) {
+      return { error: 'Failed to send OTP email' }
+    }
+
+    return { success: true, message: 'New OTP sent successfully' };
+  } catch (error) {
+    console.error('Error resending OTP:', error);
+    return { error: 'An error occurred while resending OTP' }
   }
 }
 
