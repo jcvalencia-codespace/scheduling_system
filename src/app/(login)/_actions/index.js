@@ -39,24 +39,38 @@ export async function sendOTPEmail(email, otp) {
   });
 
   const mailOptions = {
-    from: `"SchedNU" <${process.env.EMAIL_USER}>`,
+    from: `"SCHED-NU" <${process.env.EMAIL_USER}>`,
     to: email,
-    subject: 'OTP',
+    subject: 'Login Verification',
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4;">
-        <div style="background-color: #00204A; color: white; padding: 10px; text-align: center;">
-          <h2>SchedNu Login Verification</h2>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
+        <div style="background-color: #00204A; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <img src="cid:nuShield" alt="NU Shield" style="width: 80px; height: 100px; margin-bottom: 15px; object-fit: contain;"/>
+          <h2 style="margin: 0; font-size: 24px;">SCHED-NU Login Verification</h2>
         </div>
-        <div style="padding: 20px; background-color: white;">
-          <p>Your One-Time Password (OTP) is:</p>
-          <h1 style="text-align: center; color: #00204A; letter-spacing: 5px;">${otp}</h1>
-          <p>This OTP will expire in 5 minutes. Do not share this with anyone.</p>
+        <div style="padding: 30px; background-color: white; border-radius: 0 0 8px 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <p style="color: #666; font-size: 16px; margin-bottom: 20px; font-weight: bold;">Your One-Time Password (OTP) is:</p>
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+            <h1 style="font-size: 32px; color: #00204A; letter-spacing: 8px; margin: 0; font-weight: bold;">${otp}</h1>
+          </div>
+          <p style="color: #666; font-size: 14px; margin-top: 20px;">
+            <span style="color: #dc3545;">⚠️ This OTP will expire in 5 minutes.</span><br>
+            For security reasons, please do not share this code with anyone.
+          </p>
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 14px; color: #666;">
+            If you didn't request this code, please ignore this email.
+          </div>
         </div>
-        <div style="text-align: center; padding: 10px; color: #888;">
-          ${new Date().getFullYear()} SchedNu. All rights reserved.
+        <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
+          ${new Date().getFullYear()} National University - Baliwag. All rights reserved.
         </div>
       </div>
-    `
+    `,
+    attachments: [{
+      filename: 'nu-shield.png',
+      path: process.cwd() + '/public/nu-shield.png',
+      cid: 'nuShield'
+    }]
   };
 
   try {

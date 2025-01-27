@@ -104,12 +104,12 @@ export default function Sidebar() {
 
   return (
     <div
-      className={`fixed inset-y-0 left-0 z-40 w-64 bg-white shadow-xl transition-transform duration-300 ease-in-out ${
+      className={`fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-gray-900 shadow-xl transition-transform duration-300 ease-in-out ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
       {/* Logo and Close Button */}
-      <div className="flex h-16 items-center justify-between border-b border-gray-200 px-4">
+      <div className="flex h-16 items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4">
         <div className="flex items-center gap-2">
           <Image
             src="/nu-shield.png"
@@ -117,12 +117,12 @@ export default function Sidebar() {
             width={32}
             height={32}
           />
-          <h1 className="text-xl font-bold text-[#323E8F]">NU Baliwag</h1>
+          <h1 className="text-xl font-bold text-[#323E8F] dark:text-white">NU Baliwag</h1>
         </div>
         {isMobile && (
           <button
             onClick={toggleSidebar}
-            className="rounded-lg p-1 text-gray-500 hover:bg-gray-100"
+            className="rounded-lg p-1 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             <XMarkIcon className="h-6 w-6" />
           </button>
@@ -130,7 +130,7 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex flex-col h-full bg-white">
+      <nav className="flex flex-col h-full bg-white dark:bg-gray-900">
         <div className="flex-1 overflow-y-auto">
           <ul className="flex flex-col space-y-1 p-4">
             {menuItems.map((item) => {
@@ -142,7 +142,7 @@ export default function Sidebar() {
                   <div className="relative">
                     <Link
                       href={item.href}
-                      className={`flex items-center justify-between p-2 rounded-md text-gray-900 hover:bg-[#FFD41C] hover:text-black ${
+                      className={`flex items-center justify-between p-2 rounded-md text-gray-900 dark:text-gray-100 hover:bg-[#FFD41C] hover:text-black dark:hover:text-black ${
                         isActive ? 'bg-[#323E8F] text-white' : ''
                       }`}
                       onClick={item.hasDropdown ? (e) => {
@@ -173,7 +173,7 @@ export default function Sidebar() {
                           <li key={subItem.title}>
                             <Link
                               href={subItem.href}
-                              className={`flex items-center space-x-2 p-2 rounded-md text-gray-900 hover:bg-[#FFD41C] hover:text-black ${
+                              className={`flex items-center space-x-2 p-2 rounded-md text-gray-900 dark:text-gray-100 hover:bg-[#FFD41C] hover:text-black dark:hover:text-black ${
                                 pathname === subItem.href ? 'bg-[#323E8F] text-white' : ''
                               }`}
                             >
@@ -192,8 +192,8 @@ export default function Sidebar() {
         </div>
 
         {/* Logout at bottom */}
-        <div className="p-4 border-t border-gray-200">
-          <button className="flex w-full items-center space-x-2 rounded-md p-2 text-gray-900 hover:bg-gray-100">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          <button className="flex w-full items-center space-x-2 rounded-md p-2 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800">
             <ArrowLeftOnRectangleIcon className="h-5 w-5" />
             <span>Logout</span>
           </button>
