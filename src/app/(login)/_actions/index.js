@@ -12,6 +12,18 @@ import crypto from 'crypto';
 // OTP storage (in a real app, use a more persistent storage like Redis)
 const otpStore = new Map();
 
+function cleanupExpiredOTPs() {
+  const now = Date.now();
+  for (const [email, data] of otpStore.entries()) {
+    if (data.expiresAt < now) {
+      otpStore.delete(email);
+    }
+  }
+}
+
+// Run cleanup every minute
+setInterval(cleanupExpiredOTPs, 60000);
+
 export async function generateOTP(email) {
   // Generate a 6-digit OTP
   const otp = crypto.randomInt(100000, 999999).toString();
@@ -110,10 +122,18 @@ export async function requestOTP(formData) {
     await connectDB();
 
     const email = formData.get('email');
+    const password = formData.get('password');
+    
     const user = await User.getUserByEmail(email);
     
     if (!user) {
       return { error: 'User not found' }
+    }
+
+    // Validate password before sending OTP
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return { error: 'Invalid password' };
     }
 
     // Generate and send OTP
@@ -212,4 +232,136 @@ export async function logout() {
   const session = await getIronSession(cookies(), sessionOptions)
   session.destroy()
   return { success: true }
+}
+
+async function generateResetOTP(email) {
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+  // Store OTP with expiration
+  otpStore.set(email, {
+    otp,
+    expiresAt
+  });
+
+  return otp;
+}
+
+export async function requestPasswordReset(formData) {
+  try {
+    await connectDB();
+
+    const email = formData.get('email');
+    const user = await User.getUserByEmail(email);
+    
+    if (!user) {
+      return { error: 'No account found with this email address' };
+    }
+
+    const otp = await generateResetOTP(email);
+    const emailSent = await sendResetOTPEmail(email, otp);
+
+    if (!emailSent) {
+      return { error: 'Failed to send reset instructions' };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error requesting password reset:', error);
+    return { error: 'An error occurred while processing your request' };
+  }
+}
+
+async function sendResetOTPEmail(email, otp) {
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    }
+  });
+
+  const mailOptions = {
+    from: `"SCHED-NU" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: 'Password Reset Request',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
+        <div style="background-color: #00204A; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <img src="cid:nuShield" alt="NU Shield" style="width: 80px; height: 100px; margin-bottom: 15px; object-fit: contain;"/>
+          <h2 style="margin: 0; font-size: 24px;">Password Reset Request</h2>
+        </div>
+        <div style="padding: 30px; background-color: white; border-radius: 0 0 8px 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <p style="color: #666; font-size: 16px; margin-bottom: 20px;">
+            We received a request to reset your password. Please use the following code to reset your password:
+          </p>
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+            <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #00204A;">
+              ${otp}
+            </span>
+          </div>
+          <p style="color: #666; font-size: 14px; margin-top: 20px;">
+            This code will expire in 10 minutes. If you didn't request a password reset, please ignore this email.
+          </p>
+        </div>
+        <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
+          ${new Date().getFullYear()} National University - Baliwag. All rights reserved.
+        </div>
+      </div>
+    `,
+    attachments: [{
+      filename: 'nu-shield.png',
+      path: process.cwd() + '/public/nu-shield.png',
+      cid: 'nuShield'
+    }]
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    return true;
+  } catch (error) {
+    console.error('Error sending reset password email:', error);
+    return false;
+  }
+}
+
+export async function verifyOTPAndResetPassword(formData) {
+  try {
+    await connectDB();
+
+    const email = formData.get('email');
+    const otp = formData.get('otp');
+    const newPassword = formData.get('newPassword');
+
+    // Check OTP validity
+    const storedData = otpStore.get(email);
+    if (!storedData || storedData.otp !== otp || storedData.expiresAt < Date.now()) {
+      return { error: 'Invalid or expired reset code' };
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    // Update password using email instead of ID
+    const user = await User.MODEL.findOneAndUpdate(
+      { email },
+      { $set: { password: hashedPassword } },
+      { new: true }
+    );
+
+    if (!user) {
+      return { error: 'User not found' };
+    }
+
+    // Delete the used OTP
+    otpStore.delete(email);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    return { error: 'An error occurred while resetting your password' };
+  }
 }

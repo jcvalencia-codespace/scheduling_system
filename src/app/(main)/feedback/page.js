@@ -1,51 +1,71 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { EnvelopeIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
+import { submitFeedback, getUserFeedback } from './_actions';
+import { useRouter } from 'next/navigation';
+import Swal from 'sweetalert2';
 
 export default function FeedbackPage() {
-  const [formData, setFormData] = useState({
-    subject: '',
-    message: '',
-    type: 'suggestion',
-    priority: 'normal',
-    attachScreenshot: null,
-  });
-
+  const router = useRouter();
+  const [userFeedback, setUserFeedback] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleChange = (e) => {
-    const { name, value, files } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: files ? files[0] : value,
-    }));
+  useEffect(() => {
+    loadUserFeedback();
+  }, []);
+
+  async function loadUserFeedback() {
+    const result = await getUserFeedback();
+    if (result.success) {
+      setUserFeedback(result.feedback);
+    }
+  }
+
+  const resetForm = () => {
+    const form = document.querySelector('form');
+    form.reset();
+    // Reset dropdowns to placeholder values
+    document.getElementById('type').value = '';
+    document.getElementById('priority').value = '';
+    setError(null);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError(null);
 
     try {
-      // Here you would typically send the feedback to your backend
-      console.log('Submitting feedback:', formData);
+      const formData = new FormData(e.target);
+      const result = await submitFeedback(formData);
       
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      setShowSuccess(true);
-      setFormData({
-        subject: '',
-        message: '',
-        type: 'suggestion',
-        priority: 'normal',
-        attachScreenshot: null,
-      });
+      if (result.error) {
+        setError(result.error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: result.error,
+          confirmButtonColor: '#323E8F'
+        });
+      } else {
+        // Show success message
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: 'Your feedback has been submitted successfully. Thank you for helping us improve!',
+          confirmButtonColor: '#323E8F'
+        });
 
-      // Hide success message after 3 seconds
-      setTimeout(() => setShowSuccess(false), 3000);
+        // Reset form and dropdowns
+        resetForm();
+        
+        // Update feedback list if needed
+        setUserFeedback([result.feedback, ...userFeedback]);
+      }
     } catch (error) {
+      setError('Failed to submit feedback. Please try again.');
       console.error('Error submitting feedback:', error);
     } finally {
       setIsSubmitting(false);
@@ -68,6 +88,21 @@ export default function FeedbackPage() {
           </div>
         </div>
 
+        {error && (
+          <div className="mt-4 rounded-md bg-red-50 p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-red-800">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="mt-8 bg-white shadow-lg rounded-lg">
           <div className="p-6 sm:p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -75,7 +110,7 @@ export default function FeedbackPage() {
                 <div className="sm:col-span-2">
                   <label
                     htmlFor="subject"
-                    className="block text-sm font-medium text-gray-700"
+                    className="block text-sm font-medium text-black"
                   >
                     Subject
                   </label>
@@ -85,10 +120,8 @@ export default function FeedbackPage() {
                       name="subject"
                       id="subject"
                       required
-                      value={formData.subject}
-                      onChange={handleChange}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
-                      placeholder="Brief description of your feedback"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black"
+                      placeholder="Brief title for your feedback"
                     />
                   </div>
                 </div>
@@ -96,18 +129,19 @@ export default function FeedbackPage() {
                 <div>
                   <label
                     htmlFor="type"
-                    className="block text-sm font-medium text-gray-700"
+                    className="block text-sm font-medium text-black"
                   >
                     Feedback Type
                   </label>
                   <select
                     id="type"
                     name="type"
-                    value={formData.type}
-                    onChange={handleChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
+                    required
+                    defaultValue=""
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black"
                   >
-                    <option value="suggestion">Suggestion</option>
+                    <option value="" disabled>Select feedback type</option>
+                    <option value="suggestion">Enhancement Suggestion</option>
                     <option value="bug">Bug Report</option>
                     <option value="feature">Feature Request</option>
                     <option value="other">Other</option>
@@ -117,28 +151,29 @@ export default function FeedbackPage() {
                 <div>
                   <label
                     htmlFor="priority"
-                    className="block text-sm font-medium text-gray-700"
+                    className="block text-sm font-medium text-black"
                   >
-                    Priority
+                    Priority Level
                   </label>
                   <select
                     id="priority"
                     name="priority"
-                    value={formData.priority}
-                    onChange={handleChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
+                    required
+                    defaultValue=""
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black"
                   >
-                    <option value="low">Low</option>
-                    <option value="normal">Normal</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
+                    <option value="" disabled>Select priority level</option>
+                    <option value="low">Low Priority</option>
+                    <option value="normal">Normal Priority</option>
+                    <option value="high">High Priority</option>
+                    <option value="urgent">Urgent Priority</option>
                   </select>
                 </div>
 
                 <div className="sm:col-span-2">
                   <label
                     htmlFor="message"
-                    className="block text-sm font-medium text-gray-700"
+                    className="block text-sm font-medium text-black"
                   >
                     Message
                   </label>
@@ -148,75 +183,19 @@ export default function FeedbackPage() {
                       name="message"
                       rows={6}
                       required
-                      value={formData.message}
-                      onChange={handleChange}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
-                      placeholder="Please provide detailed information about your feedback, including steps to reproduce if reporting a bug."
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black"
+                      placeholder="Please describe your feedback in detail. If reporting a bug, include steps to reproduce the issue."
                     />
                   </div>
                 </div>
 
-                <div className="sm:col-span-2">
-                  <label
-                    htmlFor="attachScreenshot"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Attach Screenshot (optional)
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      type="file"
-                      id="attachScreenshot"
-                      name="attachScreenshot"
-                      accept="image/*"
-                      onChange={handleChange}
-                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-[#323E8F] file:text-white hover:file:bg-[#35408E]"
-                    />
-                  </div>
-                  <p className="mt-1 text-sm text-gray-500">
-                    Accepted formats: PNG, JPG, JPEG. Max file size: 5MB
-                  </p>
-                </div>
               </div>
-
-              {showSuccess && (
-                <div className="rounded-md bg-green-50 p-4">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <svg
-                        className="h-5 w-5 text-green-400"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm font-medium text-green-800">
-                        Feedback submitted successfully! Thank you for helping us improve.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               <div className="flex justify-end space-x-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    setFormData({
-                      subject: '',
-                      message: '',
-                      type: 'suggestion',
-                      priority: 'normal',
-                      attachScreenshot: null,
-                    });
-                  }}
-                  className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#323E8F] focus:ring-offset-2"
+                  onClick={resetForm}
+                  className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-black shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#323E8F] focus:ring-offset-2"
                 >
                   Clear Form
                 </button>
@@ -258,16 +237,17 @@ export default function FeedbackPage() {
           </div>
         </div>
 
+
         <div className="mt-8 bg-white shadow-sm rounded-lg p-6">
-          <div className="flex items-center space-x-2 text-sm text-gray-500">
+          <div className="flex items-center space-x-2 text-sm text-black">
             <EnvelopeIcon className="h-5 w-5" />
             <span>
               You can also reach us directly at{' '}
               <a
-                href="mailto:support@schednu.com"
+                href="mailto:schednu@gmail.com"
                 className="text-[#323E8F] hover:text-[#35408E]"
               >
-                support@schednu.com
+                schednu@gmail.com
               </a>
             </span>
           </div>

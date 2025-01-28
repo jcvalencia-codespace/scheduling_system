@@ -22,6 +22,7 @@ export default function LoginPage() {
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState(''); // 'success' or 'error'
   const [verifyLoading, setVerifyLoading] = useState(false);
+  const [verifyStatus, setVerifyStatus] = useState('idle'); // 'idle', 'verifying', 'redirecting'
   const [resendLoading, setResendLoading] = useState(false);
 
   const handleChange = (e) => {
@@ -39,9 +40,11 @@ export default function LoginPage() {
     
     // If in initial stage, validate email and password
     if (formStage === 'initial') {
+      setVerifyLoading(true);
       if (!formData.email || !formData.password) {
         setAlertMessage('Please enter email and password');
         setAlertType('error');
+        setVerifyLoading(false);
         return;
       }
       
@@ -56,6 +59,7 @@ export default function LoginPage() {
         if (response.error) {
           setAlertMessage(response.error);
           setAlertType('error');
+          setVerifyLoading(false);
           return;
         }
 
@@ -65,35 +69,38 @@ export default function LoginPage() {
       } catch (err) {
         setAlertMessage('An error occurred while requesting OTP');
         setAlertType('error');
+      } finally {
+        setVerifyLoading(false);
       }
       return;
     }
 
     // If in OTP stage, verify login with OTP
+    setVerifyStatus('verifying');
     const loginFormData = new FormData();
     loginFormData.append('email', formData.email);
     loginFormData.append('password', formData.password);
     loginFormData.append('otp', formData.otp);
 
     try {
-      setVerifyLoading(true);
       const response = await login(loginFormData);
       
       if (response.error) {
         setAlertMessage(response.error);
         setAlertType('error');
+        setVerifyStatus('idle');
         return;
       }
 
       if (response.success) {
+        setVerifyStatus('redirecting');
         setUser(response.user);
         router.push('/home');
       }
     } catch (err) {
       setAlertMessage('An error occurred during login');
       setAlertType('error');
-    } finally {
-      setVerifyLoading(false);
+      setVerifyStatus('idle');
     }
   };
 
@@ -242,11 +249,9 @@ export default function LoginPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="flex items-center text-gray-700 text-sm font-medium mb-2">
-                      <span className="mr-2">OTP</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                        <path d="M7 11V7a5 5 0 0110 0v4"/>
-                        <path d="M12 16a1 1 0 100-2 1 1 0 000 2z"/>
+                      <span className="mr-2">OTP Code</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="h-4 w-4" fill="currentColor">
+                      <path d="M336 352c97.2 0 176-78.8 176-176S433.2 0 336 0S160 78.8 160 176c0 18.7 2.9 36.8 8.3 53.7L7 391c-4.5 4.5-7 10.6-7 17l0 80c0 13.3 10.7 24 24 24l80 0c13.3 0 24-10.7 24-24l0-40 40 0c13.3 0 24-10.7 24-24l0-40 40 0c6.4 0 12.5-2.5 17-7l33.3-33.3c16.9 5.4 35 8.3 53.7 8.3zM376 96a40 40 0 1 1 0 80 40 40 0 1 1 0-80z"/>
                       </svg>
                     </label>
                     <input
@@ -264,8 +269,11 @@ export default function LoginPage() {
                       <button
                         type="submit"
                         className="w-1/2 bg-[#00204A] text-white py-2 px-4 rounded-md hover:bg-[#002b63] transition-colors disabled:opacity-50"
+                        disabled={verifyLoading || verifyStatus !== 'idle'}
                       >
-                        {verifyLoading ? 'Verifying...' : 'Verify OTP'}
+                        {verifyStatus === 'verifying' ? 'Verifying...' :
+                         verifyStatus === 'redirecting' ? 'Redirecting...' :
+                         verifyLoading ? 'Processing...' : 'Verify OTP'}
                       </button>
                       <button
                         type="button"

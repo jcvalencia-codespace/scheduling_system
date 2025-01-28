@@ -254,6 +254,49 @@ const TermSchema = new Schema({
   collection: 'terms'
 });
 
+const FeedbackSchema = new Schema({
+  subject: {
+    type: String,
+    required: [true, 'Subject is required'],
+    trim: true
+  },
+  message: {
+    type: String,
+    required: [true, 'Message is required'],
+    trim: true
+  },
+  type: {
+    type: String,
+    required: true,
+    enum: ['suggestion', 'bug', 'feature', 'other'],
+    default: 'suggestion'
+  },
+  priority: {
+    type: String,
+    required: true,
+    enum: ['low', 'normal', 'high', 'urgent'],
+    default: 'normal'
+  },
+  status: {
+    type: String,
+    required: true,
+    enum: ['submitted', 'in-review', 'resolved', 'rejected'],
+    default: 'submitted'
+  },
+  submittedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'Users',
+    required: [true, 'User is required']
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  }
+}, {
+  timestamps: true,
+  collection: 'feedback'
+});
+
 TermSchema.index({ academicYear: 1, term: 1 }, { unique: true });
 TermSchema.index({ status: 1 });
 
@@ -264,5 +307,6 @@ export {
   CourseSchema,
   RoomSchema,
   SectionSchema,
-  TermSchema
+  TermSchema,
+  FeedbackSchema
 };
