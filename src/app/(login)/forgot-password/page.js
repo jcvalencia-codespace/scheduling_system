@@ -165,7 +165,7 @@ export default function ForgotPasswordPage() {
                       required
                       value={formData.otp}
                       onChange={handleChange}
-                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#323E8F] focus:border-[#323E8F] sm:text-sm"
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#323E8F] focus:border-[#323E8F] sm:text-sm text-black"
                       placeholder="Enter the 6-digit code"
                     />
                   </div>
@@ -186,7 +186,7 @@ export default function ForgotPasswordPage() {
                       required
                       value={formData.newPassword}
                       onChange={handleChange}
-                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#323E8F] focus:border-[#323E8F] sm:text-sm"
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#323E8F] focus:border-[#323E8F] sm:text-sm text-black"
                       placeholder="Enter new password"
                     />
                   
@@ -208,7 +208,7 @@ export default function ForgotPasswordPage() {
                       required
                       value={formData.confirmPassword}
                       onChange={handleChange}
-                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#323E8F] focus:border-[#323E8F] sm:text-sm"
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#323E8F] focus:border-[#323E8F] sm:text-sm text-black"
                       placeholder="Confirm new password"
                     />
                   
