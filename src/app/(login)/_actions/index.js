@@ -112,8 +112,12 @@ export async function verifyOTP(email, userProvidedOTP) {
     return { error: 'Invalid OTP' };
   }
 
-  // OTP is valid, remove it from store
-  otpStore.delete(email);
+  // Mark OTP as verified instead of deleting it
+  otpStore.set(email, {
+    ...storedOTP,
+    verified: true
+  });
+  
   return { success: true };
 }
 
@@ -335,9 +339,9 @@ export async function verifyOTPAndResetPassword(formData) {
     const otp = formData.get('otp');
     const newPassword = formData.get('newPassword');
 
-    // Check OTP validity
+    // Check OTP validity and verification status
     const storedData = otpStore.get(email);
-    if (!storedData || storedData.otp !== otp || storedData.expiresAt < Date.now()) {
+    if (!storedData || storedData.otp !== otp || storedData.expiresAt < Date.now() || !storedData.verified) {
       return { error: 'Invalid or expired reset code' };
     }
 
@@ -356,7 +360,7 @@ export async function verifyOTPAndResetPassword(formData) {
       return { error: 'User not found' };
     }
 
-    // Delete the used OTP
+    // Delete the used OTP after successful password reset
     otpStore.delete(email);
 
     return { success: true };

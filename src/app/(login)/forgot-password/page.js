@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { requestPasswordReset, verifyOTPAndResetPassword } from '../_actions';
+import { requestPasswordReset, verifyOTP, verifyOTPAndResetPassword } from '../_actions';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -9,7 +9,7 @@ import Image from 'next/image';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
-  const [formStage, setFormStage] = useState('email'); // email, otp
+  const [formStage, setFormStage] = useState('email'); // email, otp, password
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -49,6 +49,20 @@ export default function ForgotPasswordPage() {
           setFormStage('otp');
         }
       } else if (formStage === 'otp') {
+        // Verify OTP only first
+        const formDataObj = new FormData();
+        formDataObj.append('email', formData.email);
+        formDataObj.append('otp', formData.otp);
+        
+        const result = await verifyOTP(formData.email, formData.otp);
+        if (result.error) {
+          setError(result.error);
+          return; // Add this to prevent proceeding if OTP is invalid
+        } else {
+          setSuccess('OTP verified successfully');
+          setFormStage('password');
+        }
+      } else if (formStage === 'password') {
         // Validate passwords match
         if (formData.newPassword !== formData.confirmPassword) {
           setError('Passwords do not match');
@@ -56,7 +70,7 @@ export default function ForgotPasswordPage() {
           return;
         }
 
-        // Verify OTP and reset password
+        // Reset password with verified OTP
         const formDataObj = new FormData();
         formDataObj.append('email', formData.email);
         formDataObj.append('otp', formData.otp);
@@ -125,15 +139,15 @@ export default function ForgotPasswordPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {formStage === 'email' ? (
+            {formStage === 'email' && (
               <div>
-                 <label className="flex items-center text-gray-700 text-sm font-medium mb-2">
-                      <span className="mr-2">Enter Email</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                      </svg>
-                    </label>
+                <label className="flex items-center text-gray-700 text-sm font-medium mb-2">
+                  <span className="mr-2">Enter Email</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                  </svg>
+                </label>
                 <div className="mt-1 relative">
                   <input
                     id="email"
@@ -148,36 +162,40 @@ export default function ForgotPasswordPage() {
                   />
                 </div>
               </div>
-            ) : (
+            )}
+
+            {formStage === 'otp' && (
+              <div>
+                <label className="flex items-center text-gray-700 text-sm font-medium mb-2">
+                  <span className="mr-2">OTP Code</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="h-4 w-4" fill="currentColor">
+                    <path d="M336 352c97.2 0 176-78.8 176-176S433.2 0 336 0S160 78.8 160 176c0 18.7 2.9 36.8 8.3 53.7L7 391c-4.5 4.5-7 10.6-7 17l0 80c0 13.3 10.7 24 24 24l80 0c13.3 0 24-10.7 24-24l0-40 40 0c13.3 0 24-10.7 24-24l0-40 40 0c6.4 0 12.5-2.5 17-7l33.3-33.3c16.9 5.4 35 8.3 53.7 8.3zM376 96a40 40 0 1 1 0 80 40 40 0 1 1 0-80z"/>
+                  </svg>
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="otp"
+                    name="otp"
+                    type="text"
+                    required
+                    value={formData.otp}
+                    onChange={handleChange}
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#323E8F] focus:border-[#323E8F] sm:text-sm text-black"
+                    placeholder="Enter the 6-digit code"
+                  />
+                </div>
+              </div>
+            )}
+
+            {formStage === 'password' && (
               <>
                 <div>
-                <label className="flex items-center text-gray-700 text-sm font-medium mb-2 mt-4">
-                      <span className="mr-2">OTP Code</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="h-4 w-4" fill="currentColor">
-                      <path d="M336 352c97.2 0 176-78.8 176-176S433.2 0 336 0S160 78.8 160 176c0 18.7 2.9 36.8 8.3 53.7L7 391c-4.5 4.5-7 10.6-7 17l0 80c0 13.3 10.7 24 24 24l80 0c13.3 0 24-10.7 24-24l0-40 40 0c13.3 0 24-10.7 24-24l0-40 40 0c6.4 0 12.5-2.5 17-7l33.3-33.3c16.9 5.4 35 8.3 53.7 8.3zM376 96a40 40 0 1 1 0 80 40 40 0 1 1 0-80z"/>
-                      </svg>
-                    </label>
-                  <div className="mt-1">
-                    <input
-                      id="otp"
-                      name="otp"
-                      type="text"
-                      required
-                      value={formData.otp}
-                      onChange={handleChange}
-                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#323E8F] focus:border-[#323E8F] sm:text-sm text-black"
-                      placeholder="Enter the 6-digit code"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                <label className="flex items-center text-gray-700 text-sm font-medium mb-2 mt-4">
-                      <span className="mr-2">New Password</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                      </svg>
-                    </label>
+                  <label className="flex items-center text-gray-700 text-sm font-medium mb-2">
+                    <span className="mr-2">New Password</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                    </svg>
+                  </label>
                   <div className="mt-1 relative">
                     <input
                       id="newPassword"
@@ -189,17 +207,16 @@ export default function ForgotPasswordPage() {
                       className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#323E8F] focus:border-[#323E8F] sm:text-sm text-black"
                       placeholder="Enter new password"
                     />
-                  
                   </div>
                 </div>
 
                 <div>
-                <label className="flex items-center text-gray-700 text-sm font-medium mb-2 mt-4">
-                      <span className="mr-2">Confirm Password</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                      </svg>
-                    </label>
+                  <label className="flex items-center text-gray-700 text-sm font-medium mb-2">
+                    <span className="mr-2">Confirm Password</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                    </svg>
+                  </label>
                   <div className="mt-1 relative">
                     <input
                       id="confirmPassword"
@@ -211,7 +228,6 @@ export default function ForgotPasswordPage() {
                       className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#323E8F] focus:border-[#323E8F] sm:text-sm text-black"
                       placeholder="Confirm new password"
                     />
-                  
                   </div>
                 </div>
               </>
@@ -229,6 +245,8 @@ export default function ForgotPasswordPage() {
                   </div>
                 ) : formStage === 'email' ? (
                   'Send Reset Code'
+                ) : formStage === 'otp' ? (
+                  'Verify OTP'
                 ) : (
                   'Reset Password'
                 )}
@@ -244,13 +262,11 @@ export default function ForgotPasswordPage() {
             </div>
           </form>
 
-          <p className="mt-8 text-xs text-center text-gray-500">
-            All rights reserved. The trademarks and logos of National University®
-            <br />
-            are used with permission from National University Inc. for
-            <br />
-            educational purposes only. Unauthorized use is strictly prohibited.
-          </p>
+          <div className="mt-4 text-center text-xs text-gray-500">
+            <div className="text-align max-w-sm mx-auto">
+              <p>All rights reserved. The trademarks and logos of National University® are used with permission from National University Inc. for educational purposes only. Unauthorized use is strictly prohibited.</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
