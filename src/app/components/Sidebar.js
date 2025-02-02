@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSidebar } from '../context/SidebarContext';
+import useAuthStore from '@/store/useAuthStore';
 import Image from 'next/image';
 import {
   HomeIcon,
@@ -23,68 +24,165 @@ import {
   ArrowLeftOnRectangleIcon
 } from '@heroicons/react/24/outline';
 
-const menuItems = [
-  {
-    title: 'Home',
-    href: '/home',
-    icon: CalendarDaysIcon,
-  },
-  {
-    title: 'Entry',
-    href: '/entry',
-    icon: PencilSquareIcon,
-    hasDropdown: true,
-    subItems: [
-      { title: 'Subjects', href: '/entry/subjects', icon: BookOpenIcon },
-      { title: 'Sections', href: '/entry/sections', icon: BuildingLibraryIcon },
-      { title: 'Class Load', href: '/entry/class-load', icon: BuildingLibraryIcon },
-      { title: 'Rooms', href: '/entry/rooms', icon: BuildingLibraryIcon },
-      { title: 'Users', href: '/entry/users', icon: UsersIcon }
-    ]
-  },
-  {
-    title: 'Maintenance',
-    href: '/maintenance',
-    icon: WrenchScrewdriverIcon,
-    hasDropdown: true,
-    subItems: [
-      { title: 'Courses', href: '/maintenance/courses', icon: ListBulletIcon },
-      { title: 'Departments', href: '/maintenance/departments', icon: ListBulletIcon },
-      { title: 'Designations', href: '/maintenance/designations', icon: BookOpenIcon }
-    ]
-  },
-  {
-    title: 'Term',
-    href: '/term',
-    icon: AcademicCapIcon
-  },
-  {
-    title: 'Override Requests',
-    href: '/override-requests',
-    icon: ArrowPathIcon
-  },
-  {
-    title: 'Activity Logs',
-    href: '/logs',
-    icon: ClipboardDocumentListIcon,
-    hasDropdown: true,
-    subItems: [
-      { title: 'Schedule History', href: '/logs/schedule-history', icon: ListBulletIcon },
-      { title: 'Override History', href: '/logs/override-history', icon: ListBulletIcon },
-      { title: 'Archive', href: '/logs/archive', icon: ListBulletIcon }
-    ]
-  },
-  {
-    title: 'Send Feedback',
-    href: '/feedback',
-    icon: EnvelopeIcon
-  }
-];
+// Define role-based menu items
+const roleMenuItems = {
+  Dean: [
+    {
+      title: 'Home',
+      href: '/home',
+      icon: CalendarDaysIcon,
+    },
+    {
+      title: 'Entry',
+      href: '/entry',
+      icon: PencilSquareIcon,
+      hasDropdown: true,
+      subItems: [
+        { title: 'Subjects', href: '/entry/subjects', icon: BookOpenIcon },
+        { title: 'Sections', href: '/entry/sections', icon: BuildingLibraryIcon },
+        { title: 'Class Load', href: '/entry/class-load', icon: BuildingLibraryIcon }
+      ]
+    },
+    {
+      title: 'Term',
+      href: '/term',
+      icon: AcademicCapIcon
+    },
+    {
+      title: 'Activity Logs',
+      href: '/logs',
+      icon: ClipboardDocumentListIcon,
+      hasDropdown: true,
+      subItems: [
+        { title: 'Schedule History', href: '/logs/schedule-history', icon: ListBulletIcon },
+        { title: 'Override History', href: '/logs/override-history', icon: ListBulletIcon },
+        { title: 'Archive', href: '/logs/archive', icon: ListBulletIcon }
+      ]
+    },
+    {
+      title: 'Send Feedback',
+      href: '/feedback',
+      icon: EnvelopeIcon
+    }
+  ],
+  'Program Chair': [
+    {
+      title: 'Home',
+      href: '/home',
+      icon: CalendarDaysIcon,
+    },
+    {
+      title: 'Entry',
+      href: '/entry',
+      icon: PencilSquareIcon,
+      hasDropdown: true,
+      subItems: [
+        { title: 'Subjects', href: '/entry/subjects', icon: BookOpenIcon },
+        { title: 'Sections', href: '/entry/sections', icon: BuildingLibraryIcon },
+        { title: 'Class Load', href: '/entry/class-load', icon: BuildingLibraryIcon }
+      ]
+    },
+    {
+      title: 'Term',
+      href: '/term',
+      icon: AcademicCapIcon
+    },
+    {
+      title: 'Activity Logs',
+      href: '/logs',
+      icon: ClipboardDocumentListIcon,
+      hasDropdown: true,
+      subItems: [
+        { title: 'Schedule History', href: '/logs/schedule-history', icon: ListBulletIcon },
+        { title: 'Override History', href: '/logs/override-history', icon: ListBulletIcon },
+        { title: 'Archive', href: '/logs/archive', icon: ListBulletIcon }
+      ]
+    },
+    {
+      title: 'Send Feedback',
+      href: '/feedback',
+      icon: EnvelopeIcon
+    }
+  ],
+  Administrator: [
+    {
+      title: 'Home',
+      href: '/home',
+      icon: CalendarDaysIcon,
+    },
+    {
+      title: 'Entry',
+      href: '/entry',
+      icon: PencilSquareIcon,
+      hasDropdown: true,
+      subItems: [
+        { title: 'Subjects', href: '/entry/subjects', icon: BookOpenIcon },
+        { title: 'Sections', href: '/entry/sections', icon: BuildingLibraryIcon },
+        { title: 'Class Load', href: '/entry/class-load', icon: BuildingLibraryIcon },
+        { title: 'Rooms', href: '/entry/rooms', icon: BuildingLibraryIcon },
+        { title: 'Users', href: '/entry/users', icon: UsersIcon }
+      ]
+    },
+    {
+      title: 'Maintenance',
+      href: '/maintenance',
+      icon: WrenchScrewdriverIcon,
+      hasDropdown: true,
+      subItems: [
+        { title: 'Courses', href: '/maintenance/courses', icon: ListBulletIcon },
+        { title: 'Departments', href: '/maintenance/departments', icon: ListBulletIcon },
+        { title: 'Designations', href: '/maintenance/designations', icon: BookOpenIcon }
+      ]
+    },
+    {
+      title: 'Term',
+      href: '/term',
+      icon: AcademicCapIcon
+    },
+    {
+      title: 'Override Requests',
+      href: '/override-requests',
+      icon: ArrowPathIcon
+    },
+    {
+      title: 'Activity Logs',
+      href: '/logs',
+      icon: ClipboardDocumentListIcon,
+      hasDropdown: true,
+      subItems: [
+        { title: 'Schedule History', href: '/logs/schedule-history', icon: ListBulletIcon },
+        { title: 'Override History', href: '/logs/override-history', icon: ListBulletIcon },
+        { title: 'Archive', href: '/logs/archive', icon: ListBulletIcon }
+      ]
+    },
+    {
+      title: 'Send Feedback',
+      href: '/feedback',
+      icon: EnvelopeIcon
+    }
+  ],
+  Faculty: [
+    {
+      title: 'Home',
+      href: '/home',
+      icon: CalendarDaysIcon,
+    },
+    {
+      title: 'Send Feedback',
+      href: '/feedback',
+      icon: EnvelopeIcon
+    }
+  ]
+};
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { isSidebarOpen, toggleSidebar, isMobile } = useSidebar();
   const [expandedItems, setExpandedItems] = useState({});
+  const { user } = useAuthStore();
+
+  // Get menu items based on user role
+  const menuItems = roleMenuItems[user?.role || 'Faculty'] || roleMenuItems.Faculty;
 
   const toggleExpand = (title) => {
     setExpandedItems(prev => {

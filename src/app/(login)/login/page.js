@@ -221,7 +221,7 @@ export default function LoginPage() {
                       value={formData.email}
                       onChange={handleChange}
                       required
-                      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-500"
+                      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#323E8F] text-black placeholder-gray-500"
                       placeholder="Enter your email"
                     />
                   </div>
@@ -238,7 +238,7 @@ export default function LoginPage() {
                       value={formData.password}
                       onChange={handleChange}
                       required
-                      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-500"
+                      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#323E8F] text-black placeholder-gray-500"
                       placeholder="Enter your password"
                     />
                   </div>
@@ -260,7 +260,7 @@ export default function LoginPage() {
                       value={formData.otp}
                       onChange={handleChange}
                       required
-                      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-500"
+                      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#323E8F] text-black placeholder-gray-500"
                       placeholder="Enter 6-digit OTP"
                     />
                   </div>

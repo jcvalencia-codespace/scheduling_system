@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import useAuthStore from '@/store/useAuthStore';
+import { hasPermission } from '@/utils/rbac';
 
 const publicPaths = ['/login', '/forgot-password'];
 
@@ -21,8 +22,17 @@ export function useAuth() {
     // If on a protected path and user is not authenticated, redirect to login
     if (!publicPaths.includes(pathname) && !isAuthenticated) {
       router.push('/login');
+      return;
     }
-  }, [pathname, isAuthenticated, router]);
+
+    // Check role-based access for authenticated users on protected paths
+    if (isAuthenticated && !publicPaths.includes(pathname)) {
+      const hasAccess = hasPermission(user?.role, pathname);
+      if (!hasAccess) {
+        router.push('/home');
+      }
+    }
+  }, [pathname, isAuthenticated, router, user?.role]);
 
   return { user, isAuthenticated };
 }

@@ -1,35 +1,67 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { unsealData } from 'iron-session'
+import { sessionOptions } from '@/lib/iron-config'
+import { hasPermission } from '@/utils/rbac'
 
 // Add paths that don't require authentication
-const publicPaths = ['/login', '/forgot-password']
+const publicPaths = ['/login', '/forgot-password', '/unauthorized']
 
 export async function middleware(request) {
   const { pathname } = request.nextUrl
 
   // Get session cookie
-  const sessionCookie = request.cookies.get('schednu-session')
-  const isAuthenticated = !!sessionCookie?.value
-
+  const sessionCookie = request.cookies.get(sessionOptions.cookieName)
+  
   // Allow access to public paths even when logged out
   if (publicPaths.includes(pathname)) {
-    // If user is already logged in and tries to access login page, redirect to home
-    if (isAuthenticated && pathname === '/login') {
-      return NextResponse.redirect(new URL('/home', request.url))
+    if (sessionCookie?.value) {
+      try {
+        const session = await unsealData(sessionCookie.value, {
+          password: sessionOptions.password
+        })
+        // If user is already logged in and tries to access login page, redirect to home
+        if (session.user && pathname === '/login') {
+          return NextResponse.redirect(new URL('/home', request.url))
+        }
+      } catch (error) {
+        // Invalid session, continue as unauthenticated
+      }
     }
     return NextResponse.next()
   }
 
-  // Check if user is logged in
-  if (!isAuthenticated) {
-    // Redirect to login if accessing protected route while logged out
-    const response = NextResponse.redirect(new URL('/login', request.url))
-    return response
+  // Verify authentication
+  if (!sessionCookie?.value) {
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // User is authenticated, allow access to protected routes
-  return NextResponse.next()
+  try {
+    // Unseal and verify the session data
+    const session = await unsealData(sessionCookie.value, {
+      password: sessionOptions.password
+    })
+
+    if (!session.user) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+
+    // Check if user has permission to access the route
+    if (!hasPermission(session.user.role, pathname)) {
+      // Redirect to unauthorized page if user doesn't have permission
+      const returnUrl = encodeURIComponent(pathname)
+      return NextResponse.redirect(new URL(`/unauthorized?returnUrl=${returnUrl}`, request.url))
+    }
+
+    // User is authenticated and authorized
+    return NextResponse.next()
+  } catch (error) {
+    console.error('Middleware error:', error)
+    // Invalid session, redirect to login
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
 }
 
 // Configure paths that should be checked by middleware
-export const config = { matcher: ["/((?!api|_next/static|_next/image|.*\\.png$|.*\\.jpg$).*)"] };
+export const config = {
+  matcher: ["/((?!api|_next/static|_next/image|.*\\.png$|.*\\.jpg$|favicon.ico).*)"],
+};
