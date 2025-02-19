@@ -99,7 +99,7 @@ export default function CoursesPage() {
         setCourses(courses.filter(course => course.courseCode !== courseCode));
         Swal.fire({
           icon: 'success',
-          title: 'Deleted!',
+          title: 'Deleted! Test for the new branch',
           text: 'Course has been deleted.',
           confirmButtonColor: '#323E8F'
         });
