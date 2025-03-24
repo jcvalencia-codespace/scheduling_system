@@ -246,6 +246,10 @@ export default function HomePage() {
         <NewScheduleModal
           isOpen={isNewScheduleModalOpen}
           onClose={() => setIsNewScheduleModalOpen(false)}
+          activeTerm={activeTerm}
+          onScheduleCreated={(newSchedule) => {
+            setSchedules(prev => [...prev, newSchedule]);
+          }}
         />
 
         <ViewScheduleModal

@@ -12,7 +12,8 @@ export async function addSubject(formData) {
       subjectName: formData.get('subjectName')?.trim(),
       lectureHours: parseFloat(formData.get('lectureHours')),
       labHours: parseFloat(formData.get('labHours')),
-      course: formData.get('course')?.trim()
+      course: formData.get('course')?.trim(),
+      unit: formData.get('unit')?.trim()
     };
 
     console.log('Server received subject data:', subjectData);

@@ -23,8 +23,9 @@ class SubjectsModel {
   }
 
   async getAllSubjects() {
-    const Subject = await this.initModel();
-    const subjects = await Subject.find({ isActive: true });
+    const Subjects = await this.initModel();
+    const subjects = await Subjects.find({ isActive: true })
+      .sort({ subjectCode: 1 });
     return JSON.parse(JSON.stringify(subjects));
   }
 

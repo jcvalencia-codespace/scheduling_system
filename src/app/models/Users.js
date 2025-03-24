@@ -66,6 +66,63 @@ class UsersModel {
   async validatePassword(user, password) {
     return bcrypt.compare(password, user.password);
   }
+
+  async getFacultyUsers() {
+    try {
+      const Users = await this.initModel();
+      
+      // Use aggregation pipeline for more control and debugging
+      const faculty = await Users.aggregate([
+        // First stage: Match users that aren't administrators
+        {
+          $match: {
+            role: { $ne: 'Administrator' }
+          }
+        },
+        // Second stage: Sort by lastName and firstName
+        {
+          $sort: {
+            lastName: 1,
+            firstName: 1
+          }
+        },
+        // Third stage: Project only the fields we need
+        {
+          $project: {
+            _id: 1,
+            lastName: 1,
+            firstName: 1,
+            middleName: 1,
+            email: 1,
+            role: 1,
+            department: 1,
+            course: 1,
+            employmentType: 1
+          }
+        },
+        // Fourth stage: Add a stage to count documents (for debugging)
+        {
+          $facet: {
+            faculty: [{ $match: {} }],
+            totalCount: [{ $count: 'count' }]
+          }
+        }
+      ]);
+
+      console.log('Aggregation result:', JSON.stringify(faculty, null, 2));
+      
+      // Extract faculty array from aggregation result
+      const facultyData = faculty[0]?.faculty || [];
+      const totalCount = faculty[0]?.totalCount[0]?.count || 0;
+      
+      console.log(`Found ${totalCount} faculty members`);
+      
+      return JSON.parse(JSON.stringify(facultyData));
+    } catch (error) {
+      console.error('Error in getFacultyUsers:', error);
+      throw error;
+    }
+  }
 }
 
 // Create and export a singleton instance
