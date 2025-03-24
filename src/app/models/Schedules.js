@@ -134,7 +134,15 @@ export default class SchedulesModel {
 
   static async createSchedule(scheduleData) {
     try {
-      // Ensure all required fields are ObjectIds
+      // Format time strings to ensure consistent format
+      const formatTime = (timeStr) => {
+        // Time is already in 12-hour format from the frontend
+        // Just ensure consistent formatting
+        const [time, period] = timeStr.split(' ');
+        const [hours, minutes] = time.split(':');
+        return `${hours}:${minutes} ${period.toUpperCase()}`;
+      };
+      
       const schedule = await Schedules.create({
         ...scheduleData,
         term: new mongoose.Types.ObjectId(scheduleData.term),
@@ -142,6 +150,8 @@ export default class SchedulesModel {
         faculty: new mongoose.Types.ObjectId(scheduleData.faculty),
         subject: new mongoose.Types.ObjectId(scheduleData.subject),
         room: new mongoose.Types.ObjectId(scheduleData.room),
+        timeFrom: formatTime(scheduleData.timeFrom),
+        timeTo: formatTime(scheduleData.timeTo)
       });
       return schedule;
     } catch (error) {
@@ -250,4 +260,7 @@ export default class SchedulesModel {
       throw new Error('Failed to fetch schedules');
     }
   }
+
+  
+
 }

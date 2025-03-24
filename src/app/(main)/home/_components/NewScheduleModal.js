@@ -4,6 +4,7 @@ import { Fragment, useEffect, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { getScheduleFormData, createSchedule, getActiveTerm } from '../_actions';
 import Swal from 'sweetalert2';
+import Select from 'react-select';
 
 // Add these constants at the top of your component
 // Add onScheduleCreated prop to the component definition
@@ -17,6 +18,53 @@ export default function NewScheduleModal({ isOpen, onClose, onScheduleCreated })
     'Transferees',
     'Irregular Students'
   ];
+
+  // Update the customStyles object
+  const customStyles = {
+    control: (base) => ({
+      ...base,
+      minHeight: '42px',
+      backgroundColor: 'white',
+      borderColor: '#E5E7EB',
+      '&:hover': {
+        borderColor: '#3B82F6'
+      }
+    }),
+    placeholder: (base) => ({
+      ...base,
+      color: '#6B7280',
+    }),
+    option: (base, state) => ({
+      ...base,
+      backgroundColor: state.isSelected ? '#3B82F6' : state.isFocused ? '#EFF6FF' : 'white',
+      color: state.isSelected ? 'white' : 'black',
+      cursor: 'pointer',
+      padding: '8px 12px',
+    }),
+    menu: (base) => ({
+      ...base,
+      zIndex: 100,
+    }),
+    menuList: (base) => ({
+      ...base,
+      maxHeight: '200px', // Set maximum height
+      overflowY: 'auto', // Enable vertical scrolling
+      '&::-webkit-scrollbar': {
+        width: '8px'
+      },
+      '&::-webkit-scrollbar-track': {
+        background: '#f1f1f1'
+      },
+      '&::-webkit-scrollbar-thumb': {
+        background: '#888',
+        borderRadius: '4px'
+      },
+      '&::-webkit-scrollbar-thumb:hover': {
+        background: '#555'
+      }
+    })
+  };
+
   const generateTimeSlots = () => {
     const slots = [];
     const startHour = 7;
@@ -24,13 +72,13 @@ export default function NewScheduleModal({ isOpen, onClose, onScheduleCreated })
 
     for (let hour = startHour; hour <= endHour; hour++) {
       for (let minutes = 0; minutes < 60; minutes += 20) {
-        const formattedHour = hour % 12 || 12;
+        const hour12 = hour % 12 || 12; // Convert to 12-hour format
         const period = hour >= 12 ? 'PM' : 'AM';
         const formattedMinutes = minutes.toString().padStart(2, '0');
 
         slots.push({
-          value: `${hour.toString().padStart(2, '0')}:${formattedMinutes} ${period}`, // Added period to value
-          label: `${formattedHour}:${formattedMinutes} ${period}`
+          value: `${hour12}:${formattedMinutes} ${period}`, // Use 12-hour format in value
+          label: `${hour12}:${formattedMinutes} ${period}`
         });
       }
     }
@@ -77,7 +125,7 @@ export default function NewScheduleModal({ isOpen, onClose, onScheduleCreated })
           getScheduleFormData(),
           getActiveTerm()
         ]);
-  
+
         if (formResponse.error) {
           throw new Error(formResponse.error);
         }
@@ -103,7 +151,7 @@ export default function NewScheduleModal({ isOpen, onClose, onScheduleCreated })
         setLoading(false);
       }
     }
-  
+
     if (isOpen) {
       fetchData();
     }
@@ -130,12 +178,61 @@ export default function NewScheduleModal({ isOpen, onClose, onScheduleCreated })
       [name]: type === 'checkbox' ? checked : value
     }));
   };
+  const sectionOptions = formData.sections.map(section => ({
+    value: section._id,
+    label: `${section.sectionName} - ${section.courseName}`
+  }));
+
+  const facultyOptions = formData.faculty.map(f => ({
+    value: f._id,
+    label: f.fullName
+  }));
+
+  const subjectOptions = formData.subjects.map(subject => ({
+    value: subject._id,
+    label: subject.displayName
+  }));
+
+  // Update the roomOptions mapping
+  const roomOptions = formData.rooms.map(room => ({
+    value: room._id,
+    label: `${room.roomCode} - ${room.roomName || room.name} (${room.capacity} capacity)`
+  }));
+
+  const dayOptions = weekDays.map(day => ({
+    value: day,
+    label: day
+  }));
+
+  const studentTypeOptions = studentTypes.map(type => ({
+    value: type,
+    label: type
+  }));
+
+  const scheduleTypeOptions = scheduleTypes.map(type => ({
+    value: type.toLowerCase(),
+    label: type
+  }));
+
+  const timeSlotOptions = timeSlots.map(slot => ({
+    value: slot.value,
+    label: slot.label
+  }));
+
+  // Add this handler for react-select changes
+  const handleSelectChange = (selectedOption, { name }) => {
+    setSelectedValues(prev => ({
+      ...prev,
+      [name]: selectedOption ? selectedOption.value : ''
+    }));
+  };
+
   const handleSave = async () => {
     try {
       if (!termInfo?._id) {
         throw new Error('No active term found. Please contact an administrator.');
       }
-  
+
       // Validate required fields
       const requiredFields = ['section', 'faculty', 'subject', 'room', 'classLimit', 'studentType', 'days', 'timeFrom', 'timeTo'];
       const emptyFields = requiredFields.filter(field => !selectedValues[field]);
@@ -143,12 +240,22 @@ export default function NewScheduleModal({ isOpen, onClose, onScheduleCreated })
       if (emptyFields.length > 0) {
         throw new Error(`Please fill in all required fields: ${emptyFields.join(', ')}`);
       }
+
+      // Format time values to ensure consistent format (HH:MM AM/PM)
+      const formatTimeValue = (timeValue) => {
+        const [time, period] = timeValue.split(' ');
+        const [hours, minutes] = time.split(':');
+        const formattedHours = hours.padStart(2, '0');
+        return `${formattedHours}:${minutes} ${period}`;
+      };
   
       const scheduleData = {
         ...selectedValues,
         term: termInfo._id,
         days: [selectedValues.days],
         classLimit: parseInt(selectedValues.classLimit, 10),
+        timeFrom: formatTimeValue(selectedValues.timeFrom),
+        timeTo: formatTimeValue(selectedValues.timeTo),
         isActive: true
       };
   
@@ -156,19 +263,19 @@ export default function NewScheduleModal({ isOpen, onClose, onScheduleCreated })
       if (response.error) {
         throw new Error(response.error);
       }
-  
+
       await Swal.fire({
         icon: 'success',
         title: 'Success!',
         text: 'Schedule has been created successfully.',
         confirmButtonColor: '#3B82F6'
       });
-  
+
       // Call the onScheduleCreated callback to refresh schedules
       if (onScheduleCreated) {
         onScheduleCreated();
       }
-  
+
       clearForm();
       onClose();
     } catch (error) {
@@ -279,53 +386,48 @@ export default function NewScheduleModal({ isOpen, onClose, onScheduleCreated })
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-black mb-1">Section</label>
-                      <select
+                      <Select
                         name="section"
-                        value={selectedValues.section}
-                        onChange={handleInputChange}
-                        className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
-                      >
-                        <option value="">Select a Section</option>
-                        {formData.sections.map((section) => (
-                          <option key={section._id} value={section._id}>
-                            {section.sectionName} - {section.courseName}
-                          </option>
-                        ))}
-                      </select>
+                        value={sectionOptions.find(option => option.value === selectedValues.section)}
+                        onChange={(option) => handleSelectChange(option, { name: 'section' })}
+                        isSearchable={true}
+                        maxMenuHeight={200}
+                        // menuPlacement="auto"
+                        // menuPosition="fixed"
+                        options={sectionOptions}
+                        styles={customStyles}
+                        className="text-black"
+                        placeholder="Select a Section"
+                        isClearable
+                      />
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-black mb-1">Faculty</label>
-                      <select
+                      <Select
                         name="faculty"
-                        value={selectedValues.faculty}
-                        onChange={handleInputChange}
-                        className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
-                      >
-                        <option value="">Select a Faculty</option>
-                        {formData.faculty.map((f) => (
-                          <option key={f._id} value={f._id}>
-                            {f.fullName}
-                          </option>
-                        ))}
-                      </select>
+                        value={facultyOptions.find(option => option.value === selectedValues.faculty)}
+                        onChange={(option) => handleSelectChange(option, { name: 'faculty' })}
+                        options={facultyOptions}
+                        styles={customStyles}
+                        className="text-black"
+                        placeholder="Select a Faculty"
+                        isClearable
+                      />
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-black mb-1">Subject</label>
-                      <select
+                      <Select
                         name="subject"
-                        value={selectedValues.subject}
-                        onChange={handleInputChange}
-                        className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
-                      >
-                        <option value="">Select a Subject</option>
-                        {formData.subjects.map((subject) => (
-                          <option key={subject._id} value={subject._id}>
-                            {subject.displayName}
-                          </option>
-                        ))}
-                      </select>
+                        value={subjectOptions.find(option => option.value === selectedValues.subject)}
+                        onChange={(option) => handleSelectChange(option, { name: 'subject' })}
+                        options={subjectOptions}
+                        styles={customStyles}
+                        className="text-black"
+                        placeholder="Select a Subject"
+                        isClearable
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-black mb-1">Class Limit</label>
@@ -340,19 +442,19 @@ export default function NewScheduleModal({ isOpen, onClose, onScheduleCreated })
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-black mb-1">Student Type</label>
-                      <select
+                      <Select
                         name="studentType"
-                        value={selectedValues.studentType}
-                        onChange={handleInputChange}
-                        className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
-                      >
-                        <option value="">Select Student Type</option>
-                        {studentTypes.map((type) => (
-                          <option key={type} value={type}>
-                            {type}
-                          </option>
-                        ))}
-                      </select>
+                        value={studentTypeOptions.find(option => option.value === selectedValues.studentType)}
+                        onChange={(option) => handleSelectChange(option, { name: 'studentType' })}
+                        options={studentTypeOptions}
+                        styles={customStyles}
+                        className="text-black"
+                        placeholder="Select Student Type"
+                        isClearable
+                        isSearchable={true}
+                        menuPlacement="top"  // This will make the menu appear above the input
+                        maxMenuHeight={200}
+                      />
                     </div>
                   </div>
 
@@ -361,87 +463,76 @@ export default function NewScheduleModal({ isOpen, onClose, onScheduleCreated })
                     <div>
                       <div>
                         <label className="block text-sm font-medium text-black mb-1">Days of Week</label>
-                        <select
+                        <Select
                           name="days"
-                          value={selectedValues.days}
-                          onChange={handleInputChange}
-                          className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
-                        >
-                          <option value="">Select a Day</option>
-                          {weekDays.map((day) => (
-                            <option key={day} value={day}>
-                              {day}
-                            </option>
-                          ))}
-                        </select>
+                          value={dayOptions.find(option => option.value === selectedValues.days)}
+                          onChange={(option) => handleSelectChange(option, { name: 'days' })}
+                          options={dayOptions}
+                          styles={customStyles}
+                          className="text-black"
+                          placeholder="Select a Day"
+                          isClearable
+                        />
                       </div>
 
 
                       <div className="pt-4">
                         <label className="block text-sm font-medium text-black mb-1">Time From</label>
-                        <select
+                        <Select
                           name="timeFrom"
-                          value={selectedValues.timeFrom}
-                          onChange={handleInputChange}
-                          className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
-                        >
-                          <option value="">Select Time From</option>
-                          {timeSlots.map((slot) => (
-                            <option key={slot.value} value={slot.value}>
-                              {slot.label}
-                            </option>
-                          ))}
-                        </select>
+                          value={timeSlotOptions.find(option => option.value === selectedValues.timeFrom)}
+                          onChange={(option) => handleSelectChange(option, { name: 'timeFrom' })}
+                          options={timeSlotOptions}
+                          styles={customStyles}
+                          className="text-black"
+                          placeholder="Select Time From"
+                          isClearable
+                        />
                       </div>
 
 
                       <div className="pt-4">
                         <label className="block text-sm font-medium text-black mb-1">Time To</label>
-                        <select
+                        <Select
                           name="timeTo"
-                          value={selectedValues.timeTo}
-                          onChange={handleInputChange}
-                          className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
-                        >
-                          <option value="">Select Time To</option>
-                          {timeSlots.map((slot) => (
-                            <option key={slot.value} value={slot.value}>
-                              {slot.label}
-                            </option>
-                          ))}
-                        </select>
+                          value={timeSlotOptions.find(option => option.value === selectedValues.timeTo)}
+                          onChange={(option) => handleSelectChange(option, { name: 'timeTo' })}
+                          options={timeSlotOptions}
+                          styles={customStyles}
+                          className="text-black"
+                          placeholder="Select Time To"
+                          isClearable
+                        />
                       </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-black mb-1">Room</label>
-                      <select
+                      <Select
                         name="room"
-                        value={selectedValues.room}
-                        onChange={handleInputChange}
-                        className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
-                      >
-                        <option value="">Select a Room</option>
-                        {formData.rooms.map((room) => (
-                          <option key={room._id} value={room._id}>
-                            {room.roomName || room.name} ({room.capacity} capacity)
-                          </option>
-                        ))}
-                      </select>
+                        value={roomOptions.find(option => option.value === selectedValues.room)}
+                        onChange={(option) => handleSelectChange(option, { name: 'room' })}
+                        options={roomOptions}
+                        styles={customStyles}
+                        className="text-black"
+                        placeholder="Select a Room"
+                        isClearable
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-black mb-1">Schedule Type</label>
-                      <select
+                      <Select
                         name="scheduleType"
-                        value={selectedValues.scheduleType}
-                        onChange={handleInputChange}
-                        className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
-                      >
-                        {scheduleTypes.map((type) => (
-                          <option key={type} value={type.toLowerCase()}>
-                            {type}
-                          </option>
-                        ))}
-                      </select>
+                        value={scheduleTypeOptions.find(option => option.value === selectedValues.scheduleType)}
+                        onChange={(option) => handleSelectChange(option, { name: 'scheduleType' })}
+                        options={scheduleTypeOptions}
+                        styles={customStyles}
+                        className="text-black"
+                        placeholder="Select Schedule Type"
+                        isClearable
+                        isSearchable={true}
+                        menuPlacement="top"  // This will make the menu appear above the input
+                        maxMenuHeight={200}
+                      />
                     </div>
 
                   </div>
