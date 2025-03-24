@@ -303,28 +303,29 @@ const FeedbackSchema = new Schema({
 
 TermSchema.index({ academicYear: 1, term: 1 }, { unique: true });
 TermSchema.index({ status: 1 });
+
 const ScheduleSchema = new Schema({
-  termId: {
+  term: {
     type: Schema.Types.ObjectId,
     ref: 'terms',
     required: true
   },
-  facultyId: {
-    type: Schema.Types.ObjectId,
-    ref: 'users',
-    required: true
-  },
-  sectionId: {
+  section: {
     type: Schema.Types.ObjectId,
     ref: 'sections',
     required: true
   },
-  subjectId: {
+  faculty: {
+    type: Schema.Types.ObjectId,
+    ref: 'users',
+    required: true
+  },
+  subject: {
     type: Schema.Types.ObjectId,
     ref: 'subjects',
     required: true
   },
-  roomId: {
+  room: {
     type: Schema.Types.ObjectId,
     ref: 'rooms',
     required: true
@@ -342,27 +343,23 @@ const ScheduleSchema = new Schema({
     type: String,
     required: true
   },
-  scheduleType: {
-    type: String,
-    enum: ['Lecture', 'Laboratory', 'Tutorial'],
-    required: true
-  },
   classLimit: {
     type: Number,
     required: true,
-    min: 0
+    min: 1
+  },
+  scheduleType: {
+    type: String,
+    enum: ['lecture', 'laboratory', 'tutorial'],
+    required: true
   },
   studentType: {
     type: String,
-    enum: [
-      "New Students only within college",
-      "Continuing Students only within college",
-      "Athletes only",
-      "All students within college",
-      "All students within university (allow cross-enrollees)",
-      "None (Inactive class or thru advising only)"
-    ],
     required: true
+  },
+  isPaired: {
+    type: Boolean,
+    default: false
   },
   isActive: {
     type: Boolean,
@@ -373,9 +370,7 @@ const ScheduleSchema = new Schema({
   collection: 'schedules'
 });
 
-// Add index for common queries
-ScheduleSchema.index({ termId: 1, facultyId: 1, sectionId: 1 });
-ScheduleSchema.index({ roomId: 1, days: 1 });
+// Add to exports
 export {
   UserSchema,
   SubjectSchema,
@@ -385,5 +380,5 @@ export {
   SectionSchema,
   TermSchema,
   FeedbackSchema,
-  ScheduleSchema
+  ScheduleSchema  // Add this line
 };

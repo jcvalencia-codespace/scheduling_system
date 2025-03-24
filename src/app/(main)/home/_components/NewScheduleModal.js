@@ -1,170 +1,220 @@
 'use client';
 
-import { Fragment, useState, useEffect } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { createSchedule, getFaculty, getSubjects, getSections, getRooms } from '../_actions';
-import { toast } from 'react-hot-toast';
+import { getScheduleFormData, createSchedule, getActiveTerm } from '../_actions';
+import Swal from 'sweetalert2';
 
-export default function NewScheduleModal({ isOpen, onClose, activeTerm, onScheduleCreated }) {
-  const scheduleTypes = ['Lecture', 'Laboratory', 'Tutorial'];
+// Add these constants at the top of your component
+// Add onScheduleCreated prop to the component definition
+export default function NewScheduleModal({ isOpen, onClose, onScheduleCreated }) {
   const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
   const studentTypes = [
-    "New Students only within college",
-    "Continuing Students only within college",
-    "Athletes only",
-    "All students within college",
-    "All students within university (allow cross-enrollees)",
-    "None (Inactive class or thru advising only)"
+    'Continuing Students',
+    'Freshmen',
+    'Student Athletes',
+    'Transferees',
+    'Irregular Students'
   ];
-  const timeSlots = (() => {
+  const generateTimeSlots = () => {
     const slots = [];
-    for (let hour = 7; hour <= 21; hour++) { // 7 AM to 9 PM
-      for (let minute = 0; minute < 60; minute += 20) {
-        const hour12 = hour > 12 ? hour - 12 : hour;
-        const ampm = hour >= 12 ? 'pm' : 'am';
-        const minuteStr = minute.toString().padStart(2, '0');
-        slots.push(`${hour12}:${minuteStr} ${ampm}`);
+    const startHour = 7;
+    const endHour = 22;
+
+    for (let hour = startHour; hour <= endHour; hour++) {
+      for (let minutes = 0; minutes < 60; minutes += 20) {
+        const formattedHour = hour % 12 || 12;
+        const period = hour >= 12 ? 'PM' : 'AM';
+        const formattedMinutes = minutes.toString().padStart(2, '0');
+
+        slots.push({
+          value: `${hour.toString().padStart(2, '0')}:${formattedMinutes} ${period}`, // Added period to value
+          label: `${formattedHour}:${formattedMinutes} ${period}`
+        });
       }
     }
     return slots;
-  })();
-
+  };
+  const [termInfo, setTermInfo] = useState(null);
+  const timeSlots = generateTimeSlots();
+  const scheduleTypes = ['Lecture', 'Laboratory', 'Tutorial'];
+  const currentYear = new Date().getFullYear();
+  const schoolYear = `${currentYear}-${currentYear + 1}`;
 
   const [formData, setFormData] = useState({
-    termId: '',
-    sectionId: '',
-    facultyId: '',
-    subjectId: '',
-    roomId: '',
-    days: [],
-    timeFrom: '',
-    timeTo: '',
-    scheduleType: 'Lecture',
-    classLimit: '',
-    studentType: '',
-    isPaired: false,
-    isMultipleSection: false
-  });
-
-  const [loading, setLoading] = useState(false);
-  const [options, setOptions] = useState({
+    sections: [],
     faculty: [],
     subjects: [],
-    sections: [],
-    rooms: []
+    rooms: [],
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedValues, setSelectedValues] = useState({
+    term: '',
+    section: '',
+    faculty: '',
+    subject: '',
+    room: '',
+    classLimit: '',
+    studentType: '',
+    days: '',
+    scheduleType: 'lecture',
+    timeFrom: '',
+    timeTo: '',
+    isPaired: false,
+    isMultipleSections: false,
+
   });
 
+  // Update useEffect to fetch both form data and term info
+  // Update useEffect to properly handle the term data
   useEffect(() => {
-    if (activeTerm?.id) {
-      setFormData(prev => ({ ...prev, termId: activeTerm.id }));
-    }
-  }, [activeTerm]);
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const [formResponse, termResponse] = await Promise.all([
+          getScheduleFormData(),
+          getActiveTerm()
+        ]);
+  
+        if (formResponse.error) {
+          throw new Error(formResponse.error);
+        }
 
-  useEffect(() => {
+        // Log term response for debugging
+        console.log('Term Response:', termResponse);
+
+        // Check if term exists and has required properties
+        if (!termResponse.term || !termResponse.term.id) {
+          throw new Error('No active term found');
+        }
+
+        setFormData(formResponse);
+        setTermInfo({
+          _id: termResponse.term.id, // Use the id from the response
+          academicYear: termResponse.term.academicYear,
+          term: termResponse.term.term
+        });
+      } catch (error) {
+        console.error('Fetch error:', error);
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+  
     if (isOpen) {
-      fetchOptions();
+      fetchData();
     }
   }, [isOpen]);
 
-  const fetchOptions = async () => {
-    try {
-      console.log('Fetching options...');
-      const [
-        facultyResult,
-        subjectsResult,
-        sectionsResult,
-        roomsResult
-      ] = await Promise.all([
-        getFaculty(),
-        getSubjects(),
-        getSections(),
-        getRooms()
-      ]);
-
-      console.log('Results:', {
-        faculty: facultyResult,
-        subjects: subjectsResult,
-        sections: sectionsResult,
-        rooms: roomsResult
-      });
-
-      setOptions({
-        faculty: facultyResult.faculty || [],
-        subjects: subjectsResult.subjects || [],
-        sections: sectionsResult.sections || [],
-        rooms: roomsResult.rooms || []
-      });
-    } catch (error) {
-      console.error('Error fetching options:', error);
-      toast.error('Failed to load form options');
-    }
-  };
+  // Update the School Year and Term Info section
+  <div className="bg-blue-50 p-4 rounded-lg mb-6">
+    <div className="space-y-1 text-black">
+      <div className="flex gap-2">
+        <span className="font-medium">School Year:</span>
+        <span>{termInfo?.academicYear || schoolYear}</span>
+      </div>
+      <div className="flex gap-2">
+        <span className="font-medium">Term:</span>
+        <span>{termInfo?.term || 'Loading...'}</span>
+      </div>
+    </div>
+  </div>
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    if (type === 'checkbox') {
-      setFormData(prev => ({ ...prev, [name]: checked }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
+    setSelectedValues(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
   };
-
-  const handleDaysChange = (e) => {
-    const { value } = e.target;
-    setFormData(prev => {
-      const days = [...prev.days];
-      if (days.includes(value)) {
-        return { ...prev, days: days.filter(day => day !== value) };
-      } else {
-        return { ...prev, days: [...days, value] };
-      }
-    });
-  };
-
-  const handleSubmit = async () => {
+  const handleSave = async () => {
     try {
-      setLoading(true);
+      if (!termInfo?._id) {
+        throw new Error('No active term found. Please contact an administrator.');
+      }
+  
+      // Validate required fields
+      const requiredFields = ['section', 'faculty', 'subject', 'room', 'classLimit', 'studentType', 'days', 'timeFrom', 'timeTo'];
+      const emptyFields = requiredFields.filter(field => !selectedValues[field]);
       
-      if (!formData.termId) {
-        throw new Error('Active term is required');
+      if (emptyFields.length > 0) {
+        throw new Error(`Please fill in all required fields: ${emptyFields.join(', ')}`);
       }
-
-      console.log('Submitting schedule data:', formData);
-
-      const result = await createSchedule(formData);
-
-      if (result.error) {
-        throw new Error(result.error);
+  
+      const scheduleData = {
+        ...selectedValues,
+        term: termInfo._id,
+        days: [selectedValues.days],
+        classLimit: parseInt(selectedValues.classLimit, 10),
+        isActive: true
+      };
+  
+      const response = await createSchedule(scheduleData);
+      if (response.error) {
+        throw new Error(response.error);
       }
-
-      toast.success('Schedule created successfully');
-      onScheduleCreated(result.schedule);
+  
+      await Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: 'Schedule has been created successfully.',
+        confirmButtonColor: '#3B82F6'
+      });
+  
+      // Call the onScheduleCreated callback to refresh schedules
+      if (onScheduleCreated) {
+        onScheduleCreated();
+      }
+  
+      clearForm();
       onClose();
     } catch (error) {
-      console.error('Submit error:', error);
-      toast.error(error.message || 'Failed to create schedule');
-    } finally {
-      setLoading(false);
+      Swal.fire({
+        icon: 'error',
+        title: 'Oops...',
+        text: error.message || 'Something went wrong!',
+        confirmButtonColor: '#3B82F6'
+      });
+      setError(error.message);
     }
   };
 
-  useEffect(() => {
-    console.log('Current formData:', formData);
-    console.log('Active Term:', activeTerm);
-  }, [formData, activeTerm]);
-
+  const clearForm = () => {
+    setSelectedValues({
+      term: '',
+      section: '',
+      faculty: '',
+      subject: '',
+      room: '',
+      classLimit: '',
+      studentType: '',
+      days: '',
+      scheduleType: 'lecture',
+      timeFrom: '',
+      timeTo: '',
+      isPaired: false,
+      isMultipleSections: false,
+    });
+    setError(null);
+  };
+  // Update the select elements in your JSX
   return (
     <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
-        <Transition.Child
-          as={Fragment}
-          enter="ease-out duration-300"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="ease-in duration-200"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
-        >
+      <Dialog as="div" className="relative z-50" onClose={() => {
+        clearForm();
+        onClose();
+      }}>        <Transition.Child
+        as={Fragment}
+        enter="ease-out duration-300"
+        enterFrom="opacity-0"
+        enterTo="opacity-100"
+        leave="ease-in duration-200"
+        leaveFrom="opacity-100"
+        leaveTo="opacity-0"
+      >
           <div className="fixed inset-0 bg-black bg-opacity-25" />
         </Transition.Child>
 
@@ -184,25 +234,28 @@ export default function NewScheduleModal({ isOpen, onClose, activeTerm, onSchedu
                   New Schedule
                 </Dialog.Title>
 
+                {/* School Year and Term Info */}
                 <div className="bg-blue-50 p-4 rounded-lg mb-6">
                   <div className="space-y-1 text-black">
                     <div className="flex gap-2">
                       <span className="font-medium">School Year:</span>
-                      <span>{activeTerm?.academicYear}</span>
+                      <span>{termInfo?.academicYear || schoolYear}</span>
                     </div>
                     <div className="flex gap-2">
                       <span className="font-medium">Term:</span>
-                      <span>{activeTerm?.term}</span>
+                      <span className="term-display">{termInfo?.term || 'Loading...'}</span>
                     </div>
                   </div>
                 </div>
 
+                {/* Checkboxes */}
                 <div className="flex gap-6 mb-6">
+
                   <label className="flex items-center gap-2 text-black">
                     <input
                       type="checkbox"
                       name="isPaired"
-                      checked={formData.isPaired}
+                      checked={selectedValues.isPaired}
                       onChange={handleInputChange}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
@@ -211,8 +264,8 @@ export default function NewScheduleModal({ isOpen, onClose, activeTerm, onSchedu
                   <label className="flex items-center gap-2 text-black">
                     <input
                       type="checkbox"
-                      name="isMultipleSection"
-                      checked={formData.isMultipleSection}
+                      name="isMultipleSections"
+                      checked={selectedValues.isMultipleSections}
                       onChange={handleInputChange}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
@@ -220,52 +273,56 @@ export default function NewScheduleModal({ isOpen, onClose, activeTerm, onSchedu
                   </label>
                 </div>
 
+                {/* Form Grid */}
                 <div className="grid grid-cols-2 gap-4 mb-6">
+                  {/* Left Column */}
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-black mb-1">Section</label>
                       <select
-                        name="sectionId"
-                        value={formData.sectionId}
+                        name="section"
+                        value={selectedValues.section}
                         onChange={handleInputChange}
                         className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
                       >
                         <option value="">Select a Section</option>
-                        {options.sections.map(section => (
+                        {formData.sections.map((section) => (
                           <option key={section._id} value={section._id}>
-                            {section.sectionName}
+                            {section.sectionName} - {section.courseName}
                           </option>
                         ))}
                       </select>
                     </div>
+
                     <div>
                       <label className="block text-sm font-medium text-black mb-1">Faculty</label>
                       <select
-                        name="facultyId"
-                        value={formData.facultyId}
+                        name="faculty"
+                        value={selectedValues.faculty}
                         onChange={handleInputChange}
                         className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
                       >
                         <option value="">Select a Faculty</option>
-                        {options.faculty.map(faculty => (
-                          <option key={faculty._id} value={faculty._id}>
-                            {`${faculty.lastName}, ${faculty.firstName}`}
+                        {formData.faculty.map((f) => (
+                          <option key={f._id} value={f._id}>
+                            {f.fullName}
                           </option>
                         ))}
                       </select>
                     </div>
+
                     <div>
                       <label className="block text-sm font-medium text-black mb-1">Subject</label>
                       <select
-                        name="subjectId"
-                        value={formData.subjectId}
+                        name="subject"
+                        value={selectedValues.subject}
                         onChange={handleInputChange}
                         className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
                       >
                         <option value="">Select a Subject</option>
-                        {options.subjects.map(subject => (
+                        {formData.subjects.map((subject) => (
                           <option key={subject._id} value={subject._id}>
-                            {`${subject.subjectCode} - ${subject.subjectName}`}
+                            {subject.displayName}
                           </option>
                         ))}
                       </select>
@@ -275,7 +332,7 @@ export default function NewScheduleModal({ isOpen, onClose, activeTerm, onSchedu
                       <input
                         type="number"
                         name="classLimit"
-                        value={formData.classLimit}
+                        value={selectedValues.classLimit}
                         onChange={handleInputChange}
                         className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
                         placeholder="Enter class limit"
@@ -285,7 +342,7 @@ export default function NewScheduleModal({ isOpen, onClose, activeTerm, onSchedu
                       <label className="block text-sm font-medium text-black mb-1">Student Type</label>
                       <select
                         name="studentType"
-                        value={formData.studentType}
+                        value={selectedValues.studentType}
                         onChange={handleInputChange}
                         className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
                       >
@@ -299,33 +356,74 @@ export default function NewScheduleModal({ isOpen, onClose, activeTerm, onSchedu
                     </div>
                   </div>
 
+                  {/* Right Column */}
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-black mb-1">Days of Week</label>
-                      <select
-                        name="days"
-                        value={formData.days[0] || ''}
-                        onChange={handleDaysChange}
-                        className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
-                      >
-                        <option value="">Select a Day</option>
-                        {weekDays.map(day => (
-                          <option key={day} value={day}>{day}</option>
-                        ))}
-                      </select>
+                      <div>
+                        <label className="block text-sm font-medium text-black mb-1">Days of Week</label>
+                        <select
+                          name="days"
+                          value={selectedValues.days}
+                          onChange={handleInputChange}
+                          className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
+                        >
+                          <option value="">Select a Day</option>
+                          {weekDays.map((day) => (
+                            <option key={day} value={day}>
+                              {day}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+
+                      <div className="pt-4">
+                        <label className="block text-sm font-medium text-black mb-1">Time From</label>
+                        <select
+                          name="timeFrom"
+                          value={selectedValues.timeFrom}
+                          onChange={handleInputChange}
+                          className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
+                        >
+                          <option value="">Select Time From</option>
+                          {timeSlots.map((slot) => (
+                            <option key={slot.value} value={slot.value}>
+                              {slot.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+
+                      <div className="pt-4">
+                        <label className="block text-sm font-medium text-black mb-1">Time To</label>
+                        <select
+                          name="timeTo"
+                          value={selectedValues.timeTo}
+                          onChange={handleInputChange}
+                          className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
+                        >
+                          <option value="">Select Time To</option>
+                          {timeSlots.map((slot) => (
+                            <option key={slot.value} value={slot.value}>
+                              {slot.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-black mb-1">Room</label>
                       <select
-                        name="roomId"
-                        value={formData.roomId}
+                        name="room"
+                        value={selectedValues.room}
                         onChange={handleInputChange}
                         className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
                       >
                         <option value="">Select a Room</option>
-                        {options.rooms.map(room => (
+                        {formData.rooms.map((room) => (
                           <option key={room._id} value={room._id}>
-                            {`${room.roomCode} - ${room.roomName}`}
+                            {room.roomName || room.name} ({room.capacity} capacity)
                           </option>
                         ))}
                       </select>
@@ -334,64 +432,39 @@ export default function NewScheduleModal({ isOpen, onClose, activeTerm, onSchedu
                       <label className="block text-sm font-medium text-black mb-1">Schedule Type</label>
                       <select
                         name="scheduleType"
-                        value={formData.scheduleType}
+                        value={selectedValues.scheduleType}
                         onChange={handleInputChange}
                         className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
                       >
                         {scheduleTypes.map((type) => (
-                          <option key={type} value={type}>
+                          <option key={type} value={type.toLowerCase()}>
                             {type}
                           </option>
                         ))}
                       </select>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-black mb-1">Time From</label>
-                      <select
-                        name="timeFrom"
-                        value={formData.timeFrom}
-                        onChange={handleInputChange}
-                        className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
-                      >
-                        <option value="">Select Time From</option>
-                        {timeSlots.map((slot) => (
-                          <option key={slot} value={slot}>{slot}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-black mb-1">Time To</label>
-                      <select
-                        name="timeTo"
-                        value={formData.timeTo}
-                        onChange={handleInputChange}
-                        className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-blue-500 focus:ring-blue-500"
-                      >
-                        <option value="">Select Time To</option>
-                        {timeSlots.map((slot) => (
-                          <option key={slot} value={slot}>{slot}</option>
-                        ))}
-                      </select>
-                    </div>
+
                   </div>
                 </div>
 
+                {/* Action Buttons */}
                 <div className="flex justify-end gap-3">
                   <button
                     type="button"
                     className="rounded-md bg-white px-4 py-2 text-sm font-medium text-black hover:bg-gray-50 border border-gray-300"
-                    onClick={onClose}
-                    disabled={loading}
+                    onClick={() => {
+                      clearForm();
+                      onClose();
+                    }}
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
                     className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                    onClick={handleSubmit}
-                    disabled={loading}
+                    onClick={handleSave}
                   >
-                    {loading ? 'Saving...' : 'Save'}
+                    Save
                   </button>
                 </div>
               </Dialog.Panel>
