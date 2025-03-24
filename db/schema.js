@@ -297,6 +297,69 @@ const FeedbackSchema = new Schema({
   collection: 'feedback'
 });
 
+const AssignSubjectsSchema = new Schema({
+  yearLevel: {
+    type: String,
+    required: true,
+    enum: ['1st', '2nd', '3rd', '4th', 'grad']
+  },
+  term: {
+    type: Number,
+    required: true,
+    enum: [1, 2, 3]
+  },
+  classId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Section',
+    required: true
+  },
+  subjects: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Subject',
+    required: true
+  }]
+}, {
+  timestamps: true,
+  collection: 'assignSubjects'
+});
+
+// Static methods
+AssignSubjectsSchema.statics.fetchClasses = async function(yearLevel) {
+  try {
+    const classes = await this.model('Section').find({ 
+      yearLevel: `${yearLevel} Year`,
+      isActive: true 
+    })
+    .select('_id sectionName courseCode departmentCode')
+    .lean();
+    
+    return classes.map(cls => ({
+      ...cls,
+      _id: cls._id.toString()
+    }));
+  } catch (error) {
+    throw new Error('Failed to fetch classes');
+  }
+};
+
+AssignSubjectsSchema.statics.fetchSubjects = async function(term) {
+  try {
+    const subjects = await this.model('Subject').find({ 
+      term: Number(term),
+      isActive: true 
+    })
+    .select('subjectCode subjectName')
+    .lean();
+    
+    return subjects.map(subject => ({
+      ...subject,
+      _id: subject._id.toString()
+    }));
+  } catch (error) {
+    throw new Error('Failed to fetch subjects');
+  }
+};
+
 TermSchema.index({ academicYear: 1, term: 1 }, { unique: true });
 TermSchema.index({ status: 1 });
 
@@ -308,5 +371,6 @@ export {
   RoomSchema,
   SectionSchema,
   TermSchema,
-  FeedbackSchema
+  FeedbackSchema,
+  AssignSubjectsSchema
 };
