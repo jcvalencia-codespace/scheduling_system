@@ -300,6 +300,73 @@ const FeedbackSchema = new Schema({
 TermSchema.index({ academicYear: 1, term: 1 }, { unique: true });
 TermSchema.index({ status: 1 });
 
+const ScheduleSchema = new Schema({
+  term: {
+    type: Schema.Types.ObjectId,
+    ref: 'terms',
+    required: true
+  },
+  section: {
+    type: Schema.Types.ObjectId,
+    ref: 'sections',
+    required: true
+  },
+  faculty: {
+    type: Schema.Types.ObjectId,
+    ref: 'users',
+    required: true
+  },
+  subject: {
+    type: Schema.Types.ObjectId,
+    ref: 'subjects',
+    required: true
+  },
+  room: {
+    type: Schema.Types.ObjectId,
+    ref: 'rooms',
+    required: true
+  },
+  days: [{
+    type: String,
+    enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+    required: true
+  }],
+  timeFrom: {
+    type: String,
+    required: true
+  },
+  timeTo: {
+    type: String,
+    required: true
+  },
+  classLimit: {
+    type: Number,
+    required: true,
+    min: 1
+  },
+  scheduleType: {
+    type: String,
+    enum: ['lecture', 'laboratory', 'tutorial'],
+    required: true
+  },
+  studentType: {
+    type: String,
+    required: true
+  },
+  isPaired: {
+    type: Boolean,
+    default: false
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  }
+}, {
+  timestamps: true,
+  collection: 'schedules'
+});
+
+// Add to exports
 export {
   UserSchema,
   SubjectSchema,
@@ -308,5 +375,6 @@ export {
   RoomSchema,
   SectionSchema,
   TermSchema,
-  FeedbackSchema
+  FeedbackSchema,
+  ScheduleSchema  // Add this line
 };
