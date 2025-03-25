@@ -1,5 +1,6 @@
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
+import Swal from 'sweetalert2';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { 
   CalendarIcon,
@@ -13,8 +14,48 @@ import {
   PresentationChartLineIcon,
   ArrowsRightLeftIcon
 } from '@heroicons/react/24/outline';
+import { deleteSchedule } from '../_actions';
+import NewScheduleModal  from './NewScheduleModal';
 
-export default function ViewScheduleModal({ isOpen, onClose, schedule }) {
+export default function ViewScheduleModal({ isOpen, onClose, schedule, onScheduleDeleted }) {
+  const [isEditMode, setIsEditMode] = useState(false);
+
+  const handleDelete = async () => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "You won't be able to revert this!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const response = await deleteSchedule(schedule._id);
+        if (response.error) {
+          throw new Error(response.error);
+        }
+        await Swal.fire({
+          title: 'Deleted!',
+          text: 'Schedule has been deleted.',
+          icon: 'success',
+          timer: 1500
+        });
+        onClose();
+        onScheduleDeleted();
+      } catch (error) {
+        console.error('Error deleting schedule:', error);
+        await Swal.fire({
+          title: 'Error!',
+          text: 'Failed to delete schedule',
+          icon: 'error'
+        });
+      }
+    }
+  };
   if (!schedule) return null;
 
   return (
@@ -193,18 +234,25 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule }) {
                     <button
                       type="button"
                       className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-6 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 transition-colors"
-                      onClick={() => {
-                        // Handle edit action
-                      }}
+                      onClick={() => setIsEditMode(true)}
                     >
                       Edit
                     </button>
+               
+                    {isEditMode && (
+                      <NewScheduleModal
+                        isOpen={isEditMode}
+                        onClose={() => setIsEditMode(false)}
+                        onScheduleCreated={onScheduleDeleted}
+                        editMode={true}
+                        scheduleData={schedule}
+                      />
+                    )}
+
                     <button
                       type="button"
                       className="inline-flex items-center justify-center rounded-lg bg-red-600 px-6 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 transition-colors"
-                      onClick={() => {
-                        // Handle delete action
-                      }}
+                      onClick={handleDelete}
                     >
                       Delete
                     </button>

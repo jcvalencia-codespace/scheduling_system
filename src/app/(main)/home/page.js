@@ -312,6 +312,7 @@ export default function HomePage() {
           isOpen={isViewScheduleModalOpen}
           onClose={() => setIsViewScheduleModalOpen(false)}
           schedule={selectedSchedule}
+          onScheduleDeleted={fetchSchedules}  // Make sure this line is included
         />
 
         <PreviewPDFModal

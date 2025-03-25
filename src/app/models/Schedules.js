@@ -261,6 +261,66 @@ export default class SchedulesModel {
     }
   }
 
-  
+  static async deleteSchedule(scheduleId) {
+    try {
+      const result = await Schedules.findByIdAndUpdate(
+        scheduleId,
+        { isActive: false },
+        { new: true }
+      );
+      if (!result) {
+        throw new Error('Schedule not found');
+      }
+      return result;
+    } catch (error) {
+      console.error('Schedule deletion error:', error);
+      throw new Error('Failed to delete schedule');
+    }
+  }
 
+  static async updateSchedule(scheduleId, scheduleData) {
+    try {
+      if (!scheduleId) {
+        throw new Error('Schedule ID is required for update');
+      }
+  
+      const formatTime = (timeStr) => {
+        const [time, period] = timeStr.split(' ');
+        const [hours, minutes] = time.split(':');
+        return `${hours}:${minutes} ${period.toUpperCase()}`;
+      };
+  
+      const updatedData = {
+        term: new mongoose.Types.ObjectId(scheduleData.term),
+        section: new mongoose.Types.ObjectId(scheduleData.section),
+        faculty: new mongoose.Types.ObjectId(scheduleData.faculty),
+        subject: new mongoose.Types.ObjectId(scheduleData.subject),
+        room: new mongoose.Types.ObjectId(scheduleData.room),
+        timeFrom: formatTime(scheduleData.timeFrom),
+        timeTo: formatTime(scheduleData.timeTo),
+        days: scheduleData.days,
+        classLimit: scheduleData.classLimit,
+        studentType: scheduleData.studentType,
+        scheduleType: scheduleData.scheduleType,
+        isPaired: scheduleData.isPaired,
+        isMultipleSections: scheduleData.isMultipleSections,
+        isActive: true
+      };
+  
+      const schedule = await Schedules.findByIdAndUpdate(
+        scheduleId,
+        { $set: updatedData },
+        { new: true }
+      );
+  
+      if (!schedule) {
+        throw new Error('Schedule not found');
+      }
+  
+      return schedule;
+    } catch (error) {
+      console.error('Schedule update error:', error);
+      throw new Error('Failed to update schedule: ' + error.message);
+    }
+  }
 }

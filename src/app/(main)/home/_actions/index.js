@@ -69,3 +69,23 @@ export async function getSchedules(query = {}) {
     return { error: error.message || 'Failed to fetch schedules' };
   }
 }
+
+export async function deleteSchedule(scheduleId) {
+  try {
+    const result = await schedulesModel.deleteSchedule(scheduleId);
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting schedule:', error);
+    return { error: error.message || 'Failed to delete schedule' };
+  }
+}
+
+export async function updateSchedule(scheduleId, scheduleData) {
+  try {
+    const schedule = await schedulesModel.updateSchedule(scheduleId, scheduleData);
+    return { schedule: JSON.parse(JSON.stringify(schedule)) };
+  } catch (error) {
+    console.error('Error updating schedule:', error);
+    return { error: error.message || 'Failed to update schedule' };
+  }
+}

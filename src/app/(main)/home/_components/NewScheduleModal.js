@@ -2,13 +2,20 @@
 
 import { Fragment, useEffect, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { getScheduleFormData, createSchedule, getActiveTerm } from '../_actions';
+import { getScheduleFormData, createSchedule, getActiveTerm, updateSchedule } from '../_actions';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
 
+
 // Add these constants at the top of your component
 // Add onScheduleCreated prop to the component definition
-export default function NewScheduleModal({ isOpen, onClose, onScheduleCreated }) {
+export default function NewScheduleModal({
+  isOpen,
+  onClose,
+  onScheduleCreated,
+  editMode = false,
+  scheduleData = null
+}) {
   const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   const studentTypes = [
@@ -227,6 +234,36 @@ export default function NewScheduleModal({ isOpen, onClose, onScheduleCreated })
     }));
   };
 
+  useEffect(() => {
+    if (editMode && scheduleData && isOpen) {
+      // Format time values to match the expected format (HH:MM AM/PM)
+      const formatTimeForEdit = (timeStr) => {
+        if (!timeStr) return '';
+        const [time, period] = timeStr.split(' ');
+        const [hours, minutes] = time.split(':');
+        const hour12 = parseInt(hours) % 12 || 12;
+        return `${hour12}:${minutes} ${period}`;
+      };
+  
+      setSelectedValues({
+        id: scheduleData._id,
+        term: scheduleData.term?._id || '',
+        section: scheduleData.section?._id || '',
+        faculty: scheduleData.faculty?._id || '',
+        subject: scheduleData.subject?._id || '',
+        room: scheduleData.room?._id || '',
+        classLimit: scheduleData.classLimit?.toString() || '',
+        studentType: scheduleData.studentType || '',
+        days: scheduleData.days?.[0] || '',
+        scheduleType: scheduleData.scheduleType || 'lecture',
+        timeFrom: formatTimeForEdit(scheduleData.timeFrom),
+        timeTo: formatTimeForEdit(scheduleData.timeTo),
+        isPaired: scheduleData.isPaired || false,
+        isMultipleSections: scheduleData.isMultipleSections || false
+      });
+    }
+  }, [editMode, scheduleData, isOpen]);
+
   const handleSave = async () => {
     try {
       if (!termInfo?._id) {
@@ -236,7 +273,7 @@ export default function NewScheduleModal({ isOpen, onClose, onScheduleCreated })
       // Validate required fields
       const requiredFields = ['section', 'faculty', 'subject', 'room', 'classLimit', 'studentType', 'days', 'timeFrom', 'timeTo'];
       const emptyFields = requiredFields.filter(field => !selectedValues[field]);
-      
+
       if (emptyFields.length > 0) {
         throw new Error(`Please fill in all required fields: ${emptyFields.join(', ')}`);
       }
@@ -248,7 +285,7 @@ export default function NewScheduleModal({ isOpen, onClose, onScheduleCreated })
         const formattedHours = hours.padStart(2, '0');
         return `${formattedHours}:${minutes} ${period}`;
       };
-  
+
       const scheduleData = {
         ...selectedValues,
         term: termInfo._id,
@@ -258,34 +295,33 @@ export default function NewScheduleModal({ isOpen, onClose, onScheduleCreated })
         timeTo: formatTimeValue(selectedValues.timeTo),
         isActive: true
       };
-  
-      const response = await createSchedule(scheduleData);
+
+      const response = editMode
+      ? await updateSchedule(scheduleData.id || scheduleData._id, scheduleData)
+      : await createSchedule(scheduleData);
+
+
       if (response.error) {
         throw new Error(response.error);
       }
 
       await Swal.fire({
+        title: editMode ? 'Updated!' : 'Created!',
+        text: `Schedule has been ${editMode ? 'updated' : 'created'} successfully.`,
         icon: 'success',
-        title: 'Success!',
-        text: 'Schedule has been created successfully.',
-        confirmButtonColor: '#3B82F6'
+        timer: 1500
       });
 
-      // Call the onScheduleCreated callback to refresh schedules
-      if (onScheduleCreated) {
-        onScheduleCreated();
-      }
-
-      clearForm();
       onClose();
+      clearForm();
+      onScheduleCreated();
     } catch (error) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Oops...',
-        text: error.message || 'Something went wrong!',
-        confirmButtonColor: '#3B82F6'
+      console.error(editMode ? 'Error updating schedule:' : 'Error creating schedule:', error);
+      await Swal.fire({
+        title: 'Error!',
+        text: error.message,
+        icon: 'error'
       });
-      setError(error.message);
     }
   };
 
@@ -337,8 +373,8 @@ export default function NewScheduleModal({ isOpen, onClose, onScheduleCreated })
               leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel className="w-full max-w-3xl transform overflow-hidden rounded-lg bg-white p-6 text-left align-middle shadow-xl transition-all">
-                <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-black mb-4">
-                  New Schedule
+                <Dialog.Title as="h3" className="text-xl font-semibold text-gray-900 mb-5">
+                  {editMode ? 'Edit Schedule' : 'New Schedule Entry'}
                 </Dialog.Title>
 
                 {/* School Year and Term Info */}
