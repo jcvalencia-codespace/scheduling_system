@@ -25,7 +25,13 @@ export default function NewScheduleModal({
     'Transferees',
     'Irregular Students'
   ];
-
+  const [pairedSchedule, setPairedSchedule] = useState({
+    days: '',
+    timeFrom: '',
+    timeTo: '',
+    room: '',
+    scheduleType: 'lecture'
+  });
   // Update the customStyles object
   const customStyles = {
     control: (base) => ({
@@ -233,7 +239,12 @@ export default function NewScheduleModal({
       [name]: selectedOption ? selectedOption.value : ''
     }));
   };
-
+  const handlePairedScheduleChange = (selectedOption, { name }) => {
+    setPairedSchedule(prev => ({
+      ...prev,
+      [name]: selectedOption ? selectedOption.value : ''
+    }));
+  };
   useEffect(() => {
     if (editMode && scheduleData && isOpen) {
       // Format time values to match the expected format (HH:MM AM/PM)
@@ -244,7 +255,7 @@ export default function NewScheduleModal({
         const hour12 = parseInt(hours) % 12 || 12;
         return `${hour12}:${minutes} ${period}`;
       };
-  
+
       setSelectedValues({
         id: scheduleData._id,
         term: scheduleData.term?._id || '',
@@ -285,7 +296,19 @@ export default function NewScheduleModal({
         const formattedHours = hours.padStart(2, '0');
         return `${formattedHours}:${minutes} ${period}`;
       };
+      if (selectedValues.isPaired) {
+        // Add this validation
+        if (selectedValues.days === pairedSchedule.days) {
+          throw new Error('Paired schedule cannot be on the same day as the main schedule');
+        }
 
+        const pairedRequiredFields = ['days', 'timeFrom', 'timeTo', 'room'];
+        const emptyPairedFields = pairedRequiredFields.filter(field => !pairedSchedule[field]);
+
+        if (emptyPairedFields.length > 0) {
+          throw new Error(`Please fill in all paired schedule fields: ${emptyPairedFields.join(', ')}`);
+        }
+      }
       const scheduleData = {
         ...selectedValues,
         term: termInfo._id,
@@ -293,12 +316,19 @@ export default function NewScheduleModal({
         classLimit: parseInt(selectedValues.classLimit, 10),
         timeFrom: formatTimeValue(selectedValues.timeFrom),
         timeTo: formatTimeValue(selectedValues.timeTo),
-        isActive: true
+        isActive: true,
+        // Add paired schedule data if isPaired is true
+        pairedSchedule: selectedValues.isPaired ? {
+          ...pairedSchedule,
+          timeFrom: formatTimeValue(pairedSchedule.timeFrom),
+          timeTo: formatTimeValue(pairedSchedule.timeTo),
+          days: [pairedSchedule.days]
+        } : null
       };
 
       const response = editMode
-      ? await updateSchedule(scheduleData.id || scheduleData._id, scheduleData)
-      : await createSchedule(scheduleData);
+        ? await updateSchedule(scheduleData.id || scheduleData._id, scheduleData)
+        : await createSchedule(scheduleData);
 
 
       if (response.error) {
@@ -341,9 +371,16 @@ export default function NewScheduleModal({
       isPaired: false,
       isMultipleSections: false,
     });
+    setPairedSchedule({
+      days: '',
+      timeFrom: '',
+      timeTo: '',
+      room: '',
+      scheduleType: 'lecture'
+    });
     setError(null);
   };
-  // Update the select elements in your JSX
+
   return (
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={() => {
@@ -377,6 +414,7 @@ export default function NewScheduleModal({
                   {editMode ? 'Edit Schedule' : 'New Schedule Entry'}
                 </Dialog.Title>
 
+             <div className="max-h-[70vh] overflow-y-auto  p-6">
                 {/* School Year and Term Info */}
                 <div className="bg-blue-50 p-4 rounded-lg mb-6">
                   <div className="space-y-1 text-black">
@@ -573,9 +611,87 @@ export default function NewScheduleModal({
 
                   </div>
                 </div>
+                {selectedValues.isPaired && (
+                  <div className="mt-6 border-t pt-6">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">Paired Schedule Details</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-black mb-1">Days of Week</label>
+                          <Select
+                            name="days"
+                            value={dayOptions.find(option => option.value === pairedSchedule.days)}
+                            onChange={(option) => handlePairedScheduleChange(option, { name: 'days' })}
+                            options={dayOptions}
+                            styles={customStyles}
+                            className="text-black"
+                            placeholder="Select a Day"
+                            isClearable
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-black mb-1">Room</label>
+                          <Select
+                            name="room"
+                            value={roomOptions.find(option => option.value === pairedSchedule.room)}
+                            onChange={(option) => handlePairedScheduleChange(option, { name: 'room' })}
+                            options={roomOptions}
+                            styles={customStyles}
+                            className="text-black"
+                            placeholder="Select a Room"
+                            isClearable
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-black mb-1">Time From</label>
+                          <Select
+                            name="timeFrom"
+                            value={timeSlotOptions.find(option => option.value === pairedSchedule.timeFrom)}
+                            onChange={(option) => handlePairedScheduleChange(option, { name: 'timeFrom' })}
+                            options={timeSlotOptions}
+                            styles={customStyles}
+                            className="text-black"
+                            placeholder="Select Time From"
+                            isClearable
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-black mb-1">Time To</label>
+                          <Select
+                            name="timeTo"
+                            value={timeSlotOptions.find(option => option.value === pairedSchedule.timeTo)}
+                            onChange={(option) => handlePairedScheduleChange(option, { name: 'timeTo' })}
+                            options={timeSlotOptions}
+                            styles={customStyles}
+                            className="text-black"
+                            placeholder="Select Time To"
+                            isClearable
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-black mb-1">Schedule Type</label>
+                          <Select
+                            name="scheduleType"
+                            value={scheduleTypeOptions.find(option => option.value === pairedSchedule.scheduleType)}
+                            onChange={(option) => handlePairedScheduleChange(option, { name: 'scheduleType' })}
+                            options={scheduleTypeOptions}
+                            styles={customStyles}
+                            className="text-black"
+                            placeholder="Select Schedule Type"
+                            isClearable
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                
+                )}
+                </div>
 
                 {/* Action Buttons */}
-                <div className="flex justify-end gap-3">
+                <div className="flex justify-end gap-3 pt-4">
                   <button
                     type="button"
                     className="rounded-md bg-white px-4 py-2 text-sm font-medium text-black hover:bg-gray-50 border border-gray-300"

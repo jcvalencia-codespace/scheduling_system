@@ -134,16 +134,14 @@ export default class SchedulesModel {
 
   static async createSchedule(scheduleData) {
     try {
-      // Format time strings to ensure consistent format
       const formatTime = (timeStr) => {
-        // Time is already in 12-hour format from the frontend
-        // Just ensure consistent formatting
         const [time, period] = timeStr.split(' ');
         const [hours, minutes] = time.split(':');
         return `${hours}:${minutes} ${period.toUpperCase()}`;
       };
-      
-      const schedule = await Schedules.create({
+  
+      // Create the main schedule
+      const mainSchedule = await Schedules.create({
         ...scheduleData,
         term: new mongoose.Types.ObjectId(scheduleData.term),
         section: new mongoose.Types.ObjectId(scheduleData.section),
@@ -153,7 +151,31 @@ export default class SchedulesModel {
         timeFrom: formatTime(scheduleData.timeFrom),
         timeTo: formatTime(scheduleData.timeTo)
       });
-      return schedule;
+  
+      // If there's a paired schedule, create it
+      if (scheduleData.isPaired && scheduleData.pairedSchedule) {
+        const pairedSchedule = await Schedules.create({
+          ...scheduleData,
+          term: new mongoose.Types.ObjectId(scheduleData.term),
+          section: new mongoose.Types.ObjectId(scheduleData.section),
+          faculty: new mongoose.Types.ObjectId(scheduleData.faculty),
+          subject: new mongoose.Types.ObjectId(scheduleData.subject),
+          room: new mongoose.Types.ObjectId(scheduleData.pairedSchedule.room),
+          days: scheduleData.pairedSchedule.days,
+          timeFrom: formatTime(scheduleData.pairedSchedule.timeFrom),
+          timeTo: formatTime(scheduleData.pairedSchedule.timeTo),
+          scheduleType: scheduleData.pairedSchedule.scheduleType,
+          isPaired: true,
+          pairedWithId: mainSchedule._id
+        });
+  
+        // Update main schedule with paired schedule reference
+        await Schedules.findByIdAndUpdate(mainSchedule._id, {
+          pairedWithId: pairedSchedule._id
+        });
+      }
+  
+      return mainSchedule;
     } catch (error) {
       console.error('Schedule creation error:', error);
       throw new Error('Failed to create schedule: ' + error.message);
