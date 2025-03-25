@@ -304,35 +304,9 @@ const FeedbackSchema = new Schema({
 TermSchema.index({ academicYear: 1, term: 1 }, { unique: true });
 TermSchema.index({ status: 1 });
 
-const ScheduleSchema = new Schema({
-  term: {
-    type: Schema.Types.ObjectId,
-    ref: 'terms',
-    required: true
-  },
-  section: {
-    type: Schema.Types.ObjectId,
-    ref: 'sections',
-    required: true
-  },
-  faculty: {
-    type: Schema.Types.ObjectId,
-    ref: 'users',
-    required: true
-  },
-  subject: {
-    type: Schema.Types.ObjectId,
-    ref: 'subjects',
-    required: true
-  },
-  room: {
-    type: Schema.Types.ObjectId,
-    ref: 'rooms',
-    required: true
-  },
+const ScheduleSlotSchema = new Schema({
   days: [{
     type: String,
-    enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
     required: true
   }],
   timeFrom: {
@@ -343,14 +317,41 @@ const ScheduleSchema = new Schema({
     type: String,
     required: true
   },
-  classLimit: {
-    type: Number,
-    required: true,
-    min: 1
+  room: {
+    type: Schema.Types.ObjectId,
+    ref: 'Rooms',
+    required: true
   },
   scheduleType: {
     type: String,
-    enum: ['lecture', 'laboratory', 'tutorial'],
+    required: true,
+    enum: ['lecture', 'laboratory', 'tutorial']
+  }
+});
+
+const ScheduleSchema = new Schema({
+  term: {
+    type: Schema.Types.ObjectId,
+    ref: 'Terms',
+    required: true
+  },
+  section: {
+    type: Schema.Types.ObjectId,
+    ref: 'Sections',
+    required: true
+  },
+  faculty: {
+    type: Schema.Types.ObjectId,
+    ref: 'Users',
+    required: true
+  },
+  subject: {
+    type: Schema.Types.ObjectId,
+    ref: 'Subjects',
+    required: true
+  },
+  classLimit: {
+    type: Number,
     required: true
   },
   studentType: {
@@ -361,6 +362,11 @@ const ScheduleSchema = new Schema({
     type: Boolean,
     default: false
   },
+  isMultipleSections: {
+    type: Boolean,
+    default: false
+  },
+  scheduleSlots: [ScheduleSlotSchema],
   isActive: {
     type: Boolean,
     default: true
@@ -370,7 +376,7 @@ const ScheduleSchema = new Schema({
   collection: 'schedules'
 });
 
-// Add to exports
+
 export {
   UserSchema,
   SubjectSchema,
@@ -380,5 +386,5 @@ export {
   SectionSchema,
   TermSchema,
   FeedbackSchema,
-  ScheduleSchema  // Add this line
+  ScheduleSchema 
 };

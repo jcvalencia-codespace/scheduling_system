@@ -84,65 +84,74 @@ export default function HomePage() {
   const convertSchedulesToEvents = (schedules) => {
     // Filter schedules by selected section if needed
     const filteredSchedules = selectedSection
-      ? schedules.filter((schedule) => schedule.sectionName === selectedSection)
+      ? schedules.filter((schedule) => schedule.section?.sectionName === selectedSection)
       : schedules
-
-    // Map each schedule to a FullCalendar event
+  
+    // Map each schedule to FullCalendar events
     return filteredSchedules.flatMap((schedule) => {
-      // Create an event for each day in the schedule
-      return schedule.days.map((day) => {
-        // Map day names to day numbers (0 = Sunday, 1 = Monday, etc.)
-        const dayMap = {
-          Sunday: 0,
-          Monday: 1,
-          Tuesday: 2,
-          Wednesday: 3,
-          Thursday: 4,
-          Friday: 5,
-          Saturday: 6,
-        }
-
-        // Get the day number
-        const dayNumber = dayMap[day]
-
-        // Create a date for this week's occurrence of the day
-        const today = new Date()
-        const thisWeek = new Date(today)
-        thisWeek.setDate(today.getDate() - today.getDay() + dayNumber)
-
-        // Format the date as YYYY-MM-DD
-        const dateStr = thisWeek.toISOString().split("T")[0]
-
-        // Parse time strings (e.g., "7:00 am" to "07:00:00")
-        const parseTimeStr = (timeStr) => {
-          const [time, period] = timeStr.toLowerCase().split(" ")
-          let [hours, minutes] = time.split(":").map(Number)
-
-          // Convert to 24-hour format
-          if (period === "pm" && hours !== 12) {
-            hours += 12
-          } else if (period === "am" && hours === 12) {
-            hours = 0
+      // Create events for each slot in scheduleSlots
+      return schedule.scheduleSlots.flatMap((slot) => {
+        return slot.days.map((day) => {
+          // Map day names to day numbers (0 = Sunday, 1 = Monday, etc.)
+          const dayMap = {
+            Sunday: 0,
+            Monday: 1,
+            Tuesday: 2,
+            Wednesday: 3,
+            Thursday: 4,
+            Friday: 5,
+            Saturday: 6,
           }
-
-          // Format as HH:MM:SS
-          return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:00`
-        }
-
-        const startTime = parseTimeStr(schedule.timeFrom)
-        const endTime = parseTimeStr(schedule.timeTo)
-
-        return {
-          id: `${schedule.id}-${day}`,
-          title: `${schedule.subjectCode} - ${schedule.room.roomCode}`,
-          start: `${dateStr}T${startTime}`,
-          end: `${dateStr}T${endTime}`,
-          extendedProps: {
-            schedule: schedule,
-          },
-          backgroundColor: "#4285F4",
-          borderColor: "#3b7ddb",
-        }
+  
+          // Get the day number
+          const dayNumber = dayMap[day]
+  
+          // Create a date for this week's occurrence of the day
+          const today = new Date()
+          const thisWeek = new Date(today)
+          thisWeek.setDate(today.getDate() - today.getDay() + dayNumber)
+  
+          // Format the date as YYYY-MM-DD
+          const dateStr = thisWeek.toISOString().split("T")[0]
+  
+          // Parse time strings (e.g., "7:00 AM" to "07:00:00")
+          const parseTimeStr = (timeStr) => {
+            const [time, period] = timeStr.toLowerCase().split(" ")
+            let [hours, minutes] = time.split(":").map(Number)
+  
+            // Convert to 24-hour format
+            if (period === "pm" && hours !== 12) {
+              hours += 12
+            } else if (period === "am" && hours === 12) {
+              hours = 0
+            }
+  
+            // Format as HH:MM:SS
+            return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:00`
+          }
+  
+          const startTime = parseTimeStr(slot.timeFrom)
+          const endTime = parseTimeStr(slot.timeTo)
+  
+          return {
+            id: `${schedule._id}-${day}`,
+            title: `${schedule.subject.subjectCode} - ${slot.room.roomCode}`,
+            start: `${dateStr}T${startTime}`,
+            end: `${dateStr}T${endTime}`,
+            extendedProps: {
+              schedule: {
+                ...schedule,
+                timeFrom: slot.timeFrom,
+                timeTo: slot.timeTo,
+                days: [day],
+                room: slot.room,
+                scheduleType: slot.scheduleType
+              },
+            },
+            backgroundColor: "#4285F4",
+            borderColor: "#3b7ddb",
+          }
+        })
       })
     })
   }
@@ -330,9 +339,6 @@ export default function HomePage() {
     </div>
   )
 }
-
-// Custom event rendering for FullCalendar
-// Update the renderEventContent function
 function renderEventContent(eventInfo) {
   const schedule = eventInfo.event.extendedProps.schedule;
   
@@ -368,4 +374,3 @@ function renderEventContent(eventInfo) {
     </div>
   );
 }
-

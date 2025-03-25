@@ -140,42 +140,41 @@ export default class SchedulesModel {
         return `${hours}:${minutes} ${period.toUpperCase()}`;
       };
   
-      // Create the main schedule
-      const mainSchedule = await Schedules.create({
-        ...scheduleData,
-        term: new mongoose.Types.ObjectId(scheduleData.term),
-        section: new mongoose.Types.ObjectId(scheduleData.section),
-        faculty: new mongoose.Types.ObjectId(scheduleData.faculty),
-        subject: new mongoose.Types.ObjectId(scheduleData.subject),
-        room: new mongoose.Types.ObjectId(scheduleData.room),
+      // Prepare schedule slots
+      const scheduleSlots = [{
+        days: scheduleData.days,
         timeFrom: formatTime(scheduleData.timeFrom),
-        timeTo: formatTime(scheduleData.timeTo)
-      });
+        timeTo: formatTime(scheduleData.timeTo),
+        room: scheduleData.room,
+        scheduleType: scheduleData.scheduleType
+      }];
   
-      // If there's a paired schedule, create it
+      // Add paired schedule slot if exists
       if (scheduleData.isPaired && scheduleData.pairedSchedule) {
-        const pairedSchedule = await Schedules.create({
-          ...scheduleData,
-          term: new mongoose.Types.ObjectId(scheduleData.term),
-          section: new mongoose.Types.ObjectId(scheduleData.section),
-          faculty: new mongoose.Types.ObjectId(scheduleData.faculty),
-          subject: new mongoose.Types.ObjectId(scheduleData.subject),
-          room: new mongoose.Types.ObjectId(scheduleData.pairedSchedule.room),
+        scheduleSlots.push({
           days: scheduleData.pairedSchedule.days,
           timeFrom: formatTime(scheduleData.pairedSchedule.timeFrom),
           timeTo: formatTime(scheduleData.pairedSchedule.timeTo),
-          scheduleType: scheduleData.pairedSchedule.scheduleType,
-          isPaired: true,
-          pairedWithId: mainSchedule._id
-        });
-  
-        // Update main schedule with paired schedule reference
-        await Schedules.findByIdAndUpdate(mainSchedule._id, {
-          pairedWithId: pairedSchedule._id
+          room: scheduleData.pairedSchedule.room,
+          scheduleType: scheduleData.pairedSchedule.scheduleType
         });
       }
   
-      return mainSchedule;
+      // Create schedule document
+      const schedule = await Schedules.create({
+        term: scheduleData.term,
+        section: scheduleData.section,
+        faculty: scheduleData.faculty,
+        subject: scheduleData.subject,
+        classLimit: scheduleData.classLimit,
+        studentType: scheduleData.studentType,
+        isPaired: scheduleData.isPaired,
+        isMultipleSections: scheduleData.isMultipleSections,
+        scheduleSlots,
+        isActive: true
+      });
+  
+      return schedule;
     } catch (error) {
       console.error('Schedule creation error:', error);
       throw new Error('Failed to create schedule: ' + error.message);
@@ -186,7 +185,6 @@ export default class SchedulesModel {
     try {
       const schedules = await Schedules.aggregate([
         { $match: { isActive: true, ...query } },
-        // Add term lookup
         {
           $lookup: {
             from: 'terms',
@@ -195,7 +193,6 @@ export default class SchedulesModel {
             as: 'term'
           }
         },
-        // Add existing lookups
         {
           $lookup: {
             from: 'sections',
@@ -214,38 +211,57 @@ export default class SchedulesModel {
         },
         {
           $lookup: {
-            from: 'rooms',
-            localField: 'room',
-            foreignField: '_id',
-            as: 'room'
-          }
-        },
-        {
-          $lookup: {
             from: 'users',
             localField: 'faculty',
             foreignField: '_id',
             as: 'faculty'
           }
         },
-        // Unwind term along with other arrays
+        // Lookup for rooms in scheduleSlots
+        {
+          $lookup: {
+            from: 'rooms',
+            localField: 'scheduleSlots.room',
+            foreignField: '_id',
+            as: 'roomsData'
+          }
+        },
         { $unwind: '$term' },
         { $unwind: '$section' },
         { $unwind: '$subject' },
-        { $unwind: '$room' },
         { $unwind: '$faculty' },
         {
           $project: {
             _id: 1,
-            days: 1,
-            timeFrom: 1,
-            timeTo: 1,
+            scheduleSlots: {
+              $map: {
+                input: '$scheduleSlots',
+                as: 'slot',
+                in: {
+                  _id: '$$slot._id',
+                  days: '$$slot.days',
+                  timeFrom: '$$slot.timeFrom',
+                  timeTo: '$$slot.timeTo',
+                  scheduleType: '$$slot.scheduleType',
+                  room: {
+                    $arrayElemAt: [
+                      {
+                        $filter: {
+                          input: '$roomsData',
+                          as: 'r',
+                          cond: { $eq: ['$$r._id', '$$slot.room'] }
+                        }
+                      },
+                      0
+                    ]
+                  }
+                }
+              }
+            },
             classLimit: 1,
-            scheduleType: 1,
             studentType: 1,
             isPaired: 1,
             isActive: 1,
-            // Add term projection
             term: {
               _id: '$term._id',
               term: '$term.term',
@@ -259,11 +275,6 @@ export default class SchedulesModel {
               _id: '$subject._id',
               subjectCode: '$subject.subjectCode',
               subjectName: '$subject.subjectName'
-            },
-            room: {
-              _id: '$room._id',
-              roomCode: '$room.roomCode',
-              roomName: '$room.roomName'
             },
             faculty: {
               _id: '$faculty._id',

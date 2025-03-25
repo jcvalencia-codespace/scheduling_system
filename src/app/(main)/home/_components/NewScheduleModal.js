@@ -7,8 +7,7 @@ import Swal from 'sweetalert2';
 import Select from 'react-select';
 
 
-// Add these constants at the top of your component
-// Add onScheduleCreated prop to the component definition
+
 export default function NewScheduleModal({
   isOpen,
   onClose,
@@ -247,7 +246,6 @@ export default function NewScheduleModal({
   };
   useEffect(() => {
     if (editMode && scheduleData && isOpen) {
-      // Format time values to match the expected format (HH:MM AM/PM)
       const formatTimeForEdit = (timeStr) => {
         if (!timeStr) return '';
         const [time, period] = timeStr.split(' ');
@@ -255,23 +253,38 @@ export default function NewScheduleModal({
         const hour12 = parseInt(hours) % 12 || 12;
         return `${hour12}:${minutes} ${period}`;
       };
-
+  
+      // Main schedule is always the first slot
+      const mainSlot = scheduleData.scheduleSlots[0];
+      // Paired schedule is the second slot if it exists
+      const pairedSlot = scheduleData.scheduleSlots[1];
+  
       setSelectedValues({
         id: scheduleData._id,
         term: scheduleData.term?._id || '',
         section: scheduleData.section?._id || '',
         faculty: scheduleData.faculty?._id || '',
         subject: scheduleData.subject?._id || '',
-        room: scheduleData.room?._id || '',
+        room: mainSlot?.room?._id || '', // Update this line
         classLimit: scheduleData.classLimit?.toString() || '',
         studentType: scheduleData.studentType || '',
-        days: scheduleData.days?.[0] || '',
-        scheduleType: scheduleData.scheduleType || 'lecture',
-        timeFrom: formatTimeForEdit(scheduleData.timeFrom),
-        timeTo: formatTimeForEdit(scheduleData.timeTo),
+        days: mainSlot?.days?.[0] || '',
+        scheduleType: mainSlot?.scheduleType || 'lecture',
+        timeFrom: formatTimeForEdit(mainSlot?.timeFrom),
+        timeTo: formatTimeForEdit(mainSlot?.timeTo),
         isPaired: scheduleData.isPaired || false,
         isMultipleSections: scheduleData.isMultipleSections || false
       });
+  
+      if (pairedSlot) {
+        setPairedSchedule({
+          days: pairedSlot.days[0] || '',
+          timeFrom: formatTimeForEdit(pairedSlot.timeFrom),
+          timeTo: formatTimeForEdit(pairedSlot.timeTo),
+          room: pairedSlot.room?._id || '', // Update this line
+          scheduleType: pairedSlot.scheduleType || 'lecture'
+        });
+      }
     }
   }, [editMode, scheduleData, isOpen]);
 
@@ -280,35 +293,37 @@ export default function NewScheduleModal({
       if (!termInfo?._id) {
         throw new Error('No active term found. Please contact an administrator.');
       }
-
+  
       // Validate required fields
       const requiredFields = ['section', 'faculty', 'subject', 'room', 'classLimit', 'studentType', 'days', 'timeFrom', 'timeTo'];
       const emptyFields = requiredFields.filter(field => !selectedValues[field]);
-
+  
       if (emptyFields.length > 0) {
         throw new Error(`Please fill in all required fields: ${emptyFields.join(', ')}`);
       }
-
-      // Format time values to ensure consistent format (HH:MM AM/PM)
+  
+      // Format time values
       const formatTimeValue = (timeValue) => {
         const [time, period] = timeValue.split(' ');
         const [hours, minutes] = time.split(':');
         const formattedHours = hours.padStart(2, '0');
         return `${formattedHours}:${minutes} ${period}`;
       };
+  
+      // Validate paired schedule if enabled
       if (selectedValues.isPaired) {
-        // Add this validation
         if (selectedValues.days === pairedSchedule.days) {
           throw new Error('Paired schedule cannot be on the same day as the main schedule');
         }
-
+  
         const pairedRequiredFields = ['days', 'timeFrom', 'timeTo', 'room'];
         const emptyPairedFields = pairedRequiredFields.filter(field => !pairedSchedule[field]);
-
+  
         if (emptyPairedFields.length > 0) {
           throw new Error(`Please fill in all paired schedule fields: ${emptyPairedFields.join(', ')}`);
         }
       }
+  
       const scheduleData = {
         ...selectedValues,
         term: termInfo._id,
@@ -317,7 +332,6 @@ export default function NewScheduleModal({
         timeFrom: formatTimeValue(selectedValues.timeFrom),
         timeTo: formatTimeValue(selectedValues.timeTo),
         isActive: true,
-        // Add paired schedule data if isPaired is true
         pairedSchedule: selectedValues.isPaired ? {
           ...pairedSchedule,
           timeFrom: formatTimeValue(pairedSchedule.timeFrom),
@@ -325,23 +339,22 @@ export default function NewScheduleModal({
           days: [pairedSchedule.days]
         } : null
       };
-
+  
       const response = editMode
         ? await updateSchedule(scheduleData.id || scheduleData._id, scheduleData)
         : await createSchedule(scheduleData);
-
-
+  
       if (response.error) {
         throw new Error(response.error);
       }
-
+  
       await Swal.fire({
         title: editMode ? 'Updated!' : 'Created!',
         text: `Schedule has been ${editMode ? 'updated' : 'created'} successfully.`,
         icon: 'success',
         timer: 1500
       });
-
+  
       onClose();
       clearForm();
       onScheduleCreated();
