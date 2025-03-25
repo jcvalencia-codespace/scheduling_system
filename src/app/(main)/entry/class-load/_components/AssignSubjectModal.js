@@ -2,6 +2,7 @@ import { Fragment, useState, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { getClasses, getSubjects, createAssignment, updateAssignment } from '../_actions'
+import { DropdownSkeleton } from './SkeletonLoader'
 import Swal from 'sweetalert2'
 
 export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData = null }) {
@@ -13,6 +14,8 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
   })
   const [availableClasses, setAvailableClasses] = useState([])
   const [availableSubjects, setAvailableSubjects] = useState([])
+  const [isLoadingClasses, setIsLoadingClasses] = useState(false);
+  const [isLoadingSubjects, setIsLoadingSubjects] = useState(false);
 
   const yearLevels = [
     { id: '1st Year', label: '1st Year' },
@@ -31,14 +34,28 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
     const yearLevel = e.target.value;
     console.log('Selected year level:', yearLevel); // Debug log
     setFormData(prev => ({ ...prev, yearLevel }));
+    
     if (yearLevel) {
       try {
+        setIsLoadingClasses(true);
+        // Pass the complete year level string
         const classes = await getClasses(yearLevel);
         console.log('Received classes:', classes); // Debug log
-        setAvailableClasses(classes);
+        
+        if (Array.isArray(classes) && classes.length > 0) {
+          setAvailableClasses(classes);
+        } else {
+          setAvailableClasses([]);
+          console.log('No classes found for year level:', yearLevel);
+        }
       } catch (error) {
         console.error('Error fetching classes:', error);
+        setAvailableClasses([]);
+      } finally {
+        setIsLoadingClasses(false);
       }
+    } else {
+      setAvailableClasses([]);
     }
   };
 
@@ -48,11 +65,14 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
     setFormData(prev => ({ ...prev, term }));
     if (term) {
       try {
+        setIsLoadingSubjects(true);
         const subjects = await getSubjects(parseInt(term));
         console.log('Received subjects:', subjects); // Debug log
         setAvailableSubjects(subjects);
       } catch (error) {
         console.error('Error fetching subjects:', error);
+      } finally {
+        setIsLoadingSubjects(false);
       }
     }
   };
@@ -104,10 +124,8 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
     try {
       let result;
       if (editData) {
-        // Update existing assignment
         result = await updateAssignment(editData._id, formData);
       } else {
-        // Create new assignment
         result = await createAssignment(formData);
       }
       
@@ -118,12 +136,17 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
           icon: 'success',
           confirmButtonColor: '#323E8F'
         });
-        // Clear form and pass data back to parent
         onSubmit(formData);
         resetForm();
         onClose();
       } else {
-        throw new Error(result.message);
+        // Show validation error with specific message
+        Swal.fire({
+          title: 'Cannot Proceed!',
+          text: result.message,
+          icon: 'warning',
+          confirmButtonColor: '#323E8F'
+        });
       }
     } catch (error) {
       Swal.fire({
@@ -228,58 +251,90 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Classes</label>
-                        <select
-                          name="classes"
-                          multiple
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm h-32 overflow-y-auto"
-                          required
-                          value={formData.classes}
-                          onChange={handleClassesChange}
-                          size={4}
-                        >
-                          {availableClasses.map((cls) => (
-                            <option 
-                              key={cls._id} 
-                              value={cls._id} 
-                              className={`p-2 ${
-                                formData.classes.includes(cls._id) 
-                                  ? 'bg-indigo-50 text-indigo-900' 
-                                  : 'hover:bg-gray-100'
-                              }`}
+                        {isLoadingClasses ? (
+                          <DropdownSkeleton />
+                        ) : (
+                          <>
+                            <select
+                              name="classes"
+                              multiple
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm h-32 overflow-y-auto"
+                              required
+                              value={formData.classes}
+                              onChange={handleClassesChange}
+                              size={4}
                             >
-                              {cls.sectionName} - {cls.courseCode}
-                            </option>
-                          ))}
-                        </select>
-                        <p className="mt-1 text-xs text-gray-500">Hold Ctrl/Cmd to select multiple classes</p>
+                              {availableClasses.length > 0 ? (
+                                availableClasses.map((cls) => (
+                                  <option 
+                                    key={cls._id} 
+                                    value={cls._id} 
+                                    className={`p-2 ${
+                                      formData.classes.includes(cls._id) 
+                                        ? 'bg-indigo-50 text-indigo-900' 
+                                        : 'hover:bg-gray-100'
+                                    }`}
+                                  >
+                                    {cls.sectionName} - {cls.courseCode}
+                                  </option>
+                                ))
+                              ) : (
+                                <option disabled value="" className="text-gray-500 italic p-2">
+                                  {formData.yearLevel ? 'No classes available for selected year level' : 'Select a year level to view available classes'}
+                                </option>
+                              )}
+                            </select>
+                            <p className="mt-1 text-xs text-gray-500">
+                              {availableClasses.length > 0 
+                                ? "Hold Ctrl/Cmd to select multiple classes"
+                                : "Select a year level to view available classes"}
+                            </p>
+                          </>
+                        )}
                       </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Subjects</label>
-                        <select
-                          name="subjects"
-                          multiple
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm h-32 overflow-y-auto"
-                          required
-                          value={formData.subjects}
-                          onChange={handleSubjectsChange}
-                          size={4}
-                        >
-                          {availableSubjects.map((subject) => (
-                            <option 
-                              key={subject._id} 
-                              value={subject._id} 
-                              className={`p-2 ${
-                                formData.subjects.includes(subject._id) 
-                                  ? 'bg-indigo-50 text-indigo-900' 
-                                  : 'hover:bg-gray-100'
-                              }`}
+                        {isLoadingSubjects ? (
+                          <DropdownSkeleton />
+                        ) : (
+                          <>
+                            <select
+                              name="subjects"
+                              multiple
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm h-32 overflow-y-auto"
+                              required
+                              value={formData.subjects}
+                              onChange={handleSubjectsChange}
+                              size={4}
                             >
-                              {subject.subjectCode} - {subject.subjectName}
-                            </option>
-                          ))}
-                        </select>
-                        <p className="mt-1 text-xs text-gray-500">Hold Ctrl/Cmd to select multiple subjects</p>
+                              {availableSubjects.length > 0 ? (
+                                availableSubjects.map((subject) => (
+                                  <option 
+                                    key={subject._id} 
+                                    value={subject._id} 
+                                    className={`p-2 ${
+                                      formData.subjects.includes(subject._id) 
+                                        ? 'bg-indigo-50 text-indigo-900' 
+                                        : 'hover:bg-gray-100'
+                                    }`}
+                                  >
+                                    {subject.subjectCode} - {subject.subjectName}
+                                  </option>
+                                ))
+                              ) : (
+                                <option disabled value="" className="text-gray-500 italic p-2">
+                                  {formData.term ? 'No subjects available for selected term' : 'Select a term to view available subjects'}
+                                </option>
+                              )}
+                            </select>
+                            <p className="mt-1 text-xs text-gray-500">
+                              {availableSubjects.length > 0 
+                                ? "Hold Ctrl/Cmd to select multiple subjects"
+                                : "Select a term to view available subjects"}
+                            </p>
+                          </>
+                        )}
                       </div>
 
                       <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">

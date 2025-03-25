@@ -1,38 +1,68 @@
 'use server'
 
-import AssignSubjects from '@/app/models/AssignSubjects';
+import AssignSubjectsModel from '@/app/models/AssignSubjects';
 
 export async function getClasses(yearLevel) {
-  const classes = await AssignSubjects.fetchClasses(yearLevel);
-  return JSON.parse(JSON.stringify(classes)); // Ensure complete serialization
+  try {
+    const formattedYearLevel = yearLevel.replace(' Year', '');
+    console.log('Getting classes for yearLevel:', formattedYearLevel);
+    const classes = await AssignSubjectsModel.fetchClasses(formattedYearLevel);
+    
+    const formattedClasses = classes.map(cls => ({
+      ...cls,
+      _id: cls._id.toString()
+    }));
+    
+    return formattedClasses;
+  } catch (error) {
+    console.error('Error fetching classes:', error);
+    return [];
+  }
 }
 
 export async function getSubjects(term) {
-  const subjects = await AssignSubjects.fetchSubjects(term);
+  const subjects = await AssignSubjectsModel.fetchSubjects(term);
   return JSON.parse(JSON.stringify(subjects)); // Ensure complete serialization
 }
 
 export async function createAssignment(data) {
   try {
-    // Create multiple assignments if multiple classes are selected
+    for (const classId of data.classes) {
+      const validation = await AssignSubjectsModel.checkExistingAssignments(
+        classId,
+        data.subjects,
+        data.term
+      );
+
+      if (validation.hasDuplicates) {
+        return { 
+          success: false, 
+          message: `Duplicate subjects found for this section: ${validation.duplicateSubjects.join(', ')}` 
+        };
+      }
+    }
+
     const assignments = data.classes.map(classId => ({
-      yearLevel: data.yearLevel.replace(' Year', ''), // Remove 'Year' suffix
+      yearLevel: data.yearLevel.replace(' Year', ''),
       term: Number(data.term),
       classId,
       subjects: data.subjects
     }));
 
-    const result = await AssignSubjects.create(assignments);
+    await AssignSubjectsModel.create(assignments);
     return { success: true, message: 'Subjects assigned successfully' };
   } catch (error) {
     console.error('Error creating assignment:', error);
-    return { success: false, message: 'Failed to assign subjects' };
+    return { 
+      success: false, 
+      message: error.message || 'Failed to create assignment'
+    };
   }
 }
 
 export async function getAssignments() {
   try {
-    const assignments = await AssignSubjects.find()
+    const assignments = await AssignSubjectsModel.find()
       .populate('classId', 'sectionName courseCode')
       .populate('subjects', 'subjectCode subjectName')
       .lean();
@@ -46,7 +76,7 @@ export async function getAssignments() {
 
 export async function deleteAssignment(id) {
   try {
-    await AssignSubjects.findByIdAndDelete(id);
+    await AssignSubjectsModel.findByIdAndDelete(id);
     return { success: true, message: 'Assignment deleted successfully' };
   } catch (error) {
     console.error('Error deleting assignment:', error);
@@ -56,14 +86,26 @@ export async function deleteAssignment(id) {
 
 export async function updateAssignment(id, data) {
   try {
-    // Don't take just the first class, update with all selected classes
-    await AssignSubjects.findByIdAndUpdate(
+    const validation = await AssignSubjectsModel.checkExistingAssignments(
+      data.classes[0],
+      data.subjects,
+      data.term
+    );
+
+    if (validation.hasDuplicates) {
+      return { 
+        success: false, 
+        message: `Some subjects are already assigned to this section: ${validation.duplicateSubjects.join(', ')}` 
+      };
+    }
+
+    await AssignSubjectsModel.findByIdAndUpdate(
       id,
       {
         yearLevel: data.yearLevel.replace(' Year', ''),
         term: Number(data.term),
-        classId: data.classes[0], // For now, keep first class as we're editing single assignment
-        subjects: data.subjects // Keep all selected subjects
+        classId: data.classes[0],
+        subjects: data.subjects
       },
       { new: true }
     );

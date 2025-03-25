@@ -1,21 +1,27 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  PlusIcon, 
+import {
+  PlusIcon,
   PrinterIcon,
   PencilSquareIcon,
-  TrashIcon
+  TrashIcon,
+  EyeIcon
 } from '@heroicons/react/24/outline';
 import AssignSubjectModal from './_components/AssignSubjectModal';
+import ViewSubjectModal from './_components/ViewSubjectModal';
 import { getAssignments, deleteAssignment } from './_actions';
 import Swal from 'sweetalert2';
+import { useLoading } from '../../../context/LoadingContext';
 
 export default function AssignSubjectsPage() {
   const [assignments, setAssignments] = useState([]);
   const [selectedTerm, setSelectedTerm] = useState('');
+  const { isLoading, setIsLoading } = useLoading(); 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState(null);
+  const [viewingAssignment, setViewingAssignment] = useState(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   // Mock active term data - replace with actual API call
   const activeTerm = {
@@ -29,17 +35,44 @@ export default function AssignSubjectsPage() {
   }, []);
 
   const loadAssignments = async () => {
-    const data = await getAssignments();
-    setAssignments(data);
+    try {
+      setIsLoading(true);
+      const data = await getAssignments();
+      setAssignments(data);
+    } catch (error) {
+      console.error('Error loading assignments:', error);
+      Swal.fire({
+        title: 'Error!',
+        text: 'Failed to load assignments',
+        icon: 'error',
+        confirmButtonColor: '#323E8F'
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleAssignSubject = async (formData) => {
     try {
-      // Reload assignments after successful submission
+      // Check for duplicate section assignments
+      const isDuplicate = assignments.some(assignment => 
+        formData.classes.includes(assignment.classId._id) && 
+        Number(formData.term) === assignment.term
+      );
+
+      if (isDuplicate) {
+        Swal.fire({
+          title: 'Error!',
+          text: 'This section already has subject assignments for the selected term',
+          icon: 'error',
+          confirmButtonColor: '#323E8F'
+        });
+        return;
+      }
+
+      // Continue with assignment if no duplicates
       await loadAssignments();
-      // Reset editing state
       setEditingAssignment(null);
-      // Close modal
       setIsModalOpen(false);
     } catch (error) {
       console.error('Error handling assignment:', error);
@@ -91,6 +124,11 @@ export default function AssignSubjectsPage() {
   const handleEditClick = (assignment) => {
     setEditingAssignment(assignment);
     setIsModalOpen(true);
+  };
+
+  const handleViewSubjects = (assignment) => {
+    setViewingAssignment(assignment);
+    setIsViewModalOpen(true);
   };
 
   const handleModalClose = () => {
@@ -166,8 +204,8 @@ export default function AssignSubjectsPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Course
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Subjects
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    View Subjects
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -189,25 +227,27 @@ export default function AssignSubjectsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {assignment.classId?.courseCode}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      <ul className="list-disc list-inside">
-                        {assignment.subjects.map((subject) => (
-                          <li key={subject._id}>
-                            {subject.subjectCode} - {subject.subjectName}
-                          </li>
-                        ))}
-                      </ul>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <button
+                        onClick={() => handleViewSubjects(assignment)}
+                        className="text-blue-600 hover:text-blue-900"
+                        title="View Subjects"
+                      >
+                        <EyeIcon className="h-5 w-5 inline" aria-hidden="true" />
+                      </button>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                       <button
                         onClick={() => handleEditClick(assignment)}
-                        className="text-indigo-600 hover:text-indigo-900 mr-4"
+                        className="text-indigo-600 hover:text-indigo-900"
+                        title="Edit Assignment"
                       >
                         <PencilSquareIcon className="h-5 w-5" aria-hidden="true" />
                       </button>
                       <button
                         onClick={() => handleDelete(assignment._id)}
                         className="text-red-600 hover:text-red-900"
+                        title="Delete Assignment"
                       >
                         <TrashIcon className="h-5 w-5" aria-hidden="true" />
                       </button>
@@ -227,11 +267,20 @@ export default function AssignSubjectsPage() {
         </div>
       </div>
 
-      <AssignSubjectModal 
+      <AssignSubjectModal
         isOpen={isModalOpen}
         onClose={handleModalClose}
         onSubmit={handleAssignSubject}
         editData={editingAssignment}
+      />
+
+      <ViewSubjectModal
+        isOpen={isViewModalOpen}
+        onClose={() => {
+          setIsViewModalOpen(false);
+          setViewingAssignment(null);
+        }}
+        assignment={viewingAssignment}
       />
     </div>
   );
