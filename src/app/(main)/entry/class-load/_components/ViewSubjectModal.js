@@ -3,6 +3,9 @@ import { Dialog, Transition } from '@headlessui/react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 
 export default function ViewSubjectModal({ isOpen, onClose, assignment }) {
+  // Group subjects by term
+  const groupedSubjects = assignment?.allSubjects?.sort((a, b) => a.term - b.term) || [];
+
   return (
     <Transition.Root show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-10" onClose={onClose}>
@@ -52,21 +55,22 @@ export default function ViewSubjectModal({ isOpen, onClose, assignment }) {
                         <p className="text-sm text-gray-600 mb-2">
                           Year Level: <span className="font-medium">{assignment?.yearLevel} Year</span>
                         </p>
-                        <p className="text-sm text-gray-600 mb-4">
-                          Term: <span className="font-medium">{assignment?.term}</span>
-                        </p>
                         
-                        <h4 className="font-medium text-gray-900 mb-2">Subjects:</h4>
-                        <ul className="space-y-2">
-                          {assignment?.subjects.map((subject) => (
-                            <li 
-                              key={subject._id}
-                              className="text-sm text-gray-700 bg-white p-2 rounded border border-gray-200"
-                            >
-                              {subject.subjectCode} - {subject.subjectName}
-                            </li>
-                          ))}
-                        </ul>
+                        {groupedSubjects.map((termGroup, index) => (
+                          <div key={index} className="mb-6 last:mb-0">
+                            <h4 className="font-medium text-gray-900 mb-2">Term {termGroup.term}:</h4>
+                            <ul className="space-y-2">
+                              {termGroup.subjects.map((subject) => (
+                                <li 
+                                  key={subject._id}
+                                  className="text-sm text-gray-700 bg-white p-2 rounded border border-gray-200"
+                                >
+                                  {subject.subjectCode} - {subject.subjectName}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>

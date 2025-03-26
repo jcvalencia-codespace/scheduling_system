@@ -28,6 +28,7 @@ export async function getSubjects(term) {
 export async function createAssignment(data) {
   try {
     for (const classId of data.classes) {
+      // Check for existing assignments
       const validation = await AssignSubjectsModel.checkExistingAssignments(
         classId,
         data.subjects,
@@ -37,19 +38,18 @@ export async function createAssignment(data) {
       if (validation.hasDuplicates) {
         return { 
           success: false, 
-          message: `Duplicate subjects found for this section: ${validation.duplicateSubjects.join(', ')}` 
+          message: `Some subjects are already assigned to this section: ${validation.duplicateSubjects.join(', ')}` 
         };
       }
+
+      // If no duplicates, proceed with creation/update
+      await AssignSubjectsModel.updateOrCreateAssignment(classId, {
+        yearLevel: data.yearLevel.replace(' Year', ''),
+        term: Number(data.term),
+        subjects: data.subjects
+      });
     }
 
-    const assignments = data.classes.map(classId => ({
-      yearLevel: data.yearLevel.replace(' Year', ''),
-      term: Number(data.term),
-      classId,
-      subjects: data.subjects
-    }));
-
-    await AssignSubjectsModel.create(assignments);
     return { success: true, message: 'Subjects assigned successfully' };
   } catch (error) {
     console.error('Error creating assignment:', error);
@@ -67,7 +67,35 @@ export async function getAssignments() {
       .populate('subjects', 'subjectCode subjectName')
       .lean();
 
-    return JSON.parse(JSON.stringify(assignments));
+    // Serialize assignments and handle _id conversion
+    const serializedAssignments = assignments.map(assignment => ({
+      ...assignment,
+      _id: assignment._id.toString(),
+      classId: {
+        ...assignment.classId,
+        _id: assignment.classId._id.toString()
+      },
+      subjects: assignment.subjects.map(subject => ({
+        ...subject,
+        _id: subject._id.toString()
+      }))
+    }));
+
+    // Group assignments by classId
+    const groupedAssignments = serializedAssignments.reduce((acc, curr) => {
+      const key = curr.classId._id;
+      if (!acc[key]) {
+        acc[key] = {
+          ...curr,
+          allSubjects: [{ term: curr.term, subjects: curr.subjects }]
+        };
+      } else {
+        acc[key].allSubjects.push({ term: curr.term, subjects: curr.subjects });
+      }
+      return acc;
+    }, {});
+
+    return Object.values(groupedAssignments);
   } catch (error) {
     console.error('Error fetching assignments:', error);
     return [];
@@ -86,10 +114,18 @@ export async function deleteAssignment(id) {
 
 export async function updateAssignment(id, data) {
   try {
+    // Get current assignment to check existing subjects
+    const currentAssignment = await AssignSubjectsModel.findById(id);
+    if (!currentAssignment) {
+      return { success: false, message: 'Assignment not found' };
+    }
+
+    // Check for existing assignments, excluding current assignment
     const validation = await AssignSubjectsModel.checkExistingAssignments(
       data.classes[0],
       data.subjects,
-      data.term
+      data.term,
+      id
     );
 
     if (validation.hasDuplicates) {
@@ -99,16 +135,25 @@ export async function updateAssignment(id, data) {
       };
     }
 
+    // Combine current subjects with new subjects if they weren't deselected
+    const currentSubjects = currentAssignment.subjects.map(s => s.toString());
+    const subjectsToKeep = currentSubjects.filter(subjectId => 
+      !data.subjects.includes(subjectId)
+    );
+    const updatedSubjects = [...new Set([...subjectsToKeep, ...data.subjects])];
+
+    // Update the assignment with combined subjects
     await AssignSubjectsModel.findByIdAndUpdate(
       id,
       {
         yearLevel: data.yearLevel.replace(' Year', ''),
         term: Number(data.term),
         classId: data.classes[0],
-        subjects: data.subjects
+        subjects: updatedSubjects
       },
       { new: true }
     );
+    
     return { success: true, message: 'Assignment updated successfully' };
   } catch (error) {
     console.error('Error updating assignment:', error);

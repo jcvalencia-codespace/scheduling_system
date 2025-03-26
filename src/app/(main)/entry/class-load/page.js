@@ -54,23 +54,6 @@ export default function AssignSubjectsPage() {
 
   const handleAssignSubject = async (formData) => {
     try {
-      // Check for duplicate section assignments
-      const isDuplicate = assignments.some(assignment => 
-        formData.classes.includes(assignment.classId._id) && 
-        Number(formData.term) === assignment.term
-      );
-
-      if (isDuplicate) {
-        Swal.fire({
-          title: 'Error!',
-          text: 'This section already has subject assignments for the selected term',
-          icon: 'error',
-          confirmButtonColor: '#323E8F'
-        });
-        return;
-      }
-
-      // Continue with assignment if no duplicates
       await loadAssignments();
       setEditingAssignment(null);
       setIsModalOpen(false);

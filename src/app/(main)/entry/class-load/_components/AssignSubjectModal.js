@@ -4,6 +4,35 @@ import { XMarkIcon } from '@heroicons/react/24/outline'
 import { getClasses, getSubjects, createAssignment, updateAssignment } from '../_actions'
 import { DropdownSkeleton } from './SkeletonLoader'
 import Swal from 'sweetalert2'
+import Select from 'react-select';
+
+const customSelectStyles = {
+  option: (styles, { isSelected, isFocused }) => ({
+    ...styles,
+    backgroundColor: isSelected ? '#323E8F' : isFocused ? '#E2E8F0' : 'white',
+    color: isSelected ? 'white' : '#1F2937',
+    ':active': {
+      backgroundColor: '#323E8F',
+      color: 'white'
+    }
+  }),
+  multiValue: (styles) => ({
+    ...styles,
+    backgroundColor: '#323E8F15',
+    border: '1px solid #323E8F40'
+  }),
+  multiValueLabel: (styles) => ({
+    ...styles,
+    color: '#323E8F'
+  }),
+  multiValueRemove: (styles) => ({
+    ...styles,
+    ':hover': {
+      backgroundColor: '#323E8F',
+      color: 'white'
+    }
+  })
+};
 
 export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData = null }) {
   const [formData, setFormData] = useState({
@@ -255,38 +284,38 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                           <DropdownSkeleton />
                         ) : (
                           <>
-                            <select
+                            <Select
+                              isMulti
                               name="classes"
-                              multiple
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm h-32 overflow-y-auto"
-                              required
-                              value={formData.classes}
-                              onChange={handleClassesChange}
-                              size={4}
-                            >
-                              {availableClasses.length > 0 ? (
-                                availableClasses.map((cls) => (
-                                  <option 
-                                    key={cls._id} 
-                                    value={cls._id} 
-                                    className={`p-2 ${
-                                      formData.classes.includes(cls._id) 
-                                        ? 'bg-indigo-50 text-indigo-900' 
-                                        : 'hover:bg-gray-100'
-                                    }`}
-                                  >
-                                    {cls.sectionName} - {cls.courseCode}
-                                  </option>
-                                ))
-                              ) : (
-                                <option disabled value="" className="text-gray-500 italic p-2">
-                                  {formData.yearLevel ? 'No classes available for selected year level' : 'Select a year level to view available classes'}
-                                </option>
-                              )}
-                            </select>
+                              options={availableClasses.map(cls => ({
+                                value: cls._id,
+                                label: `${cls.sectionName} - ${cls.courseCode}`
+                              }))}
+                              value={formData.classes.map(id => {
+                                const cls = availableClasses.find(c => c._id === id);
+                                return cls ? {
+                                  value: cls._id,
+                                  label: `${cls.sectionName} - ${cls.courseCode}`
+                                } : null;
+                              })}
+                              onChange={(selected) => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  classes: selected ? selected.map(option => option.value) : []
+                                }));
+                              }}
+                              className="mt-1"
+                              classNamePrefix="select"
+                              placeholder="Select classes..."
+                              noOptionsMessage={() => formData.yearLevel 
+                                ? 'No classes available for selected year level' 
+                                : 'Select a year level to view available classes'
+                              }
+                              styles={customSelectStyles}
+                            />
                             <p className="mt-1 text-xs text-gray-500">
                               {availableClasses.length > 0 
-                                ? "Hold Ctrl/Cmd to select multiple classes"
+                                ? "You can select multiple classes"
                                 : "Select a year level to view available classes"}
                             </p>
                           </>
@@ -299,38 +328,38 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                           <DropdownSkeleton />
                         ) : (
                           <>
-                            <select
+                            <Select
+                              isMulti
                               name="subjects"
-                              multiple
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm h-32 overflow-y-auto"
-                              required
-                              value={formData.subjects}
-                              onChange={handleSubjectsChange}
-                              size={4}
-                            >
-                              {availableSubjects.length > 0 ? (
-                                availableSubjects.map((subject) => (
-                                  <option 
-                                    key={subject._id} 
-                                    value={subject._id} 
-                                    className={`p-2 ${
-                                      formData.subjects.includes(subject._id) 
-                                        ? 'bg-indigo-50 text-indigo-900' 
-                                        : 'hover:bg-gray-100'
-                                    }`}
-                                  >
-                                    {subject.subjectCode} - {subject.subjectName}
-                                  </option>
-                                ))
-                              ) : (
-                                <option disabled value="" className="text-gray-500 italic p-2">
-                                  {formData.term ? 'No subjects available for selected term' : 'Select a term to view available subjects'}
-                                </option>
-                              )}
-                            </select>
+                              options={availableSubjects.map(subject => ({
+                                value: subject._id,
+                                label: `${subject.subjectCode} - ${subject.subjectName}`
+                              }))}
+                              value={formData.subjects.map(id => {
+                                const subject = availableSubjects.find(s => s._id === id);
+                                return subject ? {
+                                  value: subject._id,
+                                  label: `${subject.subjectCode} - ${subject.subjectName}`
+                                } : null;
+                              })}
+                              onChange={(selected) => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  subjects: selected ? selected.map(option => option.value) : []
+                                }));
+                              }}
+                              className="mt-1"
+                              classNamePrefix="select"
+                              placeholder="Select subjects..."
+                              noOptionsMessage={() => formData.term 
+                                ? 'No subjects available for selected term' 
+                                : 'Select a term to view available subjects'
+                              }
+                              styles={customSelectStyles}
+                            />
                             <p className="mt-1 text-xs text-gray-500">
                               {availableSubjects.length > 0 
-                                ? "Hold Ctrl/Cmd to select multiple subjects"
+                                ? "You can select multiple subjects"
                                 : "Select a term to view available subjects"}
                             </p>
                           </>

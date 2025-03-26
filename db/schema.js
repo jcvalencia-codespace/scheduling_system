@@ -54,15 +54,6 @@ const UserSchema = new Schema({
 });
 
 const SubjectSchema = new Schema({
-  schoolYear: {
-    type: String,
-    required: true,
-  },
-  term: {
-    type: Number,
-    required: true,
-    enum: [1, 2, 3],
-  },
   subjectCode: {
     type: String,
     required: true,
@@ -83,7 +74,8 @@ const SubjectSchema = new Schema({
     min: 0,
   },
   course: {
-    type: String,
+    type: Schema.Types.ObjectId,
+    ref: 'Courses',
     required: true,
   },
   isActive: {
