@@ -73,8 +73,9 @@ class SectionsModel {
   }
 
   async getAllSections() {
-    const Section = await this.initModel();
-    const sections = await Section.find({ isActive: true });
+    const Sections = await this.initModel();
+    const sections = await Sections.find({ isActive: true })
+      .sort({ sectionName: 1 });
     return JSON.parse(JSON.stringify(sections));
   }
 

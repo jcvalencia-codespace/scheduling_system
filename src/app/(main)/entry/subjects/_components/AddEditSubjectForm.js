@@ -12,7 +12,8 @@ const initialFormState = {
   subjectName: '',
   lectureHours: '',
   labHours: '',
-  course: ''
+  course: '',
+  unit: ''
 };
 
 export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }) {
@@ -27,7 +28,9 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
         subjectName: subject.subjectName,
         lectureHours: subject.lectureHours,
         labHours: subject.labHours,
+
         course: subject.course._id || subject.course // handle both populated and unpopulated cases
+
       });
     } else {
       setFormData(initialFormState);
@@ -230,6 +233,24 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
                               min="0"
                               step="0.5"
                               value={formData.labHours}
+                              onChange={handleChange}
+                              disabled={isSubmitting}
+                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
+                            />
+                          </div>
+
+                          <div className="sm:col-span-2">
+                            <label htmlFor="unit" className="block text-sm font-medium text-gray-700">
+                              Unit
+                            </label>
+                            <input
+                              type="number"
+                              name="unit"
+                              id="unit"
+                              required
+                              min="0"
+                              step="0.5"
+                              value={formData.unit}
                               onChange={handleChange}
                               disabled={isSubmitting}
                               className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"

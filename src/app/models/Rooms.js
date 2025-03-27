@@ -23,8 +23,9 @@ class RoomsModel {
   }
 
   async getAllRooms() {
-    const Room = await this.initModel();
-    const rooms = await Room.find({ isActive: true });
+    const Rooms = await this.initModel();
+    const rooms = await Rooms.find({ isActive: true })
+      .sort({ roomCode: 1 });
     return JSON.parse(JSON.stringify(rooms));
   }
 

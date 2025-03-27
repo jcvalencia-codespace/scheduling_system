@@ -43,6 +43,7 @@ class TermsModel {
     try {
       const Term = await this.initModel();
       const term = await Term.findOne({ status: 'Active' }).lean();
+      console.log('Active term found:', term); // Debug log
       return term ? this.mapTermData(term) : null;
     } catch (error) {
       console.error('Error in getActiveTerm:', error);

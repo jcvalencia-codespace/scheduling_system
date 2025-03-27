@@ -112,7 +112,7 @@ export const mockSchedules = [
     scheduleType: 'Lecture',
     days: ['Tuesday', 'Thursday'],
     timeFrom: '10:00 am',
-    timeTo: '11:30 am',
+    timeTo: '11:20 am',
     classLimit: 35,
     studentType: 'Regular',
     building: 'North Wing',

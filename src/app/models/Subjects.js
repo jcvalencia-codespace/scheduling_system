@@ -32,6 +32,7 @@ class SubjectsModel {
   }
 
   async getAllSubjects() {
+
     const Subject = await this.initModel();
     const subjects = await Subject.find({ isActive: true })
       .populate({
@@ -42,6 +43,7 @@ class SubjectsModel {
           select: 'departmentCode departmentName'
         }
       });
+
     return JSON.parse(JSON.stringify(subjects));
   }
 
