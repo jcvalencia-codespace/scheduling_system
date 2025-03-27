@@ -12,7 +12,7 @@ export async function addSubject(formData) {
       labHours: parseFloat(formData.get('labHours')),
       course: formData.get('course') // This will now be the course ObjectId
     };
-
+//asd
     console.log('Server received subject data:', subjectData);
 
     // Validate required fields
