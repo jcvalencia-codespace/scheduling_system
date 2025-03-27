@@ -6,30 +6,28 @@ import { revalidatePath } from 'next/cache';
 export async function addSubject(formData) {
   try {
     const subjectData = {
-      schoolYear: formData.get('schoolYear'),
-      term: parseInt(formData.get('term')),
       subjectCode: formData.get('subjectCode')?.trim().toUpperCase(),
       subjectName: formData.get('subjectName')?.trim(),
       lectureHours: parseFloat(formData.get('lectureHours')),
       labHours: parseFloat(formData.get('labHours')),
-      course: formData.get('course')?.trim(),
-      unit: formData.get('unit')?.trim()
-    };
 
+      course: formData.get('course') // This will now be the course ObjectId
+
+//asd
     console.log('Server received subject data:', subjectData);
 
     // Validate required fields
-    const requiredFields = ['schoolYear', 'term', 'subjectCode', 'subjectName', 'lectureHours', 'labHours', 'course'];
+    const requiredFields = ['subjectCode', 'subjectName', 'lectureHours', 'labHours', 'course'];
     for (const field of requiredFields) {
       if (!subjectData[field] && subjectData[field] !== 0) {
         throw new Error(`${field} is required`);
       }
     }
 
-    // Check if subject code already exists
-    const existingSubject = await subjectsModel.getSubjectByCode(subjectData.subjectCode);
+    // Check if an active subject with the same code exists
+    const existingSubject = await subjectsModel.getActiveSubjectByCode(subjectData.subjectCode);
     if (existingSubject) {
-      console.log('Subject code already exists:', subjectData.subjectCode);
+      console.log('Active subject code already exists:', subjectData.subjectCode);
       throw new Error('Subject code already exists');
     }
 
@@ -56,28 +54,14 @@ export async function getSubjects() {
   }
 }
 
-export async function getSubjectsByTerm(schoolYear, term) {
-  try {
-    console.log('Server received request to fetch subjects for:', { schoolYear, term });
-    const subjects = await subjectsModel.getSubjectsByTerm(schoolYear, term);
-    console.log('Fetched subjects successfully:', subjects.length);
-    return { subjects };
-  } catch (error) {
-    console.error('Error in getSubjectsByTerm:', error);
-    return { error: error.message || 'Failed to fetch subjects' };
-  }
-}
-
 export async function editSubject(subjectCode, formData) {
   try {
     console.log('Server received request to edit subject:', subjectCode);
     const updateData = {
-      schoolYear: formData.get('schoolYear'),
-      term: parseInt(formData.get('term')),
       subjectName: formData.get('subjectName')?.trim(),
       lectureHours: parseFloat(formData.get('lectureHours')),
       labHours: parseFloat(formData.get('labHours')),
-      course: formData.get('course')?.trim()
+      course: formData.get('course') // This will now be the course ObjectId
     };
 
     // Remove undefined or null values
@@ -105,9 +89,15 @@ export async function editSubject(subjectCode, formData) {
 export async function removeSubject(subjectCode) {
   try {
     console.log('Server received request to delete subject:', subjectCode);
+    
+    if (!subjectCode) {
+      throw new Error('Subject code is required');
+    }
+
     const deletedSubject = await subjectsModel.deleteSubject(subjectCode);
+    
     if (!deletedSubject) {
-      throw new Error('Subject not found');
+      throw new Error('Failed to delete subject');
     }
     
     console.log('Subject deleted successfully:', deletedSubject);
@@ -117,5 +107,17 @@ export async function removeSubject(subjectCode) {
   } catch (error) {
     console.error('Error in removeSubject:', error);
     return { error: error.message || 'Failed to delete subject' };
+  }
+}
+
+export async function getCourses() {
+  try {
+    console.log('Server received request to fetch all courses');
+    const courses = await subjectsModel.getAllCourses();
+    console.log('Fetched courses successfully:', courses.length);
+    return { courses };
+  } catch (error) {
+    console.error('Error in getCourses:', error);
+    return { error: error.message || 'Failed to fetch courses' };
   }
 }

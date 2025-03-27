@@ -9,11 +9,11 @@ export async function addCourse(formData) {
     const courseData = {
       courseCode: formData.get('courseCode')?.trim().toUpperCase(),
       courseTitle: formData.get('courseTitle')?.trim(),
-      departmentCode: formData.get('departmentCode')?.trim(),
+      department: formData.get('departmentCode')?.trim(), // Keep form field name but map to department
     };
 
     // Validate required fields
-    const requiredFields = ['courseCode', 'courseTitle', 'departmentCode'];
+    const requiredFields = ['courseCode', 'courseTitle', 'department'];
     for (const field of requiredFields) {
       if (!courseData[field]) {
         throw new Error(`${field} is required`);
@@ -26,11 +26,12 @@ export async function addCourse(formData) {
       throw new Error('Course code already exists');
     }
 
-    // Check if department exists
-    const department = await departmentsModel.getDepartmentByCode(courseData.departmentCode);
+    // Check if department exists and get its ObjectId
+    const department = await departmentsModel.getDepartmentByCode(courseData.department);
     if (!department) {
       throw new Error('Selected department does not exist');
     }
+    courseData.department = department._id; // Use the department's ObjectId
 
     const savedCourse = await coursesModel.createCourse(courseData);
     revalidatePath('/maintenance/courses');
@@ -65,19 +66,20 @@ export async function editCourse(courseCode, formData) {
   try {
     const updateData = {
       courseTitle: formData.get('courseTitle')?.trim(),
-      departmentCode: formData.get('departmentCode')?.trim(),
+      department: formData.get('departmentCode')?.trim(), // Keep form field name but map to department
     };
 
     // Validate required fields
-    if (!updateData.courseTitle || !updateData.departmentCode) {
+    if (!updateData.courseTitle || !updateData.department) {
       throw new Error('All fields are required');
     }
 
-    // Check if department exists
-    const department = await departmentsModel.getDepartmentByCode(updateData.departmentCode);
+    // Check if department exists and get its ObjectId
+    const department = await departmentsModel.getDepartmentByCode(updateData.department);
     if (!department) {
       throw new Error('Selected department does not exist');
     }
+    updateData.department = department._id; // Use the department's ObjectId
 
     const updatedCourse = await coursesModel.updateCourse(courseCode, updateData);
     if (!updatedCourse) {

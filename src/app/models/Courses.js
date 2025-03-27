@@ -1,15 +1,19 @@
-import { CourseSchema } from '../../../db/schema';
+import { CourseSchema, DepartmentSchema } from '../../../db/schema';
 import connectDB from '../../../lib/mongo';
 import mongoose from 'mongoose';
 
 class CoursesModel {
   constructor() {
     this.MODEL = null;
+    this.DEPARTMENT_MODEL = null;
   }
 
   async initModel() {
-    if (!this.MODEL) {
+    if (!this.MODEL || !this.DEPARTMENT_MODEL) {
       await connectDB();
+      // Initialize Department model first
+      this.DEPARTMENT_MODEL = mongoose.models.Departments || mongoose.model("Departments", DepartmentSchema);
+      // Then initialize Course model
       this.MODEL = mongoose.models.Courses || mongoose.model("Courses", CourseSchema);
     }
     return this.MODEL;
@@ -24,13 +28,21 @@ class CoursesModel {
 
   async getAllCourses() {
     const Course = await this.initModel();
-    const courses = await Course.find({ isActive: true });
+    const courses = await Course.find({ isActive: true })
+      .populate('department', 'departmentCode departmentName');
     return JSON.parse(JSON.stringify(courses));
   }
 
   async getCourseByCode(courseCode) {
     const Course = await this.initModel();
     const course = await Course.findOne({ courseCode, isActive: true });
+    return course ? JSON.parse(JSON.stringify(course)) : null;
+  }
+
+  async getCourseById(id) {
+    const Course = await this.initModel();
+    const course = await Course.findOne({ _id: id, isActive: true })
+      .populate('department');
     return course ? JSON.parse(JSON.stringify(course)) : null;
   }
 
@@ -58,6 +70,22 @@ class CoursesModel {
     const Course = await this.initModel();
     const courses = await Course.find({ departmentCode, isActive: true });
     return JSON.parse(JSON.stringify(courses));
+  }
+
+  async getAllCoursesWithDepartment() {
+    try {
+      const Course = await this.initModel();
+      const courses = await Course.find({ isActive: true })
+        .populate({
+          path: 'department',
+          select: 'departmentCode departmentName'
+        })
+        .lean();
+      return JSON.parse(JSON.stringify(courses));
+    } catch (error) {
+      console.error('Error in getAllCoursesWithDepartment:', error);
+      throw error;
+    }
   }
 }
 

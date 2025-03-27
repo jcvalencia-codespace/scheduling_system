@@ -3,12 +3,11 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { addSubject, editSubject } from '../_actions';
+import { addSubject, editSubject, getCourses } from '../_actions';
 import Swal from 'sweetalert2';
+import Select from 'react-select';
 
 const initialFormState = {
-  schoolYear: '',
-  term: '',
   subjectCode: '',
   subjectName: '',
   lectureHours: '',
@@ -20,23 +19,37 @@ const initialFormState = {
 export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }) {
   const [formData, setFormData] = useState(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [courses, setCourses] = useState([]);
 
   useEffect(() => {
     if (subject) {
       setFormData({
-        schoolYear: subject.schoolYear,
-        term: subject.term,
         subjectCode: subject.subjectCode,
         subjectName: subject.subjectName,
         lectureHours: subject.lectureHours,
         labHours: subject.labHours,
-        course: subject.course,
-        unit: subject.unit
+
+        course: subject.course._id || subject.course // handle both populated and unpopulated cases
+
       });
     } else {
       setFormData(initialFormState);
     }
   }, [subject, show]);
+
+  useEffect(() => {
+    const fetchCourses = async () => {
+      const result = await getCourses();
+      if (result.courses) {
+        setCourses(result.courses.map(course => ({
+          value: course._id, // Use course ObjectId as value
+          label: `${course.courseCode} - ${course.courseTitle}`
+        })));
+      }
+    };
+
+    fetchCourses();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -89,10 +102,17 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value } = e.target || {};
     setFormData(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+
+  const handleCourseChange = (selectedOption) => {
+    setFormData(prev => ({
+      ...prev,
+      course: selectedOption.value
     }));
   };
 
@@ -149,43 +169,6 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
                     <div className="mt-4">
                       <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-                          <div className="sm:col-span-2">
-                            <label htmlFor="schoolYear" className="block text-sm font-medium text-gray-700">
-                              School Year
-                            </label>
-                            <input
-                              type="text"
-                              name="schoolYear"
-                              id="schoolYear"
-                              required
-                              value={formData.schoolYear}
-                              onChange={handleChange}
-                              disabled={isSubmitting}
-                              placeholder="2023-2024"
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
-                            />
-                          </div>
-
-                          <div className="sm:col-span-2">
-                            <label htmlFor="term" className="block text-sm font-medium text-gray-700">
-                              Term
-                            </label>
-                            <select
-                              name="term"
-                              id="term"
-                              required
-                              value={formData.term}
-                              onChange={handleChange}
-                              disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
-                            >
-                              <option value="">Select Term</option>
-                              <option value="1">1st Term</option>
-                              <option value="2">2nd Term</option>
-                              <option value="3">3rd Term</option>
-                            </select>
-                          </div>
-
                           <div className="sm:col-span-2">
                             <label htmlFor="subjectCode" className="block text-sm font-medium text-gray-700">
                               Subject Code
@@ -278,16 +261,31 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
                             <label htmlFor="course" className="block text-sm font-medium text-gray-700">
                               Course
                             </label>
-                            <input
-                              type="text"
-                              name="course"
+                            <Select
                               id="course"
+                              name="course"
+                              value={courses.find(option => option.value === formData.course)}
+                              onChange={handleCourseChange}
+                              options={courses}
+                              isDisabled={isSubmitting}
+                              className="mt-1"
+                              classNamePrefix="select"
+                              placeholder="Select a course..."
+                              isSearchable
                               required
-                              value={formData.course}
-                              onChange={handleChange}
-                              disabled={isSubmitting}
-                              placeholder="BSCS"
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
+                              styles={{
+                                menu: (provided) => ({
+                                  ...provided,
+                                  zIndex: 9999,
+                                  position: 'absolute'
+                                }),
+                                menuPortal: (provided) => ({
+                                  ...provided,
+                                  zIndex: 9999
+                                })
+                              }}
+                              menuPortalTarget={document.body}
+                              menuPosition="fixed"
                             />
                           </div>
                         </div>

@@ -77,10 +77,14 @@ export default function SubjectsPage() {
   const filteredSubjects = useMemo(() => {
     return sortedSubjects.filter((subject) => {
       const searchString = searchTerm.toLowerCase();
+      const courseCode = subject.course?.courseCode || '';
+      const courseTitle = subject.course?.courseTitle || '';
+      
       return (
         subject.subjectCode.toLowerCase().includes(searchString) ||
         subject.subjectName.toLowerCase().includes(searchString) ||
-        subject.course.toLowerCase().includes(searchString)
+        courseCode.toLowerCase().includes(searchString) ||
+        courseTitle.toLowerCase().includes(searchString)
       );
     });
   }, [sortedSubjects, searchTerm]);
@@ -238,20 +242,6 @@ export default function SubjectsPage() {
                   </th>
                   <th
                     scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
-                    onClick={() => handleSort('schoolYear')}
-                  >
-                    School Year {getSortIcon('schoolYear')}
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
-                    onClick={() => handleSort('term')}
-                  >
-                    Term {getSortIcon('term')}
-                  </th>
-                  <th
-                    scope="col"
                     className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                   >
                     Hours
@@ -289,19 +279,14 @@ export default function SubjectsPage() {
                       {subject.subjectName}
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {subject.schoolYear}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {subject.term}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                       {subject.lectureHours} / {subject.labHours}
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {subject.unit}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {subject.course}
+
+                      {subject.course?.courseCode && subject.course?.courseTitle 
+                        ? `${subject.course.courseCode} - ${subject.course.courseTitle}` 
+                        : 'N/A'}
+
                     </td>
                     <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                       <button

@@ -54,15 +54,6 @@ const UserSchema = new Schema({
 });
 
 const SubjectSchema = new Schema({
-  schoolYear: {
-    type: String,
-    required: true,
-  },
-  term: {
-    type: Number,
-    required: true,
-    enum: [1, 2, 3],
-  },
   subjectCode: {
     type: String,
     required: true,
@@ -87,7 +78,8 @@ const SubjectSchema = new Schema({
     required: true,
   },
   course: {
-    type: String,
+    type: Schema.Types.ObjectId,
+    ref: 'Courses',
     required: true,
   },
   isActive: {
@@ -134,11 +126,10 @@ const CourseSchema = new Schema({
     required: [true, 'Course title is required'],
     trim: true,
   },
-  departmentCode: {
-    type: String,
+  department: {
+    type: Schema.Types.ObjectId,
+    ref: 'Departments',  // Changed from 'departments' to 'Departments'
     required: [true, 'Department is required'],
-    trim: true,
-    ref: 'Departments',
   },
   isActive: {
     type: Boolean,
@@ -173,10 +164,9 @@ const RoomSchema = new Schema({
     trim: true,
     enum: ['1st Floor', '2nd Floor', '3rd Floor', '4th Floor'],
   },
-  departmentCode: {
-    type: String,
+  department: {
+    type: Schema.Types.ObjectId,
     required: [true, 'Department is required'],
-    trim: true,
     ref: 'Departments',
   },
   capacity: {
@@ -197,20 +187,17 @@ const SectionSchema = new Schema({
   sectionName: {
     type: String,
     required: [true, 'Section name is required'],
-    unique: true,
     trim: true,
     uppercase: true,
   },
-  courseCode: {
-    type: String,
+  course: {  // Changed from courseCode
+    type: Schema.Types.ObjectId,
     required: [true, 'Course is required'],
-    trim: true,
     ref: 'Courses',
   },
-  departmentCode: {
-    type: String,
+  department: {
+    type: Schema.Types.ObjectId,
     required: [true, 'Department is required'],
-    trim: true,
     ref: 'Departments',
   },
   yearLevel: {
@@ -223,10 +210,46 @@ const SectionSchema = new Schema({
     type: Boolean,
     default: true,
   },
+  createdBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'Users',
+    required: true
+  },
+  updatedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'Users',
+    required: true
+  },
+  updateHistory: [{
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now
+    },
+    action: {
+      type: String,
+      enum: ['updated', 'deleted'],
+      required: true
+    }
+  }],
 }, {
   timestamps: true,
   collection: 'sections'
 });
+
+// Drop any existing indexes and create only the compound index
+SectionSchema.on('index', function(error) {
+  if (error) {
+    console.error('Section Schema index error:', error);
+  }
+});
+
+// This is the only index we want
+SectionSchema.index({ sectionName: 1, isActive: 1 }, { unique: true });
 
 const TermSchema = new Schema({
   academicYear: {
@@ -299,6 +322,32 @@ const FeedbackSchema = new Schema({
 }, {
   timestamps: true,
   collection: 'feedback'
+});
+
+const AssignSubjectsSchema = new Schema({
+  yearLevel: {
+    type: String,
+    required: true,
+    enum: ['1st', '2nd', '3rd', '4th', 'grad']
+  },
+  term: {
+    type: Number,
+    required: true,
+    enum: [1, 2, 3]
+  },
+  classId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Section',
+    required: true
+  },
+  subjects: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Subject',
+    required: true
+  }]
+}, {
+  timestamps: true,
+  collection: 'assignSubjects'
 });
 
 TermSchema.index({ academicYear: 1, term: 1 }, { unique: true });
@@ -386,5 +435,6 @@ export {
   SectionSchema,
   TermSchema,
   FeedbackSchema,
-  ScheduleSchema 
+  AssignSubjectsSchema,
+  ScheduleSchema
 };
