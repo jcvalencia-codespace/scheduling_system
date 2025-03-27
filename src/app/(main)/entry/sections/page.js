@@ -12,8 +12,10 @@ import AddEditSectionModal from './_components/AddEditSectionModal';
 import Swal from 'sweetalert2';
 import Loading from '../../../components/Loading';
 import { useLoading } from '../../../context/LoadingContext';
+import useAuthStore from '@/store/useAuthStore';
 
 export default function SectionsPage() {
+  const user = useAuthStore((state) => state.user);
   const [sections, setSections] = useState([]);
   const [courses, setCourses] = useState([]);
   const { isLoading, setIsLoading } = useLoading();
@@ -73,6 +75,15 @@ export default function SectionsPage() {
   };
 
   const handleDelete = async (sectionName) => {
+    if (!user?._id) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'User not authenticated'
+      });
+      return;
+    }
+
     const result = await Swal.fire({
       title: 'Are you sure?',
       text: "You won't be able to revert this!",
@@ -85,7 +96,7 @@ export default function SectionsPage() {
 
     if (result.isConfirmed) {
       try {
-        const response = await removeSection(sectionName);
+        const response = await removeSection(sectionName, user._id);
         if (response.success) {
           await Swal.fire({
             icon: 'success',
@@ -136,10 +147,19 @@ export default function SectionsPage() {
     if (!sortConfig.key) return sections;
 
     return [...sections].sort((a, b) => {
-      if (a[sortConfig.key] < b[sortConfig.key]) {
+      let aValue = a[sortConfig.key];
+      let bValue = b[sortConfig.key];
+
+      // Special handling for department sorting
+      if (sortConfig.key === 'departmentCode') {
+        aValue = getDepartmentCode(a);
+        bValue = getDepartmentCode(b);
+      }
+
+      if (aValue < bValue) {
         return sortConfig.direction === 'asc' ? -1 : 1;
       }
-      if (a[sortConfig.key] > b[sortConfig.key]) {
+      if (aValue > bValue) {
         return sortConfig.direction === 'asc' ? 1 : -1;
       }
       return 0;
@@ -147,22 +167,15 @@ export default function SectionsPage() {
   }, [sections, sortConfig]);
 
   const filteredSections = useMemo(() => {
+    const searchTermLower = searchTerm.toLowerCase();
     return sortedSections.filter(section => 
-      section.sectionName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      section.courseCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      section.yearLevel.toLowerCase().includes(searchTerm.toLowerCase())
+      section.sectionName.toLowerCase().includes(searchTermLower) ||
+      section.course?.courseCode?.toLowerCase().includes(searchTermLower) ||
+      section.course?.courseTitle?.toLowerCase().includes(searchTermLower) ||
+      section.department?.departmentCode?.toLowerCase().includes(searchTermLower) ||
+      section.yearLevel.toLowerCase().includes(searchTermLower)
     );
   }, [sortedSections, searchTerm]);
-
-  const getCourseTitle = (courseCode) => {
-    const course = courses.find(c => c.courseCode === courseCode);
-    return course ? course.courseTitle : courseCode;
-  };
-
-  const getDepartmentCode = (courseCode) => {
-    const course = courses.find(c => c.courseCode === courseCode);
-    return course ? course.departmentCode : 'N/A';
-  };
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
@@ -261,10 +274,10 @@ export default function SectionsPage() {
                         {section.sectionName}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {getCourseTitle(section.courseCode)}
+                        {section.course ? `${section.course.courseCode} - ${section.course.courseTitle}` : 'N/A'}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {getDepartmentCode(section.courseCode)}
+                        {section.department?.departmentCode || 'N/A'}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                         {section.yearLevel}
@@ -299,17 +312,25 @@ export default function SectionsPage() {
         onClose={() => setShowModal(false)}
         section={selectedSection}
         courses={courses}
-        onSuccess={() => {
-          setShowModal(false);
-          const sectionsData = getSections();
-          if (sectionsData.sections) {
-            setSections(sectionsData.sections);
-          } else if (sectionsData.error) {
+        onSuccess={async () => {
+          try {
+            setIsLoading(true);
+            const sectionsData = await getSections();
+            if (sectionsData.sections) {
+              setSections(sectionsData.sections);
+              setShowModal(false);
+            } else if (sectionsData.error) {
+              throw new Error(sectionsData.error);
+            }
+          } catch (error) {
+            console.error('Error refreshing sections:', error);
             Swal.fire({
               icon: 'error',
               title: 'Error',
-              text: sectionsData.error
+              text: 'Failed to refresh sections'
             });
+          } finally {
+            setIsLoading(false);
           }
         }}
       />

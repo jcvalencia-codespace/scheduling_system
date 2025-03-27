@@ -4,6 +4,7 @@ import { Fragment, useEffect, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { addSection, editSection } from '../_actions';
+import useAuthStore from '@/store/useAuthStore'; // Fixed import path
 import Swal from 'sweetalert2';
 
 const YEAR_LEVELS = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
@@ -15,6 +16,7 @@ const initialFormState = {
 };
 
 export default function AddEditSectionModal({ show, onClose, section, courses, onSuccess }) {
+  const user = useAuthStore((state) => state.user); // Changed to use zustand store
   const [formData, setFormData] = useState(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -22,7 +24,7 @@ export default function AddEditSectionModal({ show, onClose, section, courses, o
     if (section) {
       setFormData({
         sectionName: section.sectionName || '',
-        courseCode: section.courseCode || '',
+        courseCode: section.course?._id || '',
         yearLevel: section.yearLevel || '',
       });
     } else {
@@ -45,10 +47,15 @@ export default function AddEditSectionModal({ show, onClose, section, courses, o
     setIsSubmitting(true);
 
     try {
+      if (!user?._id) {
+        throw new Error('User not authenticated');
+      }
+
       const form = new FormData();
       Object.keys(formData).forEach(key => {
         form.append(key, formData[key]);
       });
+      form.append('userId', user._id);
 
       const result = section
         ? await editSection(section.sectionName, form)
@@ -143,7 +150,7 @@ export default function AddEditSectionModal({ show, onClose, section, courses, o
                               id="sectionName"
                               value={formData.sectionName}
                               onChange={handleChange}
-                              disabled={!!section || isSubmitting}
+                              disabled={isSubmitting}  // Removed !!section condition
                               className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                               required
                             />
@@ -164,8 +171,8 @@ export default function AddEditSectionModal({ show, onClose, section, courses, o
                             >
                               <option value="">Select Course</option>
                               {courses.map((course) => (
-                                <option key={course.courseCode} value={course.courseCode}>
-                                  {course.courseCode} - {course.courseTitle} ({course.departmentCode})
+                                <option key={course._id} value={course._id}>
+                                  {course.courseCode} - {course.courseTitle} ({course.department?.departmentCode || 'N/A'})
                                 </option>
                               ))}
                             </select>

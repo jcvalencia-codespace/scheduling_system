@@ -36,8 +36,11 @@ class SubjectsModel {
     const subjects = await Subject.find({ isActive: true })
       .populate({
         path: 'course',
-        select: 'courseCode courseTitle',
-        match: { isActive: true }
+        select: 'courseCode courseTitle department',
+        populate: {
+          path: 'department',
+          select: 'departmentCode departmentName'
+        }
       });
     return JSON.parse(JSON.stringify(subjects));
   }

@@ -122,11 +122,10 @@ const CourseSchema = new Schema({
     required: [true, 'Course title is required'],
     trim: true,
   },
-  departmentCode: {
-    type: String,
+  department: {
+    type: Schema.Types.ObjectId,
+    ref: 'Departments',  // Changed from 'departments' to 'Departments'
     required: [true, 'Department is required'],
-    trim: true,
-    ref: 'Departments',
   },
   isActive: {
     type: Boolean,
@@ -161,10 +160,9 @@ const RoomSchema = new Schema({
     trim: true,
     enum: ['1st Floor', '2nd Floor', '3rd Floor', '4th Floor'],
   },
-  departmentCode: {
-    type: String,
+  department: {
+    type: Schema.Types.ObjectId,
     required: [true, 'Department is required'],
-    trim: true,
     ref: 'Departments',
   },
   capacity: {
@@ -185,20 +183,17 @@ const SectionSchema = new Schema({
   sectionName: {
     type: String,
     required: [true, 'Section name is required'],
-    unique: true,
     trim: true,
     uppercase: true,
   },
-  courseCode: {
-    type: String,
+  course: {  // Changed from courseCode
+    type: Schema.Types.ObjectId,
     required: [true, 'Course is required'],
-    trim: true,
     ref: 'Courses',
   },
-  departmentCode: {
-    type: String,
+  department: {
+    type: Schema.Types.ObjectId,
     required: [true, 'Department is required'],
-    trim: true,
     ref: 'Departments',
   },
   yearLevel: {
@@ -211,10 +206,46 @@ const SectionSchema = new Schema({
     type: Boolean,
     default: true,
   },
+  createdBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'Users',
+    required: true
+  },
+  updatedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'Users',
+    required: true
+  },
+  updateHistory: [{
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now
+    },
+    action: {
+      type: String,
+      enum: ['updated', 'deleted'],
+      required: true
+    }
+  }],
 }, {
   timestamps: true,
   collection: 'sections'
 });
+
+// Drop any existing indexes and create only the compound index
+SectionSchema.on('index', function(error) {
+  if (error) {
+    console.error('Section Schema index error:', error);
+  }
+});
+
+// This is the only index we want
+SectionSchema.index({ sectionName: 1, isActive: 1 }, { unique: true });
 
 const TermSchema = new Schema({
   academicYear: {

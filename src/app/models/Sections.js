@@ -1,25 +1,75 @@
-import { SectionSchema } from '../../../db/schema';
+import { SectionSchema, DepartmentSchema, CourseSchema } from '../../../db/schema';
 import connectDB from '../../../lib/mongo';
 import mongoose from 'mongoose';
 
 class SectionsModel {
   constructor() {
     this.MODEL = null;
+    this.DEPARTMENT_MODEL = null;
+    this.COURSE_MODEL = null;
   }
 
   async initModel() {
-    if (!this.MODEL) {
+    if (!this.MODEL || !this.DEPARTMENT_MODEL || !this.COURSE_MODEL) {
       await connectDB();
+      // Initialize Department model first
+      this.DEPARTMENT_MODEL = mongoose.models.Departments || mongoose.model("Departments", DepartmentSchema);
+      // Then Course model
+      this.COURSE_MODEL = mongoose.models.Courses || mongoose.model("Courses", CourseSchema);
+      // Finally Section model
       this.MODEL = mongoose.models.Sections || mongoose.model("Sections", SectionSchema);
     }
     return this.MODEL;
   }
 
   async createSection(sectionData) {
-    const Section = await this.initModel();
-    const section = new Section(sectionData);
-    const savedSection = await section.save();
-    return JSON.parse(JSON.stringify(savedSection));
+    try {
+      const Section = await this.initModel();
+      
+      // Start a session for transaction
+      const session = await mongoose.startSession();
+      let result;
+      
+      try {
+        await session.withTransaction(async () => {
+          // First deactivate any existing active section with the same name
+          await Section.findOneAndUpdate(
+            { sectionName: sectionData.sectionName, isActive: true },
+            { isActive: false },
+            { session }
+          );
+          
+          // Create new section
+          const section = new Section(sectionData);
+          await section.save({ session });
+          
+          // Populate the section after saving
+          result = await Section.findById(section._id)
+            .populate({
+              path: 'course',
+              select: 'courseCode courseTitle department',
+              populate: {
+                path: 'department',
+                select: 'departmentCode departmentName'
+              }
+            })
+            .populate({
+              path: 'department',
+              select: 'departmentCode departmentName'
+            })
+            .session(session);
+        });
+        
+        await session.endSession();
+        return JSON.parse(JSON.stringify(result));
+      } catch (error) {
+        await session.endSession();
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error in createSection:', error);
+      throw error;
+    }
   }
 
   async getAllSections() {
@@ -28,27 +78,92 @@ class SectionsModel {
     return JSON.parse(JSON.stringify(sections));
   }
 
-  async getSectionByName(sectionName) {
+  async getAllSectionsWithDepartment() {
+    try {
+      const Section = await this.initModel();
+      const sections = await Section.find({ isActive: true })
+        .populate({
+          path: 'course', // Changed from courseCode
+          select: 'courseCode courseTitle department',
+          populate: {
+            path: 'department',
+            select: 'departmentCode departmentName'
+          }
+        })
+        .populate({
+          path: 'department',
+          select: 'departmentCode departmentName'
+        });
+      return JSON.parse(JSON.stringify(sections));
+    } catch (error) {
+      console.error('Error in getAllSectionsWithDepartment:', error);
+      throw error;
+    }
+  }
+
+  async getSectionByNameAndStatus(sectionName, isActive) {
     const Section = await this.initModel();
-    const section = await Section.findOne({ sectionName, isActive: true });
+    const section = await Section.findOne({ sectionName, isActive });
+    return section ? JSON.parse(JSON.stringify(section)) : null;
+  }
+
+  async getSectionByName(sectionName) {
+    // Update existing method to get any section regardless of status
+    const Section = await this.initModel();
+    const section = await Section.findOne({ sectionName });
     return section ? JSON.parse(JSON.stringify(section)) : null;
   }
 
   async updateSection(sectionName, updateData) {
     const Section = await this.initModel();
-    const section = await Section.findOneAndUpdate(
-      { sectionName, isActive: true },
-      { $set: updateData },
+    // Add update history entry
+    const updatedSection = await Section.findOneAndUpdate(
+      { sectionName },
+      { 
+        $set: updateData,
+        $push: { 
+          updateHistory: {
+            updatedBy: updateData.updatedBy,
+            updatedAt: new Date(),
+            action: 'updated'
+          }
+        }
+      },
       { new: true, runValidators: true }
-    );
-    return section ? JSON.parse(JSON.stringify(section)) : null;
+    ).populate({
+      path: 'course',
+      select: 'courseCode courseTitle department',
+      populate: {
+        path: 'department',
+        select: 'departmentCode departmentName'
+      }
+    }).populate({
+      path: 'department',
+      select: 'departmentCode departmentName'
+    });
+    return updatedSection ? JSON.parse(JSON.stringify(updatedSection)) : null;
   }
 
-  async deleteSection(sectionName) {
+  async deleteSection(sectionName, updateData) {
     const Section = await this.initModel();
+    
+    // First get the section to ensure it exists
+    const existingSection = await Section.findOne({ sectionName, isActive: true });
+    if (!existingSection) return null;
+
+    // Then update it with the deactivation and history
     const section = await Section.findOneAndUpdate(
-      { sectionName, isActive: true },
-      { $set: { isActive: false } },
+      { _id: existingSection._id },
+      { 
+        $set: { isActive: false },
+        $push: { 
+          updateHistory: {
+            updatedBy: updateData.updatedBy,
+            updatedAt: new Date(),
+            action: 'deleted'
+          }
+        }
+      },
       { new: true }
     );
     return section ? JSON.parse(JSON.stringify(section)) : null;
@@ -64,6 +179,12 @@ class SectionsModel {
     const Section = await this.initModel();
     const sections = await Section.find({ departmentCode, isActive: true });
     return JSON.parse(JSON.stringify(sections));
+  }
+
+  async checkDuplicateSectionName(sectionName) {
+    const Section = await this.initModel();
+    const existingSection = await Section.findOne({ sectionName });
+    return existingSection ? JSON.parse(JSON.stringify(existingSection)) : null;
   }
 }
 
