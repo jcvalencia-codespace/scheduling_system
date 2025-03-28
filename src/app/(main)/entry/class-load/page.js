@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import useAuthStore from '@/store/useAuthStore';
 import {
   PlusIcon,
   PrinterIcon,
@@ -10,11 +11,12 @@ import {
 } from '@heroicons/react/24/outline';
 import AssignSubjectModal from './_components/AssignSubjectModal';
 import ViewSubjectModal from './_components/ViewSubjectModal';
-import { getAssignments, deleteAssignment } from './_actions';
+import { getAssignments, deleteAssignment } from './/_actions';
 import Swal from 'sweetalert2';
 import { useLoading } from '../../../context/LoadingContext';
 
 export default function AssignSubjectsPage() {
+  const user = useAuthStore(state => state.user);
   const [assignments, setAssignments] = useState([]);
   const [selectedTerm, setSelectedTerm] = useState('');
   const { isLoading, setIsLoading } = useLoading(); 
@@ -81,7 +83,7 @@ export default function AssignSubjectsPage() {
       });
 
       if (result.isConfirmed) {
-        const response = await deleteAssignment(id);
+        const response = await deleteAssignment(id, user?._id);
         if (response.success) {
           await loadAssignments(); // Reload the list
           Swal.fire({
@@ -178,9 +180,7 @@ export default function AssignSubjectsPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Year Level
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Term
-                  </th>
+                  {/* Removed term column */}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Section
                   </th>
@@ -201,14 +201,12 @@ export default function AssignSubjectsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {assignment.yearLevel} Year
                     </td>
+                    {/* Removed term column */}
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      Term {assignment.term}
+                      {assignment.classId?.sectionName || 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {assignment.classId?.sectionName}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {assignment.classId?.courseCode}
+                      {assignment.classId?.course?.courseCode || 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <button
@@ -255,6 +253,7 @@ export default function AssignSubjectsPage() {
         onClose={handleModalClose}
         onSubmit={handleAssignSubject}
         editData={editingAssignment}
+        userId={user?._id}
       />
 
       <ViewSubjectModal

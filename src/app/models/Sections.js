@@ -186,6 +186,138 @@ class SectionsModel {
     const existingSection = await Section.findOne({ sectionName });
     return existingSection ? JSON.parse(JSON.stringify(existingSection)) : null;
   }
+
+  async processSectionCreation(formData) {
+    const sectionName = formData.get('sectionName');
+    const courseId = formData.get('courseCode');
+    const yearLevel = formData.get('yearLevel');
+    const userId = formData.get('userId');
+
+    // Check for existing section
+    const existingSection = await this.getSectionByName(sectionName);
+    
+    // If section exists and is active, reject creation
+    if (existingSection && existingSection.isActive) {
+      throw new Error('A section with this name already exists');
+    }
+
+    // Get course with department
+    const course = await this.COURSE_MODEL.findById(courseId).populate('department');
+    if (!course) {
+      throw new Error('Course not found');
+    }
+
+    // Handle reactivation of inactive section
+    if (existingSection && !existingSection.isActive) {
+      const updateData = {
+        course: courseId,
+        department: course.department,
+        yearLevel,
+        isActive: true,
+        updatedBy: new mongoose.Types.ObjectId(userId),
+        $push: {
+          updateHistory: {
+            updatedBy: new mongoose.Types.ObjectId(userId),
+            updatedAt: new Date(),
+            action: 'reactivated'
+          }
+        }
+      };
+
+      const reactivatedSection = await this.updateSection(sectionName, updateData);
+      if (!reactivatedSection) {
+        throw new Error('Failed to reactivate section');
+      }
+      return { section: reactivatedSection, reactivated: true };
+    }
+
+    // Create new section
+    const sectionData = {
+      sectionName,
+      course: courseId,
+      department: course.department,
+      yearLevel,
+      isActive: true,
+      updateHistory: [{
+        updatedBy: new mongoose.Types.ObjectId(userId),
+        updatedAt: new Date(),
+        action: 'created'
+      }]
+    };
+
+    const newSection = await this.createSection(sectionData);
+    if (!newSection) {
+      throw new Error('Failed to save section');
+    }
+
+    return { section: newSection };
+  }
+
+  async processSectionUpdate(sectionName, formData) {
+    const courseId = formData.get('courseCode');
+    const newYearLevel = formData.get('yearLevel');
+    const userId = formData.get('userId');
+    const newSectionName = formData.get('sectionName');
+
+    // Get course with department
+    const course = await this.COURSE_MODEL.findById(courseId).populate('department');
+    if (!course) {
+      throw new Error('Course not found');
+    }
+
+    if (!course.department || !course.department._id) {
+      throw new Error('Department information is missing from the course');
+    }
+
+    const updateData = {
+      sectionName: newSectionName,
+      course: new mongoose.Types.ObjectId(courseId),
+      department: new mongoose.Types.ObjectId(course.department._id),
+      yearLevel: newYearLevel,
+      updatedBy: new mongoose.Types.ObjectId(userId),
+      $push: {
+        updateHistory: {
+          updatedBy: new mongoose.Types.ObjectId(userId),
+          updatedAt: new Date(),
+          action: 'updated'
+        }
+      }
+    };
+
+    const updatedSection = await this.updateSection(sectionName, updateData);
+    if (!updatedSection) {
+      throw new Error('Section not found');
+    }
+
+    return { section: updatedSection };
+  }
+
+  async processSectionDeletion(sectionName, userId) {
+    const updateData = {
+      updatedBy: new mongoose.Types.ObjectId(userId),
+      $push: {
+        updateHistory: {
+          updatedBy: new mongoose.Types.ObjectId(userId),
+          updatedAt: new Date(),
+          action: 'deleted'
+        }
+      }
+    };
+
+    const deletedSection = await this.deleteSection(sectionName, updateData);
+    if (!deletedSection) {
+      throw new Error('Section not found or already inactive');
+    }
+
+    return { section: deletedSection };
+  }
+
+  async getAllCoursesWithDepartment() {
+    await this.initModel();
+    const courses = await this.COURSE_MODEL.find({ isActive: true })
+      .populate('department', 'departmentCode departmentName');
+    return JSON.parse(JSON.stringify(courses));
+  }
 }
 
 const sectionsModel = new SectionsModel();

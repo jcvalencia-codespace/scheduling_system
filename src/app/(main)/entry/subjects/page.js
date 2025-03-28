@@ -14,8 +14,10 @@ import { getSubjects, removeSubject } from './_actions';
 import AddEditSubjectForm from './_components/AddEditSubjectForm';
 import Swal from 'sweetalert2';
 import { useLoading } from '../../../context/LoadingContext';
+import useAuthStore from '@/store/useAuthStore';
 
 export default function SubjectsPage() {
+  const { user } = useAuthStore();
   const [subjects, setSubjects] = useState([]);
   const [departments, setDepartments] = useState([]);
   const { isLoading, setIsLoading } = useLoading();
@@ -32,10 +34,11 @@ export default function SubjectsPage() {
   const fetchSubjects = async () => {
     setIsLoading(true);
     try {
-      const [subjectsData] = await Promise.all([
-        getSubjects()
-      ]);
-      setSubjects(subjectsData.subjects || []);
+      const response = await getSubjects();
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      setSubjects(response.subjects || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       Swal.fire({
@@ -97,6 +100,16 @@ export default function SubjectsPage() {
   const totalPages = Math.ceil(filteredSubjects.length / itemsPerPage);
 
   const handleDelete = async (subjectCode) => {
+    if (!user || !user._id) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'You must be logged in to perform this action',
+        confirmButtonColor: '#323E8F'
+      });
+      return;
+    }
+
     const result = await Swal.fire({
       title: 'Are you sure?',
       text: "You won't be able to revert this!",
@@ -109,7 +122,7 @@ export default function SubjectsPage() {
 
     if (result.isConfirmed) {
       try {
-        const response = await removeSubject(subjectCode);
+        const response = await removeSubject(subjectCode, user._id);
         if (response.error) {
           throw new Error(response.error);
         }
