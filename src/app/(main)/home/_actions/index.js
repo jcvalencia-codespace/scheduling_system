@@ -2,6 +2,7 @@
 
 import TermsModel from '@/app/models/Terms';
 import schedulesModel from '@/app/models/Schedules';
+import mongoose from 'mongoose';
 
 export async function getActiveTerm() {
   try {
@@ -52,11 +53,35 @@ export async function getScheduleFormData() {
 
 export async function createSchedule(scheduleData) {
   try {
+    if (!scheduleData.userId) {
+      throw new Error('User ID is required');
+    }
+    
+    // Convert userId to ObjectId
+    scheduleData.userId = new mongoose.Types.ObjectId(scheduleData.userId);
+    
     const schedule = await schedulesModel.createSchedule(scheduleData);
     return { schedule: JSON.parse(JSON.stringify(schedule)) };
   } catch (error) {
     console.error('Error creating schedule:', error);
     return { error: error.message || 'Failed to create schedule' };
+  }
+}
+
+export async function updateSchedule(scheduleId, scheduleData) {
+  try {
+    if (!scheduleData.userId) {
+      throw new Error('User ID is required');
+    }
+    
+    // Convert userId to ObjectId
+    scheduleData.userId = new mongoose.Types.ObjectId(scheduleData.userId);
+    
+    const schedule = await schedulesModel.updateSchedule(scheduleId, scheduleData);
+    return { schedule: JSON.parse(JSON.stringify(schedule)) };
+  } catch (error) {
+    console.error('Error updating schedule:', error);
+    return { error: error.message || 'Failed to update schedule' };
   }
 }
 
@@ -70,22 +95,15 @@ export async function getSchedules(query = {}) {
   }
 }
 
-export async function deleteSchedule(scheduleId) {
+export async function deleteSchedule(scheduleId, userId) {
   try {
-    const result = await schedulesModel.deleteSchedule(scheduleId);
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+    const result = await schedulesModel.deleteSchedule(scheduleId, userId);
     return { success: true };
   } catch (error) {
     console.error('Error deleting schedule:', error);
     return { error: error.message || 'Failed to delete schedule' };
-  }
-}
-
-export async function updateSchedule(scheduleId, scheduleData) {
-  try {
-    const schedule = await schedulesModel.updateSchedule(scheduleId, scheduleData);
-    return { schedule: JSON.parse(JSON.stringify(schedule)) };
-  } catch (error) {
-    console.error('Error updating schedule:', error);
-    return { error: error.message || 'Failed to update schedule' };
   }
 }

@@ -19,29 +19,58 @@ export default class SchedulesModel {
         {
           $lookup: {
             from: 'courses',
-            localField: 'courseCode',
-            foreignField: 'courseCode',
+            localField: 'course',
+            foreignField: '_id',
             as: 'course'
           }
         },
         { $unwind: '$course' },
         {
+          $lookup: {
+            from: 'departments',
+            localField: 'course.department',
+            foreignField: '_id',
+            as: 'department'
+          }
+        },
+        { $unwind: '$department' },
+        {
           $project: {
             _id: 1,
             sectionName: 1,
-            courseCode: 1,
-            courseName: '$course.courseTitle'
+            yearLevel: 1,
+            course: {
+              _id: '$course._id',
+              courseCode: '$course.courseCode',
+              courseTitle: '$course.courseTitle',
+              department: {
+                _id: '$department._id',
+                departmentCode: '$department.departmentCode',
+                departmentName: '$department.departmentName'
+              }
+            },
+            displayName: {
+              $concat: [
+                '$sectionName',
+                ' (',
+                '$course.courseCode',
+                ' - ',
+                { $toString: '$yearLevel' },
+                ')'
+              ]
+            }
           }
         },
         { $sort: { sectionName: 1 } }
       ]);
+  
       return sections;
     } catch (error) {
       console.error('Section fetch error:', error);
       throw new Error('Failed to fetch sections');
     }
   }
-
+  
   static async getFaculty() {
     try {
       const faculty = await Users.aggregate([
@@ -160,7 +189,7 @@ export default class SchedulesModel {
         });
       }
   
-      // Create schedule document
+      // Create schedule document with update history
       const schedule = await Schedules.create({
         term: scheduleData.term,
         section: scheduleData.section,
@@ -171,7 +200,12 @@ export default class SchedulesModel {
         isPaired: scheduleData.isPaired,
         isMultipleSections: scheduleData.isMultipleSections,
         scheduleSlots,
-        isActive: true
+        isActive: true,
+        updateHistory: [{
+          updatedBy: scheduleData.userId, // Make sure to pass userId in scheduleData
+          updatedAt: new Date(),
+          action: 'created'
+        }]
       });
   
       return schedule;
@@ -294,11 +328,20 @@ export default class SchedulesModel {
     }
   }
 
-  static async deleteSchedule(scheduleId) {
+  static async deleteSchedule(scheduleId, userId) {
     try {
       const result = await Schedules.findByIdAndUpdate(
         scheduleId,
-        { isActive: false },
+        { 
+          $set: { isActive: false },
+          $push: {
+            updateHistory: {
+              updatedBy: userId,
+              updatedAt: new Date(),
+              action: 'deleted'
+            }
+          }
+        },
         { new: true }
       );
       if (!result) {
@@ -323,28 +366,60 @@ export default class SchedulesModel {
         return `${hours}:${minutes} ${period.toUpperCase()}`;
       };
   
+      // Prepare schedule slots
+      const scheduleSlots = [{
+        days: scheduleData.days,
+        timeFrom: formatTime(scheduleData.timeFrom),
+        timeTo: formatTime(scheduleData.timeTo),
+        room: new mongoose.Types.ObjectId(scheduleData.room),
+        scheduleType: scheduleData.scheduleType
+      }];
+  
+      // Add paired schedule slot if exists
+      if (scheduleData.isPaired && scheduleData.pairedSchedule) {
+        scheduleSlots.push({
+          days: scheduleData.pairedSchedule.days,
+          timeFrom: formatTime(scheduleData.pairedSchedule.timeFrom),
+          timeTo: formatTime(scheduleData.pairedSchedule.timeTo),
+          room: new mongoose.Types.ObjectId(scheduleData.pairedSchedule.room),
+          scheduleType: scheduleData.pairedSchedule.scheduleType
+        });
+      }
+  
       const updatedData = {
         term: new mongoose.Types.ObjectId(scheduleData.term),
         section: new mongoose.Types.ObjectId(scheduleData.section),
         faculty: new mongoose.Types.ObjectId(scheduleData.faculty),
         subject: new mongoose.Types.ObjectId(scheduleData.subject),
-        room: new mongoose.Types.ObjectId(scheduleData.room),
-        timeFrom: formatTime(scheduleData.timeFrom),
-        timeTo: formatTime(scheduleData.timeTo),
-        days: scheduleData.days,
         classLimit: scheduleData.classLimit,
         studentType: scheduleData.studentType,
-        scheduleType: scheduleData.scheduleType,
         isPaired: scheduleData.isPaired,
         isMultipleSections: scheduleData.isMultipleSections,
-        isActive: true
+        scheduleSlots,
+        isActive: true,
+        $push: {
+          updateHistory: {
+            updatedBy: new mongoose.Types.ObjectId(scheduleData.userId),
+            updatedAt: new Date(),
+            action: 'updated'
+          }
+        }
       };
   
       const schedule = await Schedules.findByIdAndUpdate(
         scheduleId,
-        { $set: updatedData },
+        updatedData,
         { new: true }
-      );
+      ).populate([
+        { path: 'term' },
+        { path: 'section' },
+        { path: 'faculty' },
+        { path: 'subject' },
+        { 
+          path: 'scheduleSlots.room',
+          model: 'Rooms'
+        }
+      ]);
   
       if (!schedule) {
         throw new Error('Schedule not found');

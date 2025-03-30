@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import Swal from 'sweetalert2';
 import { XMarkIcon } from '@heroicons/react/24/outline';
@@ -19,6 +19,18 @@ import NewScheduleModal  from './NewScheduleModal';
 
 export default function ViewScheduleModal({ isOpen, onClose, schedule, onScheduleDeleted }) {
   const [isEditMode, setIsEditMode] = useState(false);
+  const [currentSchedule, setCurrentSchedule] = useState(schedule);
+
+  // Update currentSchedule when schedule prop changes
+  useEffect(() => {
+    setCurrentSchedule(schedule);
+  }, [schedule]);
+
+  const handleEditClose = () => {
+    setIsEditMode(false);
+    onScheduleDeleted(); // Refresh the parent component's data
+    onClose(); // Close the modal after successful edit
+  };
 
   const handleDelete = async () => {
     const result = await Swal.fire({
@@ -42,7 +54,7 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule, onSchedul
           title: 'Deleted!',
           text: 'Schedule has been deleted.',
           icon: 'success',
-          timer: 1500
+          
         });
         onClose();
         onScheduleDeleted();
@@ -56,7 +68,7 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule, onSchedul
       }
     }
   };
-  if (!schedule) return null;
+  if (!currentSchedule) return null;
 
   return (
     <Transition.Root show={isOpen} as={Fragment}>
@@ -242,10 +254,10 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule, onSchedul
                     {isEditMode && (
                       <NewScheduleModal
                         isOpen={isEditMode}
-                        onClose={() => setIsEditMode(false)}
+                        onClose={handleEditClose}
                         onScheduleCreated={onScheduleDeleted}
                         editMode={true}
-                        scheduleData={schedule}
+                        scheduleData={currentSchedule}
                       />
                     )}
 

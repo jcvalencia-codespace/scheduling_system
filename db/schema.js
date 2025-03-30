@@ -446,7 +446,25 @@ const ScheduleSchema = new Schema({
   isActive: {
     type: Boolean,
     default: true
-  }
+  },
+  // Add update history tracking
+  updateHistory: [{
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+      required: true
+    },
+    action: {
+      type: String,
+      enum: ['created', 'updated', 'deleted'],
+      required: true
+    }
+  }]
 }, {
   timestamps: true,
   collection: 'schedules'
