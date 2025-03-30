@@ -10,11 +10,15 @@ const customSelectStyles = {
   option: (styles, { isSelected, isFocused }) => ({
     ...styles,
     backgroundColor: isSelected ? '#323E8F' : isFocused ? '#E2E8F0' : 'white',
-    color: isSelected ? 'white' : '#1F2937',
+    color: isSelected ? 'white' : '#111827', // Changed to gray-900
     ':active': {
       backgroundColor: '#323E8F',
       color: 'white'
     }
+  }),
+  placeholder: (styles) => ({
+    ...styles,
+    color: '#111827', // Added gray-900 color for placeholder
   }),
   multiValue: (styles) => ({
     ...styles,
@@ -313,7 +317,7 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                           name="yearLevel"
                           onChange={handleYearLevelChange}
                           value={formData.yearLevel}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                          className="mt-1 block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                           required
                         >
                           <option value="">Select Year Level</option>
@@ -331,7 +335,7 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                           name="term"
                           onChange={handleTermChange}
                           value={formData.term}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                          className="mt-1 block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                           required
                         >
                           <option value="">Select Term</option>

@@ -37,6 +37,16 @@ export async function getAssignments() {
   }
 }
 
+export async function getDepartments() {
+  try {
+    const departments = await AssignSubjectsModel.fetchDepartments();
+    return departments || [];
+  } catch (error) {
+    console.error('Error fetching departments:', error);
+    return [];
+  }
+}
+
 export async function deleteAssignment(id, userId) {
   try {
     if (!userId) throw new Error('User not authenticated');

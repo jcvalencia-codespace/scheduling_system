@@ -11,19 +11,26 @@ import {
 } from '@heroicons/react/24/outline';
 import AssignSubjectModal from './_components/AssignSubjectModal';
 import ViewSubjectModal from './_components/ViewSubjectModal';
-import { getAssignments, deleteAssignment } from './/_actions';
-import Swal from 'sweetalert2';
+import { getAssignments, deleteAssignment, getDepartments } from './/_actions';
 import { useLoading } from '../../../context/LoadingContext';
+import Filter from './_components/filter';
+import ActionModal from './_components/ActionModal';
 
 export default function AssignSubjectsPage() {
   const user = useAuthStore(state => state.user);
   const [assignments, setAssignments] = useState([]);
-  const [selectedTerm, setSelectedTerm] = useState('');
   const { isLoading, setIsLoading } = useLoading(); 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState(null);
   const [viewingAssignment, setViewingAssignment] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    yearLevel: '',
+    section: '',
+    course: '',
+    department: '', // Changed from term to department
+  });
+  const [departments, setDepartments] = useState([]);
 
   // Mock active term data - replace with actual API call
   const activeTerm = {
@@ -34,6 +41,7 @@ export default function AssignSubjectsPage() {
 
   useEffect(() => {
     loadAssignments();
+    loadDepartments();
   }, []);
 
   const loadAssignments = async () => {
@@ -43,14 +51,18 @@ export default function AssignSubjectsPage() {
       setAssignments(data);
     } catch (error) {
       console.error('Error loading assignments:', error);
-      Swal.fire({
-        title: 'Error!',
-        text: 'Failed to load assignments',
-        icon: 'error',
-        confirmButtonColor: '#323E8F'
-      });
+      ActionModal.error('Failed to load assignments');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadDepartments = async () => {
+    try {
+      const data = await getDepartments();
+      setDepartments(data);
+    } catch (error) {
+      console.error('Error loading departments:', error);
     }
   };
 
@@ -61,48 +73,25 @@ export default function AssignSubjectsPage() {
       setIsModalOpen(false);
     } catch (error) {
       console.error('Error handling assignment:', error);
-      Swal.fire({
-        title: 'Error!',
-        text: 'Failed to handle assignment',
-        icon: 'error',
-        confirmButtonColor: '#323E8F'
-      });
+      ActionModal.error('Failed to handle assignment');
     }
   };
 
   const handleDelete = async (id) => {
     try {
-      const result = await Swal.fire({
-        title: 'Are you sure?',
-        text: "You won't be able to revert this!",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#323E8F',
-        cancelButtonColor: '#d33',
-        confirmButtonText: 'Yes, delete it!'
-      });
+      const result = await ActionModal.confirmDelete();
 
       if (result.isConfirmed) {
         const response = await deleteAssignment(id, user?._id);
         if (response.success) {
           await loadAssignments(); // Reload the list
-          Swal.fire({
-            title: 'Deleted!',
-            text: response.message,
-            icon: 'success',
-            confirmButtonColor: '#323E8F'
-          });
+          ActionModal.success(response.message);
         } else {
           throw new Error(response.message);
         }
       }
     } catch (error) {
-      Swal.fire({
-        title: 'Error!',
-        text: error.message || 'Failed to delete assignment',
-        icon: 'error',
-        confirmButtonColor: '#323E8F'
-      });
+      ActionModal.error(error.message || 'Failed to delete assignment');
     }
   };
 
@@ -121,9 +110,25 @@ export default function AssignSubjectsPage() {
     setEditingAssignment(null);
   };
 
-  const filteredAssignments = selectedTerm
-    ? assignments.filter(assignment => assignment.term === parseInt(selectedTerm))
-    : assignments;
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const filteredAssignments = assignments.filter(assignment => {
+    if (filters.yearLevel && assignment.yearLevel !== filters.yearLevel) return false;
+    if (filters.section && assignment.classId?.sectionName !== filters.section) return false;
+    if (filters.course && assignment.classId?.course?.courseCode !== filters.course) return false;
+    if (filters.department && assignment.classId?.course?.department?.departmentCode !== filters.department) return false;
+    return true;
+  });
+
+  // Get unique values for filters from assignments
+  const filterOptions = {
+    yearLevels: [...new Set(assignments.map(a => a.yearLevel))].sort(),
+    sections: [...new Set(assignments.map(a => a.classId?.sectionName).filter(Boolean))].sort(),
+    courses: [...new Set(assignments.map(a => a.classId?.course?.courseCode).filter(Boolean))].sort(),
+    departments: departments.map(dept => dept.departmentCode).sort(),
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 sm:px-6 lg:px-8 py-8">
@@ -155,21 +160,12 @@ export default function AssignSubjectsPage() {
         </div>
 
         {/* Filter Section */}
-        <div className="bg-white shadow rounded-lg p-6 mb-6">
-          <div className="sm:flex sm:items-center sm:justify-between">
-            <label className="block text-sm font-medium text-gray-700">Filter by Term:</label>
-            <select
-              value={selectedTerm}
-              onChange={(e) => setSelectedTerm(e.target.value)}
-              className="mt-1 sm:mt-0 block w-full sm:w-48 rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
-            >
-              <option value="">All Terms</option>
-              <option value="1">Term 1</option>
-              <option value="2">Term 2</option>
-              <option value="3">Term 3</option>
-            </select>
-          </div>
-        </div>
+        <Filter 
+          filters={filters}
+          handleFilterChange={handleFilterChange}
+          filterOptions={filterOptions}
+          departments={departments}
+        />
 
         {/* Assignments Table */}
         <div className="bg-white shadow rounded-lg overflow-hidden">

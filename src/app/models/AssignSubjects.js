@@ -134,7 +134,12 @@ class AssignSubjectsModel {
           populate: {
             path: 'course',
             model: 'Courses',
-            select: 'courseCode courseTitle'
+            select: 'courseCode courseTitle department',
+            populate: {
+              path: 'department',
+              model: 'Departments',
+              select: 'departmentCode departmentName'
+            }
           }
         })
         .populate({
@@ -153,7 +158,12 @@ class AssignSubjectsModel {
           course: assignment.classId.course ? {
             _id: assignment.classId.course._id.toString(),
             courseCode: assignment.classId.course.courseCode,
-            courseTitle: assignment.classId.course.courseTitle
+            courseTitle: assignment.classId.course.courseTitle,
+            department: assignment.classId.course.department ? {
+              _id: assignment.classId.course.department._id.toString(),
+              departmentCode: assignment.classId.course.department.departmentCode,
+              departmentName: assignment.classId.course.department.departmentName
+            } : null
           } : null
         } : null,
         subjects: assignment.subjects.map(subj => ({
@@ -351,6 +361,25 @@ class AssignSubjectsModel {
       return true;
     } catch (error) {
       console.error('Error updating assignment:', error);
+      throw error;
+    }
+  }
+
+  async fetchDepartments() {
+    try {
+      await this.initializeModels();
+      
+      const departments = await this.models.Department.find({ isActive: true })
+        .select('departmentCode departmentName')
+        .lean();
+
+      return departments.map(dept => ({
+        _id: dept._id.toString(),
+        departmentCode: dept.departmentCode,
+        departmentName: dept.departmentName
+      }));
+    } catch (error) {
+      console.error('Error fetching departments:', error);
       throw error;
     }
   }
