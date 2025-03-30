@@ -2,38 +2,25 @@
 
 import subjectsModel from '../../../../models/Subjects';
 import { revalidatePath } from 'next/cache';
+import mongoose from 'mongoose';
 
 export async function addSubject(formData) {
   try {
+    const userId = formData.get('userId');
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return { error: 'Invalid user ID' };
+    }
+
     const subjectData = {
       subjectCode: formData.get('subjectCode')?.trim().toUpperCase(),
       subjectName: formData.get('subjectName')?.trim(),
       lectureHours: parseFloat(formData.get('lectureHours')),
       labHours: parseFloat(formData.get('labHours')),
-
-      course: formData.get('course') 
+      course: formData.get('course'),
+      userId: new mongoose.Types.ObjectId(userId)
     };
 
-    console.log('Server received subject data:', subjectData);
-
-    // Validate required fields
-    const requiredFields = ['subjectCode', 'subjectName', 'lectureHours', 'labHours', 'course'];
-    for (const field of requiredFields) {
-      if (!subjectData[field] && subjectData[field] !== 0) {
-        throw new Error(`${field} is required`);
-      }
-    }
-
-    // Check if an active subject with the same code exists
-    const existingSubject = await subjectsModel.getActiveSubjectByCode(subjectData.subjectCode);
-    if (existingSubject) {
-      console.log('Active subject code already exists:', subjectData.subjectCode);
-      throw new Error('Subject code already exists');
-    }
-
-    const savedSubject = await subjectsModel.createSubject(subjectData);
-    console.log('Subject created successfully:', savedSubject);
-    
+    const savedSubject = await subjectsModel.processSubjectCreation(subjectData);
     revalidatePath('/entry/subjects');
     return { success: true, subject: savedSubject };
   } catch (error) {
@@ -42,42 +29,30 @@ export async function addSubject(formData) {
   }
 }
 
-export async function getSubjects() {
-  try {
-    console.log('Server received request to fetch all subjects');
-    const subjects = await subjectsModel.getAllSubjects();
-    console.log('Fetched subjects successfully:', subjects.length);
-    return { subjects };
-  } catch (error) {
-    console.error('Error in getSubjects:', error);
-    return { error: error.message || 'Failed to fetch subjects' };
-  }
-}
-
 export async function editSubject(subjectCode, formData) {
   try {
-    console.log('Server received request to edit subject:', subjectCode);
+    const userId = formData.get('userId');
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return { error: 'Invalid user ID' };
+    }
+
     const updateData = {
+      subjectCode: formData.get('subjectCode')?.trim().toUpperCase(),
       subjectName: formData.get('subjectName')?.trim(),
       lectureHours: parseFloat(formData.get('lectureHours')),
       labHours: parseFloat(formData.get('labHours')),
-      course: formData.get('course') // This will now be the course ObjectId
+      course: formData.get('course'),
+      updatedBy: new mongoose.Types.ObjectId(userId),
+      $push: {
+        updateHistory: {
+          updatedBy: new mongoose.Types.ObjectId(userId),
+          updatedAt: new Date(),
+          action: 'updated'
+        }
+      }
     };
 
-    // Remove undefined or null values
-    Object.keys(updateData).forEach(key => 
-      (updateData[key] === undefined || updateData[key] === null) && delete updateData[key]
-    );
-
-    console.log('Server received subject data to update:', updateData);
-
-    const updatedSubject = await subjectsModel.updateSubject(subjectCode, updateData);
-    if (!updatedSubject) {
-      throw new Error('Subject not found');
-    }
-    
-    console.log('Subject updated successfully:', updatedSubject);
-    
+    const updatedSubject = await subjectsModel.processSubjectUpdate(subjectCode, updateData);
     revalidatePath('/entry/subjects');
     return { success: true, subject: updatedSubject };
   } catch (error) {
@@ -86,21 +61,16 @@ export async function editSubject(subjectCode, formData) {
   }
 }
 
-export async function removeSubject(subjectCode) {
+export async function removeSubject(subjectCode, userId) {
   try {
-    console.log('Server received request to delete subject:', subjectCode);
-    
-    if (!subjectCode) {
-      throw new Error('Subject code is required');
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return { error: 'Invalid user ID' };
     }
 
-    const deletedSubject = await subjectsModel.deleteSubject(subjectCode);
-    
-    if (!deletedSubject) {
-      throw new Error('Failed to delete subject');
-    }
-    
-    console.log('Subject deleted successfully:', deletedSubject);
+    const deletedSubject = await subjectsModel.processSubjectDeletion(
+      subjectCode, 
+      new mongoose.Types.ObjectId(userId)
+    );
     
     revalidatePath('/entry/subjects');
     return { success: true, subject: deletedSubject };
@@ -110,11 +80,19 @@ export async function removeSubject(subjectCode) {
   }
 }
 
+export async function getSubjects() {
+  try {
+    const subjects = await subjectsModel.getAllSubjects();
+    return { success: true, subjects };
+  } catch (error) {
+    console.error('Error in getSubjects:', error);
+    return { error: error.message || 'Failed to fetch subjects' };
+  }
+}
+
 export async function getCourses() {
   try {
-    console.log('Server received request to fetch all courses');
     const courses = await subjectsModel.getAllCourses();
-    console.log('Fetched courses successfully:', courses.length);
     return { courses };
   } catch (error) {
     console.error('Error in getCourses:', error);

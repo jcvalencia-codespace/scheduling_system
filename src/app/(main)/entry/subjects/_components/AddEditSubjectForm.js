@@ -6,6 +6,7 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 import { addSubject, editSubject, getCourses } from '../_actions';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
+import useAuthStore from '../../../../../store/useAuthStore';
 
 const initialFormState = {
   subjectCode: '',
@@ -17,6 +18,7 @@ const initialFormState = {
 };
 
 export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }) {
+  const { user } = useAuthStore();
   const [formData, setFormData] = useState(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [courses, setCourses] = useState([]);
@@ -58,12 +60,20 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
     setIsSubmitting(true);
 
     try {
+      // Check for user object and its ID
+      if (!user || !user._id) {
+        throw new Error('User not authenticated');
+      }
+
       console.log('Submitting form data:', formData);
       
       const form = new FormData();
       Object.keys(formData).forEach(key => {
         form.append(key, formData[key]);
       });
+      
+      // Use user._id instead of user.id
+      form.append('userId', user._id);
 
       const result = subject 
         ? await editSubject(subject.subjectCode, form)
@@ -180,7 +190,7 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
                               required
                               value={formData.subjectCode}
                               onChange={handleChange}
-                              disabled={isSubmitting || !!subject}
+                              disabled={isSubmitting} // Remove the !!subject condition
                               placeholder="COMP101"
                               className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6 uppercase"
                             />

@@ -85,7 +85,24 @@ const SubjectSchema = new Schema({
   isActive: {
     type: Boolean,
     default: true,
-  }
+  },
+  updateHistory: [{
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+      required: true
+    },
+    action: {
+      type: String,
+      enum: ['created', 'updated', 'deleted'],
+      required: true
+    }
+  }],
 }, {
   timestamps: true,
   collection: 'subjects'
@@ -210,16 +227,6 @@ const SectionSchema = new Schema({
     type: Boolean,
     default: true,
   },
-  createdBy: {
-    type: Schema.Types.ObjectId,
-    ref: 'Users',
-    required: true
-  },
-  updatedBy: {
-    type: Schema.Types.ObjectId,
-    ref: 'Users',
-    required: true
-  },
   updateHistory: [{
     updatedBy: {
       type: Schema.Types.ObjectId,
@@ -228,11 +235,12 @@ const SectionSchema = new Schema({
     },
     updatedAt: {
       type: Date,
-      default: Date.now
+      default: Date.now,
+      required: true
     },
     action: {
       type: String,
-      enum: ['updated', 'deleted'],
+      enum: ['created', 'updated', 'deleted'],
       required: true
     }
   }],
@@ -330,20 +338,39 @@ const AssignSubjectsSchema = new Schema({
     required: true,
     enum: ['1st', '2nd', '3rd', '4th', 'grad']
   },
-  term: {
-    type: Number,
-    required: true,
-    enum: [1, 2, 3]
-  },
   classId: {
     type: Schema.Types.ObjectId,
     ref: 'Section',
     required: true
   },
   subjects: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Subject',
-    required: true
+    subject: {
+      type: Schema.Types.ObjectId,
+      ref: 'Subject',
+      required: true
+    },
+    term: {
+      type: Number,
+      required: true,
+      enum: [1, 2, 3]
+    }
+  }],
+  updateHistory: [{
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+      required: true
+    },
+    action: {
+      type: String,
+      enum: ['created', 'updated', 'deleted'],
+      required: true
+    }
   }]
 }, {
   timestamps: true,

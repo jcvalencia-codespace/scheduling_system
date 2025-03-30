@@ -4,8 +4,15 @@ import { XMarkIcon } from '@heroicons/react/24/outline'
 
 export default function ViewSubjectModal({ isOpen, onClose, assignment }) {
   // Group subjects by term
-  const groupedSubjects = assignment?.allSubjects?.sort((a, b) => a.term - b.term) || [];
-
+  const subjectsByTerm = assignment?.subjects?.reduce((acc, subj) => {
+    const term = subj.term;
+    if (!acc[term]) {
+      acc[term] = [];
+    }
+    acc[term].push(subj);
+    return acc;
+  }, {}) || {};
+  
   return (
     <Transition.Root show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-10" onClose={onClose}>
@@ -47,7 +54,7 @@ export default function ViewSubjectModal({ isOpen, onClose, assignment }) {
                 <div className="sm:flex sm:items-start">
                   <div className="mt-3 w-full sm:mt-0 sm:text-left">
                     <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-gray-900 mb-4">
-                      Assigned Subjects for {assignment?.classId?.sectionName} - {assignment?.classId?.courseCode}
+                      Assigned Subjects for {assignment?.classId?.sectionName} - {assignment?.classId?.course?.courseCode}
                     </Dialog.Title>
                     
                     <div className="mt-2">
@@ -56,19 +63,25 @@ export default function ViewSubjectModal({ isOpen, onClose, assignment }) {
                           Year Level: <span className="font-medium">{assignment?.yearLevel} Year</span>
                         </p>
                         
-                        {groupedSubjects.map((termGroup, index) => (
-                          <div key={index} className="mb-6 last:mb-0">
-                            <h4 className="font-medium text-gray-900 mb-2">Term {termGroup.term}:</h4>
-                            <ul className="space-y-2">
-                              {termGroup.subjects.map((subject) => (
-                                <li 
-                                  key={subject._id}
-                                  className="text-sm text-gray-700 bg-white p-2 rounded border border-gray-200"
-                                >
-                                  {subject.subjectCode} - {subject.subjectName}
-                                </li>
-                              ))}
-                            </ul>
+                        {[1, 2, 3].map(term => (
+                          <div key={term} className="mb-6">
+                            <h4 className="font-medium text-gray-900 mb-2">Term {term}:</h4>
+                            {subjectsByTerm[term]?.length > 0 ? (
+                              <ul className="space-y-2">
+                                {subjectsByTerm[term].map((subj) => (
+                                  <li 
+                                    key={subj.subject?._id}
+                                    className="text-sm text-gray-700 bg-white p-2 rounded border border-gray-200"
+                                  >
+                                    {subj.subject?.subjectCode} - {subj.subject?.subjectName}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-sm text-gray-500 text-center py-4">
+                                No subjects assigned for this term
+                              </p>
+                            )}
                           </div>
                         ))}
                       </div>

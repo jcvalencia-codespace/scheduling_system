@@ -1,123 +1,390 @@
 import mongoose from 'mongoose';
-import { SectionSchema, SubjectSchema, AssignSubjectsSchema } from '../../../db/schema';
-const { Schema } = mongoose;
+import { SectionSchema, SubjectSchema, AssignSubjectsSchema, CourseSchema, DepartmentSchema } from '../../../db/schema';
+import connectDB from '../../../lib/mongo';
 
-const Section = mongoose.models.Section || mongoose.model('Section', SectionSchema);
-const Subject = mongoose.models.Subject || mongoose.model('Subject', SubjectSchema);
-
-// Define the model first
-const AssignSubjectsModel = mongoose.models.AssignSubjects || mongoose.model('AssignSubjects', AssignSubjectsSchema);
-
-// Add static methods to the model
-AssignSubjectsModel.fetchClasses = async function(yearLevel) {
-  try {
-    const formattedYearLevel = yearLevel.replace(' Year', '');
-    
-    console.log('Querying with yearLevel:', formattedYearLevel + ' Year'); // Debug log
-    
-    const classes = await Section.find({ 
-      yearLevel: formattedYearLevel + ' Year',
-      isActive: true 
-    })
-    .select('_id sectionName courseCode departmentCode yearLevel')
-    .lean();
-    
-    console.log('Found classes:', classes); // Debug log
-    return classes;
-  } catch (error) {
-    console.error('Error in fetchClasses:', error);
-    throw new Error('Failed to fetch classes');
-  }
-};
-
-AssignSubjectsModel.fetchSubjects = async function(term) {
-  try {
-    const subjects = await this.model('Subject').find({ 
-      term: Number(term),
-      isActive: true 
-    })
-    .select('subjectCode subjectName')
-    .lean();
-    
-    return subjects.map(subject => ({
-      ...subject,
-      _id: subject._id.toString()
-    }));
-  } catch (error) {
-    throw new Error('Failed to fetch subjects');
-  }
-};
-
-AssignSubjectsModel.checkExistingAssignments = async function(classId, subjects, term, currentAssignmentId = null) {
-  try {
-    // Find existing assignments for the class and term, excluding current assignment if updating
-    const query = {
-      classId: classId,
-      term: Number(term)
+class AssignSubjectsModel {
+  constructor() {
+    this.models = {
+      Subject: null,
+      Section: null,
+      Course: null,
+      Department: null,
+      AssignSubjects: null
     };
-    if (currentAssignmentId) {
-      query._id = { $ne: currentAssignmentId };
-    }
-
-    const existingAssignments = await this.find(query)
-      .populate('subjects', 'subjectCode subjectName');
-
-    if (!existingAssignments.length) {
-      return { hasDuplicates: false, duplicateSubjects: [] };
-    }
-
-    const assignedSubjectIds = existingAssignments.reduce((acc, assignment) => {
-      return [...acc, ...assignment.subjects.map(s => s._id.toString())];
-    }, []);
-
-    const duplicateSubjects = subjects.filter(subjectId => 
-      assignedSubjectIds.includes(subjectId.toString())
-    );
-
-    const subjectDetails = await Subject.find({
-      _id: { $in: duplicateSubjects }
-    }).select('subjectCode');
-
-    return {
-      hasDuplicates: duplicateSubjects.length > 0,
-      duplicateSubjects: subjectDetails.map(s => s.subjectCode)
-    };
-  } catch (error) {
-    console.error('Error checking existing assignments:', error);
-    throw new Error('Failed to check existing assignments');
   }
-};
 
-AssignSubjectsModel.updateOrCreateAssignment = async function(classId, data) {
-  try {
-    const existingAssignment = await this.findOne({
-      classId: classId,
-      term: Number(data.term)
-    });
+  async initializeModels() {
+    try {
+      await connectDB();
 
-    if (existingAssignment) {
-      const updatedSubjects = [...new Set([
-        ...existingAssignment.subjects.map(s => s.toString()),
-        ...data.subjects
-      ])];
+      // Initialize models in the correct order (dependencies first)
+      this.models.Department = mongoose.models.Departments || 
+        mongoose.model('Departments', DepartmentSchema);
 
-      await existingAssignment.updateOne({
-        subjects: updatedSubjects
+      this.models.Course = mongoose.models.Courses || 
+        mongoose.model('Courses', CourseSchema);
+
+      this.models.Subject = mongoose.models.Subjects || 
+        mongoose.model('Subjects', SubjectSchema);
+
+      // Important: Register Section model with 's' to match the reference
+      this.models.Section = mongoose.models.Sections || 
+        mongoose.model('Sections', SectionSchema);
+
+      // Finally, register AssignSubjects model
+      this.models.AssignSubjects = mongoose.models.AssignSubjects || 
+        mongoose.model('AssignSubjects', AssignSubjectsSchema);
+
+      return true;
+    } catch (error) {
+      console.error('Error initializing models:', error);
+      throw error;
+    }
+  }
+
+  async fetchClasses(yearLevel) {
+    try {
+      await this.initializeModels();
+      const formattedYearLevel = yearLevel.replace(' Year', '');
+      
+      const classes = await this.models.Section.find({ 
+        yearLevel: formattedYearLevel + ' Year',
+        isActive: true 
+      })
+      .populate({
+        path: 'course',
+        select: 'courseCode courseTitle department',
+        populate: {
+          path: 'department',
+          select: 'departmentCode departmentName'
+        }
+      })
+      .select('_id sectionName course yearLevel')
+      .lean();
+
+      return classes.map(cls => ({
+        ...cls,
+        _id: cls._id.toString(),
+        courseCode: cls.course?.courseCode || '',
+        courseTitle: cls.course?.courseTitle || '',
+        course: cls.course ? {
+          ...cls.course,
+          _id: cls.course._id.toString(),
+          department: cls.course.department ? {
+            ...cls.course.department,
+            _id: cls.course.department._id.toString()
+          } : null
+        } : null
+      }));
+    } catch (error) {
+      console.error('Error in fetchClasses:', error);
+      throw error;
+    }
+  }
+
+  async fetchSubjects() {
+    try {
+      await this.initializeModels();
+      
+      const subjects = await this.models.Subject.find({ isActive: true })
+        .populate({
+          path: 'course',
+          select: 'courseCode courseTitle department',
+          populate: {
+            path: 'department',
+            select: 'departmentCode departmentName'
+          }
+        })
+        .select('subjectCode subjectName lectureHours labHours course')
+        .lean();
+
+      if (!subjects || subjects.length === 0) {
+        console.log('No subjects found in database');
+        return [];
+      }
+
+      return subjects.map(subject => ({
+        ...subject,
+        _id: subject._id.toString(),
+        course: subject.course ? {
+          ...subject.course,
+          _id: subject.course._id.toString(),
+          department: subject.course.department ? {
+            ...subject.course.department,
+            _id: subject.course.department._id.toString()
+          } : null
+        } : null
+      }));
+    } catch (error) {
+      console.error('Error fetching subjects:', error);
+      throw error;
+    }
+  }
+
+  async fetchAssignments() {
+    try {
+      await this.initializeModels();
+      console.log('Models initialized, fetching assignments...');
+      
+      const assignments = await this.models.AssignSubjects.find()
+        .populate({
+          path: 'classId',
+          model: 'Sections',
+          select: 'sectionName course yearLevel',
+          populate: {
+            path: 'course',
+            model: 'Courses',
+            select: 'courseCode courseTitle department',
+            populate: {
+              path: 'department',
+              model: 'Departments',
+              select: 'departmentCode departmentName'
+            }
+          }
+        })
+        .populate({
+          path: 'subjects.subject',
+          model: 'Subjects',
+          select: 'subjectCode subjectName'
+        })
+        .lean();
+
+      return assignments.map(assignment => ({
+        _id: assignment._id.toString(),
+        yearLevel: assignment.yearLevel,
+        classId: assignment.classId ? {
+          _id: assignment.classId._id.toString(),
+          sectionName: assignment.classId.sectionName,
+          course: assignment.classId.course ? {
+            _id: assignment.classId.course._id.toString(),
+            courseCode: assignment.classId.course.courseCode,
+            courseTitle: assignment.classId.course.courseTitle,
+            department: assignment.classId.course.department ? {
+              _id: assignment.classId.course.department._id.toString(),
+              departmentCode: assignment.classId.course.department.departmentCode,
+              departmentName: assignment.classId.course.department.departmentName
+            } : null
+          } : null
+        } : null,
+        subjects: assignment.subjects.map(subj => ({
+          _id: subj._id.toString(),
+          term: subj.term,
+          subject: subj.subject ? {
+            _id: subj.subject._id.toString(),
+            subjectCode: subj.subject.subjectCode,
+            subjectName: subj.subject.subjectName
+          } : null
+        }))
+      }));
+    } catch (error) {
+      console.error('Error fetching assignments:', error);
+      throw error;
+    }
+  }
+
+  async checkExistingAssignments(classId, subjects, term, currentAssignmentId = null) {
+    try {
+      const query = { classId: classId };
+      if (currentAssignmentId) {
+        query._id = { $ne: currentAssignmentId };
+      }
+
+      const existingAssignments = await this.models.AssignSubjects.find(query)
+        .populate('subjects.subject', 'subjectCode subjectName');
+
+      if (!existingAssignments.length) {
+        return { hasDuplicates: false, duplicateSubjects: [] };
+      }
+
+      // Check for duplicates only in the same term
+      const assignedSubjectIds = existingAssignments.reduce((acc, assignment) => {
+        const sameTermSubjects = assignment.subjects
+          .filter(s => s.term === Number(term))
+          .map(s => s.subject.toString());
+        return [...acc, ...sameTermSubjects];
+      }, []);
+
+      const duplicateSubjects = subjects.filter(subjectId => 
+        assignedSubjectIds.includes(subjectId.toString())
+      );
+
+      const subjectDetails = await this.models.Subject.find({
+        _id: { $in: duplicateSubjects }
+      }).select('subjectCode');
+
+      return {
+        hasDuplicates: duplicateSubjects.length > 0,
+        duplicateSubjects: subjectDetails.map(s => s.subjectCode)
+      };
+    } catch (error) {
+      console.error('Error checking existing assignments:', error);
+      throw new Error('Failed to check existing assignments');
+    }
+  }
+
+  async updateOrCreateAssignment(classId, data, userId) {
+    try {
+      const existingAssignment = await this.models.AssignSubjects.findOne({
+        classId: classId
       });
 
-      return existingAssignment;
-    } else {
-      return await this.create({
-        yearLevel: data.yearLevel,
-        term: Number(data.term),
-        classId: classId,
-        subjects: data.subjects
-      });
-    }
-  } catch (error) {
-    console.error('Error updating/creating assignment:', error);
-    throw new Error('Failed to update/create assignment');
-  }
-};
+      const subjectsWithTerm = data.subjects.map(subjectId => ({
+        subject: subjectId,
+        term: Number(data.term)
+      }));
 
-export default AssignSubjectsModel;
+      const historyEntry = {
+        updatedBy: userId,
+        updatedAt: new Date(),
+        action: existingAssignment ? 'updated' : 'created'
+      };
+
+      if (existingAssignment) {
+        const existingSubjects = existingAssignment.subjects.filter(
+          s => s.term !== Number(data.term)
+        );
+
+        await existingAssignment.updateOne({
+          yearLevel: data.yearLevel,
+          subjects: [...existingSubjects, ...subjectsWithTerm],
+          $push: { updateHistory: historyEntry }
+        });
+
+        return existingAssignment;
+      } else {
+        return await this.models.AssignSubjects.create({
+          yearLevel: data.yearLevel,
+          classId: classId,
+          subjects: subjectsWithTerm,
+          updateHistory: [historyEntry]
+        });
+      }
+    } catch (error) {
+      console.error('Error updating/creating assignment:', error);
+      throw new Error('Failed to update/create assignment');
+    }
+  }
+
+  async getGroupedAssignments() {
+    try {
+      const assignments = await this.fetchAssignments();
+      
+      // Group assignments by classId
+      return assignments.reduce((acc, curr) => {
+        if (!curr.classId) return acc;
+        
+        const key = curr.classId._id;
+        if (!acc[key]) {
+          acc[key] = {
+            ...curr,
+            subjects: curr.subjects // Keep the original subjects array structure
+          };
+        }
+        return acc;
+      }, {});
+    } catch (error) {
+      console.error('Error getting grouped assignments:', error);
+      throw error;
+    }
+  }
+
+  async deleteAssignmentById(id, userId) {
+    try {
+      await this.initializeModels();
+      
+      const historyEntry = {
+        updatedBy: userId,
+        updatedAt: new Date(),
+        action: 'deleted'
+      };
+
+      // Add final history entry before deletion
+      await this.models.AssignSubjects.findByIdAndUpdate(
+        id,
+        { $push: { updateHistory: historyEntry } }
+      );
+
+      await this.models.AssignSubjects.findByIdAndDelete(id);
+      return true;
+    } catch (error) {
+      console.error('Error deleting assignment:', error);
+      throw error;
+    }
+  }
+
+  async updateAssignmentById(id, data, userId) {
+    try {
+      await this.initializeModels();
+      
+      const currentAssignment = await this.models.AssignSubjects.findById(id);
+      if (!currentAssignment) {
+        throw new Error('Assignment not found');
+      }
+
+      const validation = await this.checkExistingAssignments(
+        data.classes[0],
+        data.subjects,
+        data.term,
+        id
+      );
+
+      if (validation.hasDuplicates) {
+        throw new Error(`Some subjects are already assigned: ${validation.duplicateSubjects.join(', ')}`);
+      }
+
+      const existingSubjects = currentAssignment.subjects.filter(
+        s => s.term !== Number(data.term)
+      );
+
+      const newSubjects = data.subjects.map(subjectId => ({
+        subject: subjectId,
+        term: Number(data.term)
+      }));
+
+      const historyEntry = {
+        updatedBy: userId,
+        updatedAt: new Date(),
+        action: 'updated'
+      };
+
+      await this.models.AssignSubjects.findByIdAndUpdate(
+        id,
+        {
+          yearLevel: data.yearLevel.replace(' Year', ''),
+          classId: data.classes[0],
+          subjects: [...existingSubjects, ...newSubjects],
+          $push: { updateHistory: historyEntry }
+        },
+        { new: true }
+      );
+
+      return true;
+    } catch (error) {
+      console.error('Error updating assignment:', error);
+      throw error;
+    }
+  }
+
+  async fetchDepartments() {
+    try {
+      await this.initializeModels();
+      
+      const departments = await this.models.Department.find({ isActive: true })
+        .select('departmentCode departmentName')
+        .lean();
+
+      return departments.map(dept => ({
+        _id: dept._id.toString(),
+        departmentCode: dept.departmentCode,
+        departmentName: dept.departmentName
+      }));
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+      throw error;
+    }
+  }
+}
+
+// Create and export singleton instance
+const assignSubjectsModel = new AssignSubjectsModel();
+export default assignSubjectsModel;

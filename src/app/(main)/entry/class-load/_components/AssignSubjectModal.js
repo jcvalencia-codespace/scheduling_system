@@ -10,11 +10,15 @@ const customSelectStyles = {
   option: (styles, { isSelected, isFocused }) => ({
     ...styles,
     backgroundColor: isSelected ? '#323E8F' : isFocused ? '#E2E8F0' : 'white',
-    color: isSelected ? 'white' : '#1F2937',
+    color: isSelected ? 'white' : '#111827', // Changed to gray-900
     ':active': {
       backgroundColor: '#323E8F',
       color: 'white'
     }
+  }),
+  placeholder: (styles) => ({
+    ...styles,
+    color: '#111827', // Added gray-900 color for placeholder
   }),
   multiValue: (styles) => ({
     ...styles,
@@ -31,10 +35,24 @@ const customSelectStyles = {
       backgroundColor: '#323E8F',
       color: 'white'
     }
+  }),
+  menu: (provided) => ({
+    ...provided,
+    zIndex: 99999,
+    position: 'relative'
+  }),
+  menuPortal: (provided) => ({
+    ...provided,
+    zIndex: 99999
+  }),
+  container: (provided) => ({
+    ...provided,
+    zIndex: 99999,
+    position: 'relative'
   })
 };
 
-export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData = null }) {
+export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData = null, userId }) {
   const [formData, setFormData] = useState({
     yearLevel: '',
     term: '',
@@ -45,6 +63,7 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
   const [availableSubjects, setAvailableSubjects] = useState([])
   const [isLoadingClasses, setIsLoadingClasses] = useState(false);
   const [isLoadingSubjects, setIsLoadingSubjects] = useState(false);
+  const [portalTarget, setPortalTarget] = useState(null);
 
   const yearLevels = [
     { id: '1st Year', label: '1st Year' },
@@ -90,47 +109,97 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
 
   const handleTermChange = async (e) => {
     const term = e.target.value;
-    console.log('Selected term:', term); // Debug log
-    setFormData(prev => ({ ...prev, term }));
-    if (term) {
-      try {
-        setIsLoadingSubjects(true);
-        const subjects = await getSubjects(parseInt(term));
-        console.log('Received subjects:', subjects); // Debug log
-        setAvailableSubjects(subjects);
-      } catch (error) {
-        console.error('Error fetching subjects:', error);
-      } finally {
-        setIsLoadingSubjects(false);
-      }
+    
+    if (editData?.subjects) {
+      // Safely filter subjects by term with null checks
+      const termSubjects = editData.subjects
+        ?.filter(subj => subj?.term === parseInt(term))
+        ?.map(subj => subj?.subject?._id)
+        ?.filter(Boolean) || [];
+      
+      setFormData(prev => ({
+        ...prev,
+        term,
+        subjects: termSubjects
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, term }));
     }
   };
 
   useEffect(() => {
     const loadEditData = async () => {
       if (editData) {
-        // Set initial form data with proper array format
-        const initialFormData = {
-          yearLevel: `${editData.yearLevel} Year`,
-          term: editData.term.toString(),
-          classes: Array.isArray(editData.classId) 
-            ? editData.classId.map(c => c._id)
-            : [editData.classId._id],
-          subjects: editData.subjects.map(s => s._id)
-        };
-        setFormData(initialFormData);
-        
-        // Load classes and subjects
-        const classes = await getClasses(initialFormData.yearLevel);
-        const subjects = await getSubjects(initialFormData.term);
-        
-        setAvailableClasses(classes);
-        setAvailableSubjects(subjects);
+        try {
+          // Safely filter subjects by term with null checks
+          const termSubjects = editData.subjects
+            ?.filter(subj => subj?.term === parseInt(editData.term))
+            ?.map(subj => subj?.subject?._id)
+            ?.filter(Boolean) || [];
+
+          // Set initial form data with proper array format and null checks
+          const initialFormData = {
+            yearLevel: `${editData.yearLevel} Year`,
+            term: editData.term?.toString() || '',
+            classes: editData.classId ? [editData.classId._id] : [],
+            subjects: termSubjects
+          };
+          setFormData(initialFormData);
+          
+          // Load classes and subjects
+          if (initialFormData.yearLevel) {
+            const classes = await getClasses(initialFormData.yearLevel);
+            setAvailableClasses(classes || []);
+          }
+          
+          const subjects = await getSubjects();
+          setAvailableSubjects(subjects || []);
+        } catch (error) {
+          console.error('Error loading edit data:', error);
+          // Set safe default values
+          setFormData({
+            yearLevel: '',
+            term: '',
+            classes: [],
+            subjects: []
+          });
+        }
       }
     };
 
     loadEditData();
   }, [editData]);
+
+  // Also load subjects when modal opens
+  useEffect(() => {
+    const loadSubjects = async () => {
+      if (isOpen) {
+        setIsLoadingSubjects(true);
+        try {
+          console.log('Fetching subjects in modal...'); // Debug log
+          const subjects = await getSubjects();
+          console.log('Received subjects:', subjects); // Debug log
+          if (Array.isArray(subjects)) {
+            setAvailableSubjects(subjects);
+          } else {
+            console.error('Subjects data is not an array:', subjects);
+            setAvailableSubjects([]);
+          }
+        } catch (error) {
+          console.error('Error fetching subjects:', error);
+          setAvailableSubjects([]);
+        } finally {
+          setIsLoadingSubjects(false);
+        }
+      }
+    };
+
+    loadSubjects();
+  }, [isOpen]);
+
+  useEffect(() => {
+    setPortalTarget(document.body);
+  }, []);
 
   const handleClassesChange = (e) => {
     const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
@@ -153,9 +222,9 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
     try {
       let result;
       if (editData) {
-        result = await updateAssignment(editData._id, formData);
+        result = await updateAssignment(editData._id, formData, userId);
       } else {
-        result = await createAssignment(formData);
+        result = await createAssignment(formData, userId);
       }
       
       if (result.success) {
@@ -248,7 +317,7 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                           name="yearLevel"
                           onChange={handleYearLevelChange}
                           value={formData.yearLevel}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                          className="mt-1 block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                           required
                         >
                           <option value="">Select Year Level</option>
@@ -266,7 +335,7 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                           name="term"
                           onChange={handleTermChange}
                           value={formData.term}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                          className="mt-1 block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                           required
                         >
                           <option value="">Select Term</option>
@@ -323,7 +392,7 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Subjects</label>
+                        <label className="block text-sm font-medium text-gray-700 z-[99999]">Subjects</label>
                         {isLoadingSubjects ? (
                           <DropdownSkeleton />
                         ) : (
@@ -353,14 +422,16 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                               placeholder="Select subjects..."
                               noOptionsMessage={() => formData.term 
                                 ? 'No subjects available for selected term' 
-                                : 'Select a term to view available subjects'
+                                : 'No Available Subjects'
                               }
                               styles={customSelectStyles}
+                              menuPortalTarget={portalTarget}
+                              menuPosition={'fixed'}
                             />
                             <p className="mt-1 text-xs text-gray-500">
                               {availableSubjects.length > 0 
                                 ? "You can select multiple subjects"
-                                : "Select a term to view available subjects"}
+                                : "No subjects available"}
                             </p>
                           </>
                         )}
