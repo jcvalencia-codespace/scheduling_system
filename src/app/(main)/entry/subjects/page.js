@@ -262,10 +262,18 @@ export default function SubjectsPage() {
                   <th
                     scope="col"
                     className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
+                    onClick={() => handleSort('unit')}
+                  >
+                    Unit {getSortIcon('unit')}
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
                     onClick={() => handleSort('course')}
                   >
                     Course {getSortIcon('course')}
                   </th>
+                 
                   <th
                     scope="col"
                     className="relative py-3.5 pl-3 pr-4 sm:pr-6"
@@ -287,9 +295,11 @@ export default function SubjectsPage() {
                       {subject.lectureHours} / {subject.labHours}
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+
                       {subject.course?.courseCode && subject.course?.courseTitle 
                         ? `${subject.course.courseCode} - ${subject.course.courseTitle}` 
                         : 'N/A'}
+
                     </td>
                     <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                       <button

@@ -111,6 +111,7 @@ class SubjectsModel {
   }
 
   async getAllSubjects() {
+
     const Subject = await this.initModel();
     await this.initDepartmentModel(); // Initialize Department model before populating
     
@@ -123,6 +124,7 @@ class SubjectsModel {
           select: 'departmentCode departmentName'
         }
       });
+
     return JSON.parse(JSON.stringify(subjects));
   }
 

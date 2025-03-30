@@ -73,6 +73,10 @@ const SubjectSchema = new Schema({
     required: true,
     min: 0,
   },
+  unit: {
+    type: Number,
+    required: true,
+  },
   course: {
     type: Schema.Types.ObjectId,
     ref: 'Courses',
@@ -376,6 +380,79 @@ const AssignSubjectsSchema = new Schema({
 TermSchema.index({ academicYear: 1, term: 1 }, { unique: true });
 TermSchema.index({ status: 1 });
 
+const ScheduleSlotSchema = new Schema({
+  days: [{
+    type: String,
+    required: true
+  }],
+  timeFrom: {
+    type: String,
+    required: true
+  },
+  timeTo: {
+    type: String,
+    required: true
+  },
+  room: {
+    type: Schema.Types.ObjectId,
+    ref: 'Rooms',
+    required: true
+  },
+  scheduleType: {
+    type: String,
+    required: true,
+    enum: ['lecture', 'laboratory', 'tutorial']
+  }
+});
+
+const ScheduleSchema = new Schema({
+  term: {
+    type: Schema.Types.ObjectId,
+    ref: 'Terms',
+    required: true
+  },
+  section: {
+    type: Schema.Types.ObjectId,
+    ref: 'Sections',
+    required: true
+  },
+  faculty: {
+    type: Schema.Types.ObjectId,
+    ref: 'Users',
+    required: true
+  },
+  subject: {
+    type: Schema.Types.ObjectId,
+    ref: 'Subjects',
+    required: true
+  },
+  classLimit: {
+    type: Number,
+    required: true
+  },
+  studentType: {
+    type: String,
+    required: true
+  },
+  isPaired: {
+    type: Boolean,
+    default: false
+  },
+  isMultipleSections: {
+    type: Boolean,
+    default: false
+  },
+  scheduleSlots: [ScheduleSlotSchema],
+  isActive: {
+    type: Boolean,
+    default: true
+  }
+}, {
+  timestamps: true,
+  collection: 'schedules'
+});
+
+
 export {
   UserSchema,
   SubjectSchema,
@@ -385,5 +462,6 @@ export {
   SectionSchema,
   TermSchema,
   FeedbackSchema,
-  AssignSubjectsSchema
+  AssignSubjectsSchema,
+  ScheduleSchema
 };
