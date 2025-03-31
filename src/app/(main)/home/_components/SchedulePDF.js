@@ -1,4 +1,4 @@
-import { Document, Page, View, Text, StyleSheet } from '@react-pdf/renderer';
+import { Document, Page, View, Text, StyleSheet, Image } from '@react-pdf/renderer';
 
 const styles = StyleSheet.create({
   page: {
@@ -9,19 +9,21 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     textAlign: 'center',
   },
-  schoolName: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
+  // schoolName: {
+  //   fontSize: 14,
+  //   fontWeight: 'bold',
+  //   marginBottom: 2,
+  // },
   title: {
-    fontSize: 10,
-    marginBottom: 1,
+    fontSize: 14,
+    marginBottom: 3,
+    fontWeight: '900',
+    color: '#1a237e',
   },
   subtitle: {
     fontSize: 8,
-    color: '#666',
-    marginBottom: 1,
+    color: '#000',
+    marginBottom: 2,
   },
   table: {
     display: 'table',
@@ -32,17 +34,21 @@ const styles = StyleSheet.create({
   },
   tableRow: {
     flexDirection: 'row',
-    height: 16,
+    height: 15,
+    borderBottomWidth: 0, 
+    borderSpacing: 0,
+    borderCollapse: 'collapse',
   },
   tableCell: {
     width: '14.28%',
-    padding: 2,
+    padding: 0,
     fontSize: 8,
     borderRightWidth: 1,
     borderRightColor: '#000',
     borderBottomWidth: 1,
     borderBottomColor: '#000',
     textAlign: 'center',
+    margin: 0,
   },
   timeCell: {
     width: '14.28%',
@@ -59,7 +65,7 @@ const styles = StyleSheet.create({
   headerCell: {
     width: '14.28%',
     padding: 3,
-    fontSize: 7,
+    fontSize: 8,
     backgroundColor: '#1a237e',
     color: 'white',
     fontWeight: 'bold',
@@ -72,11 +78,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFD700',
     borderBottomWidth: 0,
     height: '100%',
-    padding: 2,
+    padding: 0,
+    margin: 0,
+    borderStyle: 'solid',
   },
   lastScheduleCell: {
     borderBottomWidth: 1,
-    borderBottomColor: '#000000'
+    borderBottomColor: '#000000',
+    borderBottomStyle: 'solid'
   },
   scheduleContent: {
     position: 'absolute', 
@@ -92,15 +101,20 @@ const styles = StyleSheet.create({
     fontSize: 8,
     textAlign: 'center',
     color: '#000000',
-    marginBottom: 2,
+    marginTop: 3,
   },
   timeRangeText: {
-    fontSize: 7,
+    fontSize: 8,
     textAlign: 'center',
     color: '#000000',
-    marginBottom: 3,
+    marginTop: 3,
     fontWeight: 'bold',
-  }
+  },
+  logo: {
+    width: 150,
+    marginBottom: 1,
+    alignSelf: 'center',
+  },
 });
 
 const SchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
@@ -233,7 +247,7 @@ const SchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
       return (
         <View style={styles.scheduleContent}>
           <Text style={styles.scheduleText}>
-            {schedule.faculty?.lastName || ''}
+            {schedule.faculty ? `${schedule.faculty.firstName?.[0]}.${schedule.faculty.lastName}` : ''}
           </Text>
         </View>
       );
@@ -246,7 +260,10 @@ const SchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
     <Document>
       <Page size="A4" orientation="portrait" style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.schoolName}>NU BALIWAG</Text>
+          <Image 
+            style={styles.logo}
+            src="/logo-header.png"
+          />
           <Text style={styles.title}>Class Schedule</Text>
           {activeTerm && (
             <>

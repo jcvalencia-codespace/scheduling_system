@@ -12,6 +12,7 @@ import PreviewPDFModal from "./_components/PreviewPDFModal"
 import { getActiveTerm } from './_actions';
 import { getSchedules } from './_actions';
 import useAuthStore from '@/store/useAuthStore';
+import Swal from 'sweetalert2';
 import {
   PlusIcon,
   PrinterIcon,
@@ -46,6 +47,7 @@ export default function HomePage() {
 
   // Define weekDays for compatibility with existing components
   const weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+
 
   const ScheduleSkeleton = () => (
     <div className="animate-pulse">
@@ -200,7 +202,18 @@ export default function HomePage() {
     setSelectedSchedule(info.event.extendedProps.schedule)
     setIsViewScheduleModalOpen(true)
   }
-
+const handlePrintClick = () => {
+  if (!selectedSection) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'No Section Selected',
+      text: 'Please select a section before printing the schedule.',
+      confirmButtonColor: '#323E8F'
+    });
+    return;
+  }
+  setIsPDFPreviewOpen(true);
+};
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 bg-gray-100">
       {/* Add FullCalendar styles directly in the component */}
@@ -223,11 +236,11 @@ export default function HomePage() {
 
         /* Style the day headers */
         .fc-col-header-cell {
-          background-color: #f9fafb;
+          background-color: #1a237e;
           font-weight: 500;
           text-transform: uppercase;
           font-size: 0.75rem;
-          color: #6b7280;
+          color:rgb(255, 255, 255);
         }
 
         /* Style the time labels */
@@ -248,10 +261,7 @@ export default function HomePage() {
           border-color: #e5e7eb !important;
         }
 
-        /* Highlight today's column */
-        .fc-day-today {
-          background-color: rgba(239, 246, 255, 0.5) !important;
-        }
+    
 
         /* Style the event content */
         .fc-event-title, .fc-event-time {
@@ -274,7 +284,7 @@ export default function HomePage() {
               New Schedule
             </button>
             <button
-              onClick={() => setIsPDFPreviewOpen(true)}
+               onClick={handlePrintClick}
               className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#323E8F]"
             >
              <PrinterIcon className="h-5 w-5 mr-2" />
@@ -313,7 +323,7 @@ export default function HomePage() {
           ) : activeTerm ? (
             <>
               <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Schedule for {activeTerm.term}</h2>
-              <p className="mt-1 text-sm text-gray-600">SY - {activeTerm.academicYear}</p>
+              <p className="mt-1 text-sm text-gray-600">AY - {activeTerm.academicYear}</p>
               <p className="mt-0.5 text-sm text-gray-500">
                 {formatDate(activeTerm.startDate)} - {formatDate(activeTerm.endDate)}
               </p>
@@ -410,73 +420,78 @@ function renderEventContent(eventInfo) {
         overflow: "hidden",
       }}
     >
-      <div className="mb-4">{schedule.timeFrom} - {schedule.timeTo}</div>
+      <div className="mb-2">{schedule.timeFrom} - {schedule.timeTo}</div>
 
       <div
         className="mb-1"
-        style={{ fontWeight: "600" }}
+        style={{ fontWeight: "700", fontSize: "0.85rem" }}
       >
         {schedule.subject?.subjectCode || 'N/A'}
       </div>
 
-      <div className="mb-1">
+      <div className="mb-1"
+      style={{ fontWeight: "400", fontSize: "0.65rem" }}
+      >
         {schedule.subject?.subjectName || 'N/A'}
       </div>
 
-      <div className="mb-1">
+      <div className="mb-1"
+       style={{ fontWeight: "600", fontSize: "0.75rem" }}
+      >
         {schedule.room?.roomCode || 'Room N/A'}
       </div>
 
-      <div>
-        {`${schedule.faculty?.lastName || ''}, ${schedule.faculty?.firstName || ''}`}
+      <div
+      style={{ fontWeight: "600", fontSize: "0.75rem" }}>
+        {`${schedule.faculty?.firstName ? schedule.faculty.firstName[0] : ''}.${schedule.faculty?.lastName ? ' ' + schedule.faculty.lastName : ''}`}
       </div>
     </div>
   );
 }
 
 
-const handleDeleteSchedule = async (scheduleId) => {
-  if (!user || !user._id) {
-    Swal.fire({
-      icon: 'error',
-      title: 'Error',
-      text: 'You must be logged in to perform this action',
-      confirmButtonColor: '#323E8F'
-    });
-    return;
-  }
+// const handleDeleteSchedule = async (scheduleId) => {
+//   if (!user || !user._id) {
+//     Swal.fire({
+//       icon: 'error',
+//       title: 'Error',
+//       text: 'You must be logged in to perform this action',
+//       confirmButtonColor: '#323E8F'
+//     });
+//     return;
+//   }
 
-  const result = await Swal.fire({
-    title: 'Are you sure?',
-    text: "You won't be able to revert this!",
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#323E8F',
-    cancelButtonColor: '#d33',
-    confirmButtonText: 'Yes, delete it!'
-  });
+//   const result = await Swal.fire({
+//     title: 'Are you sure?',
+//     text: "You won't be able to revert this!",
+//     icon: 'warning',
+//     showCancelButton: true,
+//     confirmButtonColor: '#323E8F',
+//     cancelButtonColor: '#d33',
+//     confirmButtonText: 'Yes, delete it!'
+//   });
 
-  if (result.isConfirmed) {
-    try {
-      const response = await deleteSchedule(scheduleId, user._id);
-      if (response.error) {
-        throw new Error(response.error);
-      }
-      fetchSchedules(); // Refresh the schedules
-      Swal.fire({
-        icon: 'success',
-        title: 'Deleted!',
-        text: 'Schedule has been deleted.',
-        confirmButtonColor: '#323E8F'
-      });
-    } catch (error) {
-      console.error('Error deleting schedule:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Failed to delete schedule',
-        confirmButtonColor: '#323E8F'
-      });
-    }
-  }
-};
+//   if (result.isConfirmed) {
+//     try {
+//       const response = await deleteSchedule(scheduleId, user._id);
+//       if (response.error) {
+//         throw new Error(response.error);
+//       }
+//       fetchSchedules(); // Refresh the schedules
+//       Swal.fire({
+//         icon: 'success',
+//         title: 'Deleted!',
+//         text: 'Schedule has been deleted.',
+//         confirmButtonColor: '#323E8F'
+//       });
+//     } catch (error) {
+//       console.error('Error deleting schedule:', error);
+//       Swal.fire({
+//         icon: 'error',
+//         title: 'Error',
+//         text: 'Failed to delete schedule',
+//         confirmButtonColor: '#323E8F'
+//       });
+//     }
+//   }
+// };
