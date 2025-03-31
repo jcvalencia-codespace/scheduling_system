@@ -5,6 +5,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import { getScheduleFormData, createSchedule, getActiveTerm, updateSchedule } from '../_actions';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
+import useAuthStore from '@/store/useAuthStore';
 
 
 
@@ -15,6 +16,7 @@ export default function NewScheduleModal({
   editMode = false,
   scheduleData = null
 }) {
+  const { user } = useAuthStore(); // Add this line
   const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   const studentTypes = [
@@ -192,7 +194,9 @@ export default function NewScheduleModal({
   };
   const sectionOptions = formData.sections.map(section => ({
     value: section._id,
-    label: `${section.sectionName} - ${section.courseName}`
+    label: section.displayName,
+    courseInfo: section.course,
+    yearLevel: section.yearLevel
   }));
 
   const facultyOptions = formData.faculty.map(f => ({
@@ -332,6 +336,7 @@ export default function NewScheduleModal({
         timeFrom: formatTimeValue(selectedValues.timeFrom),
         timeTo: formatTimeValue(selectedValues.timeTo),
         isActive: true,
+        userId: user._id, // Add user ID
         pairedSchedule: selectedValues.isPaired ? {
           ...pairedSchedule,
           timeFrom: formatTimeValue(pairedSchedule.timeFrom),
@@ -341,8 +346,8 @@ export default function NewScheduleModal({
       };
   
       const response = editMode
-        ? await updateSchedule(scheduleData.id || scheduleData._id, scheduleData)
-        : await createSchedule(scheduleData);
+      ? await updateSchedule(scheduleData.id || scheduleData._id, scheduleData)
+      : await createSchedule(scheduleData);
   
       if (response.error) {
         throw new Error(response.error);
