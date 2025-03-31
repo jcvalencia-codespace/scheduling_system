@@ -15,6 +15,7 @@ import AddEditSubjectForm from './_components/AddEditSubjectForm';
 import Swal from 'sweetalert2';
 import { useLoading } from '../../../context/LoadingContext';
 import useAuthStore from '@/store/useAuthStore';
+import Filter from './_components/filter';
 
 export default function SubjectsPage() {
   const { user } = useAuthStore();
@@ -30,6 +31,11 @@ export default function SubjectsPage() {
     direction: 'asc',
   });
   const itemsPerPage = 10;
+  const [filters, setFilters] = useState({
+    department: '',
+    course: ''
+  });
+  const [courses, setCourses] = useState([]);
 
   const fetchSubjects = async () => {
     setIsLoading(true);
@@ -39,6 +45,8 @@ export default function SubjectsPage() {
         throw new Error(response.error);
       }
       setSubjects(response.subjects || []);
+      setDepartments(response.departments || []);
+      setCourses(response.courses || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       Swal.fire({
@@ -77,20 +85,31 @@ export default function SubjectsPage() {
     });
   }, [subjects, sortConfig]);
 
+  const handleFilterChange = (filterName, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterName]: value
+    }));
+  };
+
   const filteredSubjects = useMemo(() => {
     return sortedSubjects.filter((subject) => {
       const searchString = searchTerm.toLowerCase();
-      const courseCode = subject.course?.courseCode || '';
-      const courseTitle = subject.course?.courseTitle || '';
+      const departmentCode = subject.department?.departmentCode || '';
+      const departmentName = subject.department?.departmentName || '';
       
-      return (
+      const matchesSearch = 
         subject.subjectCode.toLowerCase().includes(searchString) ||
         subject.subjectName.toLowerCase().includes(searchString) ||
-        courseCode.toLowerCase().includes(searchString) ||
-        courseTitle.toLowerCase().includes(searchString)
-      );
+        departmentCode.toLowerCase().includes(searchString) ||
+        departmentName.toLowerCase().includes(searchString);
+
+      const matchesDepartment = !filters.department || subject.department?.departmentCode === filters.department;
+      const matchesCourse = !filters.course || subject.course?.courseCode === filters.course;
+
+      return matchesSearch && matchesDepartment && matchesCourse;
     });
-  }, [sortedSubjects, searchTerm]);
+  }, [sortedSubjects, searchTerm, filters]);
 
   const paginatedSubjects = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -151,8 +170,28 @@ export default function SubjectsPage() {
   };
 
   const handleAdd = () => {
-    setSelectedSubject(null);
-    setShowModal(true);
+    const existingSubject = subjects.find(s => !s.isActive);
+    if (existingSubject) {
+      // If there's an inactive subject, ask if they want to reactivate it
+      Swal.fire({
+        title: 'Subject exists',
+        text: 'This subject code was previously deactivated. Would you like to reactivate it?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#323E8F',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, reactivate'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          // Handle reactivation through the form component
+          setSelectedSubject({...existingSubject, isActive: true, updateHistory: 'updated'});
+          setShowModal(true);
+        }
+      });
+    } else {
+      setSelectedSubject(null);
+      setShowModal(true);
+    }
   };
 
   const handleModalClose = () => {
@@ -235,93 +274,159 @@ export default function SubjectsPage() {
             </div>
           </div>
 
-          <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-            <table className="min-w-full divide-y divide-gray-300">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th
-                    scope="col"
-                    className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6 cursor-pointer"
-                    onClick={() => handleSort('subjectCode')}
-                  >
-                    Subject Code {getSortIcon('subjectCode')}
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
-                    onClick={() => handleSort('subjectName')}
-                  >
-                    Subject Name {getSortIcon('subjectName')}
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                  >
-                    Hours
-                  </th>
-                  {/* <th
-                    scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
-                    onClick={() => handleSort('unit')}
-                  >
-                    Unit {getSortIcon('unit')}
-                  </th> */}
-                  <th
-                    scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
-                    onClick={() => handleSort('course')}
-                  >
-                    Course {getSortIcon('course')}
-                  </th>
-                 
-                  <th
-                    scope="col"
-                    className="relative py-3.5 pl-3 pr-4 sm:pr-6"
-                  >
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
-                {paginatedSubjects.map((subject) => (
-                  <tr key={subject.subjectCode}>
-                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+          <Filter 
+            filters={filters}
+            handleFilterChange={handleFilterChange}
+            departments={departments}
+            courses={courses}
+          />
+
+          {/* Desktop Table */}
+          <div className="hidden sm:block">
+            <div className="overflow-x-auto">
+              <div className="inline-block min-w-full align-middle">
+                <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                  <table className="min-w-full divide-y divide-gray-300">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th
+                          scope="col"
+                          className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6 cursor-pointer"
+                          onClick={() => handleSort('subjectCode')}
+                        >
+                          Subject Code {getSortIcon('subjectCode')}
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
+                          onClick={() => handleSort('subjectName')}
+                        >
+                          Subject Name {getSortIcon('subjectName')}
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                        >
+                          Hours
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
+                          onClick={() => handleSort('course')}
+                        >
+                          Course {getSortIcon('course')}
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
+                          onClick={() => handleSort('department')}
+                        >
+                          Department {getSortIcon('department')}
+                        </th>
+                        <th
+                          scope="col"
+                          className="relative py-3.5 pl-3 pr-4 sm:pr-6"
+                        >
+                          <span className="sr-only">Actions</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                      {paginatedSubjects.map((subject) => (
+                        <tr key={subject.subjectCode}>
+                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                            {subject.subjectCode}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {subject.subjectName}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {subject.lectureHours} / {subject.labHours}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {subject.course?.courseCode && subject.course?.courseTitle 
+                              ? `${subject.course.courseCode} - ${subject.course.courseTitle}` 
+                              : 'N/A'}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {subject.department?.departmentCode && subject.department?.departmentName 
+                              ? `${subject.department.departmentCode} ` 
+                              : 'N/A'}
+                          </td>
+                          <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                            <button
+                              onClick={() => handleEdit(subject)}
+                              className="text-[#323E8F] hover:text-[#35408E] mr-4"
+                            >
+                              <PencilSquareIcon className="h-5 w-5" />
+                              <span className="sr-only">Edit</span>
+                            </button>
+                            <button
+                              onClick={() => handleDelete(subject.subjectCode)}
+                              className="text-red-600 hover:text-red-900"
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                              <span className="sr-only">Delete</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile Card Layout */}
+          <div className="sm:hidden">
+            <div className="space-y-4">
+              {paginatedSubjects.map((subject) => (
+                <div 
+                  key={subject.subjectCode}
+                  className="bg-white shadow rounded-lg p-4 space-y-2"
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="font-medium text-gray-900">
                       {subject.subjectCode}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {subject.subjectName}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {subject.lectureHours} / {subject.labHours}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-
-                      {subject.course?.courseCode && subject.course?.courseTitle 
-                        ? `${subject.course.courseCode} - ${subject.course.courseTitle}` 
-                        : 'N/A'}
-
-                    </td>
-                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                    </div>
+                    <div className="flex space-x-2">
                       <button
                         onClick={() => handleEdit(subject)}
-                        className="text-[#323E8F] hover:text-[#35408E] mr-4"
+                        className="text-[#323E8F] hover:text-[#35408E]"
                       >
                         <PencilSquareIcon className="h-5 w-5" />
-                        <span className="sr-only">Edit</span>
                       </button>
                       <button
                         onClick={() => handleDelete(subject.subjectCode)}
                         className="text-red-600 hover:text-red-900"
                       >
                         <TrashIcon className="h-5 w-5" />
-                        <span className="sr-only">Delete</span>
                       </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    <p><span className="font-medium">Name:</span> {subject.subjectName}</p>
+                    <p><span className="font-medium">Hours:</span> {subject.lectureHours} / {subject.labHours}</p>
+                    <p>
+                      <span className="font-medium">Course:</span>{' '}
+                      {subject.course?.courseCode && subject.course?.courseTitle 
+                        ? `${subject.course.courseCode} - ${subject.course.courseTitle}` 
+                        : 'N/A'}
+                    </p>
+                    <p>
+                      <span className="font-medium">Department:</span>{' '}
+                      {subject.department?.departmentCode && subject.department?.departmentName 
+                        ? `${subject.department.departmentCode}` 
+                        : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
+
+          {/* Pagination controls could go here */}
         </div>
       </div>
 

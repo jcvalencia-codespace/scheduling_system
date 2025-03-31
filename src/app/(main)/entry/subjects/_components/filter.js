@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 
-// Dynamically import React-Select with disabled SSR
 const ReactSelect = dynamic(() => import('react-select'), {
   ssr: false,
 });
@@ -36,7 +35,7 @@ const customSelectStyles = {
   }),
 };
 
-export default function Filter({ filters, handleFilterChange, filterOptions, departments }) {
+export default function Filter({ filters, handleFilterChange, departments, courses }) {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -46,9 +45,8 @@ export default function Filter({ filters, handleFilterChange, filterOptions, dep
   if (!isMounted) {
     return (
       <div className="bg-white shadow rounded-lg p-6 mb-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Loading placeholders */}
-          {[...Array(4)].map((_, i) => (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {[...Array(2)].map((_, i) => (
             <div key={i}>
               <div className="h-5 w-24 bg-gray-200 rounded mb-2"></div>
               <div className="h-9 bg-gray-100 rounded w-full"></div>
@@ -61,7 +59,7 @@ export default function Filter({ filters, handleFilterChange, filterOptions, dep
 
   return (
     <div className="bg-white shadow rounded-lg p-6 mb-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
           <ReactSelect
@@ -83,53 +81,17 @@ export default function Filter({ filters, handleFilterChange, filterOptions, dep
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Course</label>
           <ReactSelect
-            value={filters.course ? { 
-              value: filters.course, 
-              label: filters.course 
+            value={filters.course ? {
+              value: filters.course,
+              label: `${filters.course} - ${courses.find(c => c.courseCode === filters.course)?.courseTitle || ''}`
             } : null}
             onChange={(option) => handleFilterChange('course', option?.value || '')}
-            options={filterOptions.courses.map(course => ({
-              value: course,
-              label: course
+            options={courses.map(course => ({
+              value: course.courseCode,
+              label: `${course.courseCode} - ${course.courseTitle}`
             }))}
             isClearable
             placeholder="All Courses"
-            styles={customSelectStyles}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Year Level</label>
-          <ReactSelect
-            value={filters.yearLevel ? { 
-              value: filters.yearLevel, 
-              label: `${filters.yearLevel} Year` 
-            } : null}
-            onChange={(option) => handleFilterChange('yearLevel', option?.value || '')}
-            options={filterOptions.yearLevels.map(year => ({
-              value: year,
-              label: `${year} Year`
-            }))}
-            isClearable
-            placeholder="All Year Levels"
-            styles={customSelectStyles}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Section</label>
-          <ReactSelect
-            value={filters.section ? { 
-              value: filters.section, 
-              label: filters.section 
-            } : null}
-            onChange={(option) => handleFilterChange('section', option?.value || '')}
-            options={filterOptions.sections.map(section => ({
-              value: section,
-              label: section
-            }))}
-            isClearable
-            placeholder="All Sections"
             styles={customSelectStyles}
           />
         </div>

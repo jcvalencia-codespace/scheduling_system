@@ -17,12 +17,17 @@ export async function addSubject(formData) {
       lectureHours: parseFloat(formData.get('lectureHours')),
       labHours: parseFloat(formData.get('labHours')),
       course: formData.get('course'),
+      department: formData.get('department'),
       userId: new mongoose.Types.ObjectId(userId)
     };
 
     const savedSubject = await subjectsModel.processSubjectCreation(subjectData);
     revalidatePath('/entry/subjects');
-    return { success: true, subject: savedSubject };
+    return { 
+      success: true, 
+      subject: savedSubject,
+      isReactivated: savedSubject.updateHistory?.[savedSubject.updateHistory.length - 1]?.action === 'updated'
+    };
   } catch (error) {
     console.error('Error in addSubject:', error);
     return { error: error.message || 'Failed to create subject' };
@@ -42,6 +47,7 @@ export async function editSubject(subjectCode, formData) {
       lectureHours: parseFloat(formData.get('lectureHours')),
       labHours: parseFloat(formData.get('labHours')),
       course: formData.get('course'),
+      department: formData.get('department'),
       updatedBy: new mongoose.Types.ObjectId(userId),
       $push: {
         updateHistory: {
@@ -83,19 +89,22 @@ export async function removeSubject(subjectCode, userId) {
 export async function getSubjects() {
   try {
     const subjects = await subjectsModel.getAllSubjects();
-    return { success: true, subjects };
+    const departments = await subjectsModel.getAllDepartments();
+    const courses = await subjectsModel.getAllCourses();
+
+    return {
+      subjects,
+      departments,
+      courses,
+      error: null
+    };
   } catch (error) {
     console.error('Error in getSubjects:', error);
-    return { error: error.message || 'Failed to fetch subjects' };
-  }
-}
-
-export async function getCourses() {
-  try {
-    const courses = await subjectsModel.getAllCourses();
-    return { courses };
-  } catch (error) {
-    console.error('Error in getCourses:', error);
-    return { error: error.message || 'Failed to fetch courses' };
+    return {
+      subjects: [],
+      departments: [],
+      courses: [],
+      error: error.message
+    };
   }
 }

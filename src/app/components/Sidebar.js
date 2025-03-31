@@ -56,7 +56,7 @@ const roleMenuItems = {
       subItems: [
         { title: 'Schedule History', href: '/logs/schedule-history', icon: ListBulletIcon },
         { title: 'Override History', href: '/logs/override-history', icon: ListBulletIcon },
-        { title: 'Archive', href: '/logs/archive', icon: ListBulletIcon }
+        { title: 'Archive', href: '/activity-logs/archive', icon: ListBulletIcon }
       ]
     },
     {
