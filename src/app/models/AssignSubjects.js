@@ -82,37 +82,38 @@ class AssignSubjectsModel {
     }
   }
 
-  async fetchSubjects() {
+  async fetchSubjects(departmentId = null) {
     try {
       await this.initializeModels();
       
-      const subjects = await this.models.Subject.find({ isActive: true })
+      let query = { isActive: true };
+      if (departmentId) {
+        const courses = await this.models.Course.find({ 
+          department: departmentId,
+          isActive: true 
+        });
+        query.department = departmentId; // Filter by department directly
+      }
+
+      const subjects = await this.models.Subject.find(query)
         .populate({
-          path: 'course',
-          select: 'courseCode courseTitle department',
-          populate: {
-            path: 'department',
-            select: 'departmentCode departmentName'
-          }
+          path: 'department',
+          select: 'departmentCode departmentName'
         })
-        .select('subjectCode subjectName lectureHours labHours course')
+        .select('subjectCode subjectName lectureHours labHours department')
         .lean();
 
       if (!subjects || subjects.length === 0) {
-        console.log('No subjects found in database');
+        console.log('No subjects found for department:', departmentId);
         return [];
       }
 
       return subjects.map(subject => ({
         ...subject,
         _id: subject._id.toString(),
-        course: subject.course ? {
-          ...subject.course,
-          _id: subject.course._id.toString(),
-          department: subject.course.department ? {
-            ...subject.course.department,
-            _id: subject.course.department._id.toString()
-          } : null
+        department: subject.department ? {
+          ...subject.department,
+          _id: subject.department._id.toString()
         } : null
       }));
     } catch (error) {

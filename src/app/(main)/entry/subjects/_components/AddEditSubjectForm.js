@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { addSubject, editSubject, getCourses } from '../_actions';
+import { addSubject, editSubject, getSubjects } from '../_actions';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
 import useAuthStore from '../../../../../store/useAuthStore';
@@ -14,7 +14,7 @@ const initialFormState = {
   lectureHours: '',
   labHours: '',
   course: '',
-  unit: ''
+  department: ''
 };
 
 export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }) {
@@ -22,30 +22,35 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
   const [formData, setFormData] = useState(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [courses, setCourses] = useState([]);
+  const [selectedCourse, setSelectedCourse] = useState(null);
 
   useEffect(() => {
     if (subject) {
+      const selectedCourseOption = courses.find(c => c.value === (subject.course?._id || subject.course));
+      setSelectedCourse(selectedCourseOption);
+      
       setFormData({
         subjectCode: subject.subjectCode,
         subjectName: subject.subjectName,
         lectureHours: subject.lectureHours,
         labHours: subject.labHours,
-
-        course: subject.course._id || subject.course // handle both populated and unpopulated cases
-
+        course: subject.course?._id || subject.course,
+        department: subject.department?._id || subject.department
       });
     } else {
       setFormData(initialFormState);
+      setSelectedCourse(null);
     }
-  }, [subject, show]);
+  }, [subject, show, courses]);
 
   useEffect(() => {
     const fetchCourses = async () => {
-      const result = await getCourses();
+      const result = await getSubjects();
       if (result.courses) {
         setCourses(result.courses.map(course => ({
-          value: course._id, // Use course ObjectId as value
-          label: `${course.courseCode} - ${course.courseTitle}`
+          value: course._id,
+          label: `${course.courseCode} - ${course.courseTitle}`,
+          department: course.department
         })));
       }
     };
@@ -60,7 +65,6 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
     setIsSubmitting(true);
 
     try {
-      // Check for user object and its ID
       if (!user || !user._id) {
         throw new Error('User not authenticated');
       }
@@ -72,7 +76,6 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
         form.append(key, formData[key]);
       });
       
-      // Use user._id instead of user.id
       form.append('userId', user._id);
 
       const result = subject 
@@ -120,9 +123,11 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
   };
 
   const handleCourseChange = (selectedOption) => {
+    setSelectedCourse(selectedOption);
     setFormData(prev => ({
       ...prev,
-      course: selectedOption.value
+      course: selectedOption.value,
+      department: selectedOption.department?._id // Update to get department ID
     }));
   };
 
@@ -190,7 +195,7 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
                               required
                               value={formData.subjectCode}
                               onChange={handleChange}
-                              disabled={isSubmitting} // Remove the !!subject condition
+                              disabled={isSubmitting}
                               placeholder="COMP101"
                               className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6 uppercase"
                             />
@@ -250,24 +255,6 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
                           </div>
 
                           <div className="sm:col-span-2">
-                            <label htmlFor="unit" className="block text-sm font-medium text-gray-700">
-                              Unit
-                            </label>
-                            <input
-                              type="number"
-                              name="unit"
-                              id="unit"
-                              required
-                              min="0"
-                              step="0.5"
-                              value={formData.unit}
-                              onChange={handleChange}
-                              disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
-                            />
-                          </div>
-
-                          <div className="sm:col-span-2">
                             <label htmlFor="course" className="block text-sm font-medium text-gray-700">
                               Course
                             </label>
@@ -296,6 +283,19 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
                               }}
                               menuPortalTarget={document.body}
                               menuPosition="fixed"
+                            />
+                          </div>
+
+                          <div className="sm:col-span-2">
+                            <label htmlFor="department" className="block text-sm font-medium text-gray-700">
+                              Department
+                            </label>
+                            <input
+                              type="text"
+                              id="department"
+                              value={selectedCourse ? `${selectedCourse.department.departmentCode} - ${selectedCourse.department.departmentName}` : ''}
+                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 bg-gray-100 shadow-sm ring-1 ring-inset ring-gray-300 sm:text-sm sm:leading-6"
+                              disabled
                             />
                           </div>
                         </div>

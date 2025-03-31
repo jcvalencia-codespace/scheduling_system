@@ -34,21 +34,69 @@ class SubjectsModel {
   }
 
   async validateSubjectData(subjectData) {
-    const requiredFields = ['subjectCode', 'subjectName', 'lectureHours', 'labHours', 'course'];
+    const requiredFields = ['subjectCode', 'subjectName', 'lectureHours', 'labHours', 'course', 'department'];
     for (const field of requiredFields) {
       if (!subjectData[field] && subjectData[field] !== 0) {
         throw new Error(`${field} is required`);
       }
     }
+
+    // Validate if course exists
+    const Course = await this.initCourseModel();
+    const course = await Course.findById(subjectData.course).populate('department');
+    if (!course) {
+      throw new Error('Invalid course');
+    }
+
+    // Validate if department matches course's department
+    if (subjectData.department.toString() !== course.department._id.toString()) {
+      throw new Error('Department must match course department');
+    }
+  }
+
+  async getInactiveSubjectByCode(subjectCode) {
+    const Subject = await this.initModel();
+    const subject = await Subject.findOne({ 
+      subjectCode, 
+      isActive: false 
+    });
+    return subject ? JSON.parse(JSON.stringify(subject)) : null;
+  }
+
+  async reactivateSubject(subjectCode, userId) {
+    const Subject = await this.initModel();
+    const subject = await Subject.findOneAndUpdate(
+      { subjectCode, isActive: false },
+      { 
+        isActive: true,
+        updatedBy: userId,
+        $push: {
+          updateHistory: {
+            updatedBy: userId,
+            updatedAt: new Date(),
+            action: 'updated'
+          }
+        }
+      },
+      { new: true }
+    ).populate('department', 'departmentCode departmentName');
+    
+    return subject ? JSON.parse(JSON.stringify(subject)) : null;
   }
 
   async processSubjectCreation(subjectData) {
     await this.validateSubjectData(subjectData);
     
     // Check for existing active subject
-    const existingSubject = await this.getActiveSubjectByCode(subjectData.subjectCode);
-    if (existingSubject) {
+    const existingActive = await this.getActiveSubjectByCode(subjectData.subjectCode);
+    if (existingActive) {
       throw new Error('Subject code already exists');
+    }
+
+    // Check for inactive subject
+    const existingInactive = await this.getInactiveSubjectByCode(subjectData.subjectCode);
+    if (existingInactive) {
+      return await this.reactivateSubject(subjectData.subjectCode, subjectData.userId);
     }
 
     return await this.createSubject(subjectData);
@@ -107,30 +155,46 @@ class SubjectsModel {
       }]
     });
     const savedSubject = await subject.save();
-    return JSON.parse(JSON.stringify(savedSubject));
-  }
-
-  async getAllSubjects() {
-
-    const Subject = await this.initModel();
-    await this.initDepartmentModel(); // Initialize Department model before populating
-    
-    const subjects = await Subject.find({ isActive: true })
-      .populate({
+    await savedSubject.populate([
+      {
         path: 'course',
-        select: 'courseCode courseTitle department',
+        select: 'courseCode courseTitle',
         populate: {
           path: 'department',
           select: 'departmentCode departmentName'
         }
-      });
+      },
+      {
+        path: 'department',
+        select: 'departmentCode departmentName'
+      }
+    ]);
+    return JSON.parse(JSON.stringify(savedSubject));
+  }
+
+  async getAllSubjects() {
+    const Subject = await this.initModel();
+    await this.initCourseModel();
+    await this.initDepartmentModel();
+    
+    const subjects = await Subject.find({ isActive: true })
+      .populate({
+        path: 'course',
+        select: 'courseCode courseTitle',
+        populate: {
+          path: 'department',
+          select: 'departmentCode departmentName'
+        }
+      })
+      .populate('department', 'departmentCode departmentName');
 
     return JSON.parse(JSON.stringify(subjects));
   }
 
   async getSubjectByCode(subjectCode) {
     const Subject = await this.initModel();
-    const subject = await Subject.findOne({ subjectCode, isActive: true }).populate('course', 'courseCode courseTitle');
+    const subject = await Subject.findOne({ subjectCode, isActive: true })
+      .populate('department', 'departmentCode departmentName');
     return subject ? JSON.parse(JSON.stringify(subject)) : null;
   }
 
@@ -139,7 +203,7 @@ class SubjectsModel {
     const subject = await Subject.findOne({ 
       subjectCode, 
       isActive: true 
-    }).populate('course', 'courseCode courseTitle');
+    }).populate('department', 'departmentCode departmentName');
     return subject ? JSON.parse(JSON.stringify(subject)) : null;
   }
 
@@ -164,7 +228,20 @@ class SubjectsModel {
         $push: updateData.$push
       },
       { new: true, runValidators: true }
-    ).populate('course', 'courseCode courseTitle');
+    ).populate([
+      {
+        path: 'course',
+        select: 'courseCode courseTitle',
+        populate: {
+          path: 'department',
+          select: 'departmentCode departmentName'
+        }
+      },
+      {
+        path: 'department',
+        select: 'departmentCode departmentName'
+      }
+    ]);
     
     return subject ? JSON.parse(JSON.stringify(subject)) : null;
   }
@@ -181,7 +258,7 @@ class SubjectsModel {
           $push: updateData.$push
         },
         { new: true }
-      ).populate('course', 'courseCode courseTitle');
+      ).populate('department', 'departmentCode departmentName');
 
       if (!subject) {
         throw new Error('Subject not found or already deleted');
@@ -196,8 +273,15 @@ class SubjectsModel {
 
   async getAllCourses() {
     const Course = await this.initCourseModel();
-    const courses = await Course.find({ isActive: true });
+    const courses = await Course.find({ isActive: true })
+      .populate('department', 'departmentCode departmentName');
     return JSON.parse(JSON.stringify(courses));
+  }
+
+  async getAllDepartments() {
+    const Department = await this.initDepartmentModel();
+    const departments = await Department.find({ isActive: true });
+    return JSON.parse(JSON.stringify(departments));
   }
 }
 

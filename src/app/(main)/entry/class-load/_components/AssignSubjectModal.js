@@ -173,41 +173,49 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
   // Also load subjects when modal opens
   useEffect(() => {
     const loadSubjects = async () => {
-      if (isOpen) {
+      if (isOpen && formData.classes.length > 0) {
         setIsLoadingSubjects(true);
         try {
-          console.log('Fetching subjects in modal...'); // Debug log
-          const subjects = await getSubjects();
-          console.log('Received subjects:', subjects); // Debug log
-          if (Array.isArray(subjects)) {
-            setAvailableSubjects(subjects);
+          // Get the department ID from the first selected class
+          const selectedClass = availableClasses.find(c => c._id === formData.classes[0]);
+          const departmentId = selectedClass?.course?.department?._id;
+          
+          console.log('Loading subjects for department:', departmentId);
+          
+          if (departmentId) {
+            const subjects = await getSubjects(departmentId);
+            console.log('Fetched subjects:', subjects);
+            setAvailableSubjects(subjects || []);
           } else {
-            console.error('Subjects data is not an array:', subjects);
             setAvailableSubjects([]);
           }
         } catch (error) {
-          console.error('Error fetching subjects:', error);
+          console.error('Error loading subjects:', error);
           setAvailableSubjects([]);
         } finally {
           setIsLoadingSubjects(false);
         }
+      } else {
+        // Clear subjects if no class is selected
+        setAvailableSubjects([]);
       }
     };
 
     loadSubjects();
-  }, [isOpen]);
+  }, [isOpen, formData.classes, availableClasses]);
 
   useEffect(() => {
     setPortalTarget(document.body);
   }, []);
 
-  const handleClassesChange = (e) => {
-    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
-    setFormData(prev => ({
-      ...prev,
-      classes: selectedOptions
-    }));
-  };
+  // const handleClassesChange = (selected) => {
+  //   setFormData(prev => ({
+  //     ...prev,
+  //     classes: selected ? selected.map(option => option.value) : [],
+  //     subjects: [] // Reset subjects when class changes
+  //   }));
+  //   setAvailableSubjects([]); // Clear available subjects when class changes
+  // };
 
   const handleSubjectsChange = (e) => {
     const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
@@ -370,7 +378,8 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                               onChange={(selected) => {
                                 setFormData(prev => ({
                                   ...prev,
-                                  classes: selected ? selected.map(option => option.value) : []
+                                  classes: selected ? selected.map(option => option.value) : [],
+                                  subjects: [] // Reset subjects when class changes
                                 }));
                               }}
                               className="mt-1"
@@ -400,6 +409,7 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                             <Select
                               isMulti
                               name="subjects"
+                              isLoading={isLoadingSubjects}
                               options={availableSubjects.map(subject => ({
                                 value: subject._id,
                                 label: `${subject.subjectCode} - ${subject.subjectName}`
@@ -419,14 +429,22 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                               }}
                               className="mt-1"
                               classNamePrefix="select"
-                              placeholder="Select subjects..."
-                              noOptionsMessage={() => formData.term 
-                                ? 'No subjects available for selected term' 
-                                : 'No Available Subjects'
+                              placeholder={
+                                formData.classes.length === 0
+                                  ? "Select a class first"
+                                  : "Select subjects..."
+                              }
+                              noOptionsMessage={() => 
+                                formData.classes.length === 0
+                                  ? "Select a class first"
+                                  : isLoadingSubjects
+                                  ? "Loading subjects..."
+                                  : "No subjects available"
                               }
                               styles={customSelectStyles}
                               menuPortalTarget={portalTarget}
                               menuPosition={'fixed'}
+                              isDisabled={formData.classes.length === 0 || isLoadingSubjects}
                             />
                             <p className="mt-1 text-xs text-gray-500">
                               {availableSubjects.length > 0 

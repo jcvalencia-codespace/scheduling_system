@@ -1,11 +1,6 @@
 'use server'
 
 import AssignSubjectsModel from '@/app/models/AssignSubjects';
-import useAuthStore from '@/store/useAuthStore';
-import mongoose from 'mongoose';
-
-// Temporary user ID until auth system is implemented - using a valid ObjectId
-const TEMP_USER_ID = '6406c34aca314182cae7360c'; // Example valid ObjectId
 
 export async function getClasses(yearLevel) {
   try {
@@ -17,9 +12,9 @@ export async function getClasses(yearLevel) {
   }
 }
 
-export async function getSubjects() {
+export async function getSubjects(departmentId = null) {
   try {
-    const subjects = await AssignSubjectsModel.fetchSubjects();
+    const subjects = await AssignSubjectsModel.fetchSubjects(departmentId);
     return subjects || [];
   } catch (error) {
     console.error('Error fetching subjects:', error);

@@ -219,90 +219,139 @@ export default function SectionsPage() {
       </div>
 
       {/* Table */}
-      <div className="mt-8 flow-root">
-        <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-          <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-            <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-              <table className="min-w-full divide-y divide-gray-300">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                      <button
-                        onClick={() => handleSort('sectionName')}
-                        className="group inline-flex items-center"
-                      >
-                        Section Name
-                        <ChevronUpDownIcon className="ml-2 h-5 w-5 text-gray-400" aria-hidden="true" />
-                      </button>
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      <button
-                        onClick={() => handleSort('courseCode')}
-                        className="group inline-flex items-center"
-                      >
-                        Course
-                        <ChevronUpDownIcon className="ml-2 h-5 w-5 text-gray-400" aria-hidden="true" />
-                      </button>
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      <button
-                        onClick={() => handleSort('departmentCode')}
-                        className="group inline-flex items-center"
-                      >
-                        Department
-                        <ChevronUpDownIcon className="ml-2 h-5 w-5 text-gray-400" aria-hidden="true" />
-                      </button>
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      <button
-                        onClick={() => handleSort('yearLevel')}
-                        className="group inline-flex items-center"
-                      >
-                        Year Level
-                        <ChevronUpDownIcon className="ml-2 h-5 w-5 text-gray-400" aria-hidden="true" />
-                      </button>
-                    </th>
-                    <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
-                  {filteredSections.map((section) => (
-                    <tr key={section.sectionName}>
-                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                        {section.sectionName}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {section.course ? `${section.course.courseCode} - ${section.course.courseTitle}` : 'N/A'}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {section.department?.departmentCode || 'N/A'}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {section.yearLevel}
-                      </td>
-                      <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+      <div className="mt-8 flow-root border-t border-gray-200">
+        {/* Desktop Table */}
+        <div className="hidden sm:block">
+          <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+            <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                <table className="min-w-full divide-y divide-gray-300">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
                         <button
-                          onClick={() => handleEdit(section)}
-                          className="text-[#323E8F] hover:text-[#35408E] mr-4"
+                          onClick={() => handleSort('sectionName')}
+                          className="group inline-flex items-center"
                         >
-                          <PencilSquareIcon className="h-5 w-5" />
-                          <span className="sr-only">Edit</span>
+                          Section Name
+                          <ChevronUpDownIcon className="ml-2 h-5 w-5 text-gray-400" aria-hidden="true" />
                         </button>
+                      </th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                         <button
-                          onClick={() => handleDelete(section.sectionName)}
-                          className="text-red-600 hover:text-red-900"
+                          onClick={() => handleSort('courseCode')}
+                          className="group inline-flex items-center"
                         >
-                          <TrashIcon className="h-5 w-5" />
-                          <span className="sr-only">Delete</span>
+                          Course
+                          <ChevronUpDownIcon className="ml-2 h-5 w-5 text-gray-400" aria-hidden="true" />
                         </button>
-                      </td>
+                      </th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                        <button
+                          onClick={() => handleSort('departmentCode')}
+                          className="group inline-flex items-center"
+                        >
+                          Department
+                          <ChevronUpDownIcon className="ml-2 h-5 w-5 text-gray-400" aria-hidden="true" />
+                        </button>
+                      </th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                        <button
+                          onClick={() => handleSort('yearLevel')}
+                          className="group inline-flex items-center"
+                        >
+                          Year Level
+                          <ChevronUpDownIcon className="ml-2 h-5 w-5 text-gray-400" aria-hidden="true" />
+                        </button>
+                      </th>
+                      <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                        <span className="sr-only">Actions</span>
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {filteredSections.map((section) => (
+                      <tr key={section.sectionName}>
+                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                          {section.sectionName}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {section.course ? `${section.course.courseCode} - ${section.course.courseTitle}` : 'N/A'}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {section.department?.departmentCode || 'N/A'}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {section.yearLevel}
+                        </td>
+                        <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                          <button
+                            onClick={() => handleEdit(section)}
+                            className="text-[#323E8F] hover:text-[#35408E] mr-4"
+                          >
+                            <PencilSquareIcon className="h-5 w-5" />
+                            <span className="sr-only">Edit</span>
+                          </button>
+                          <button
+                            onClick={() => handleDelete(section.sectionName)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            <TrashIcon className="h-5 w-5" />
+                            <span className="sr-only">Delete</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
+          </div>
+        </div>
+
+        {/* Mobile Card Layout */}
+        <div className="sm:hidden">
+          <div className="space-y-4">
+            {filteredSections.map((section) => (
+              <div 
+                key={section.sectionName}
+                className="bg-white shadow rounded-lg p-4 space-y-2"
+              >
+                <div className="flex justify-between items-start">
+                  <div className="font-medium text-gray-900">
+                    {section.sectionName}
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleEdit(section)}
+                      className="text-[#323E8F] hover:text-[#35408E]"
+                    >
+                      <PencilSquareIcon className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(section.sectionName)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      <TrashIcon className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+                <div className="text-sm text-gray-500">
+                  <p>
+                    <span className="font-medium">Course:</span>{' '}
+                    {section.course ? `${section.course.courseCode} - ${section.course.courseTitle}` : 'N/A'}
+                  </p>
+                  <p>
+                    <span className="font-medium">Department:</span>{' '}
+                    {section.department?.departmentCode || 'N/A'}
+                  </p>
+                  <p>
+                    <span className="font-medium">Year Level:</span>{' '}
+                    {section.yearLevel}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

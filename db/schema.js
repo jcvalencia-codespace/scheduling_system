@@ -73,13 +73,14 @@ const SubjectSchema = new Schema({
     required: true,
     min: 0,
   },
-  unit: {
-    type: Number,
-    required: true,
-  },
   course: {
     type: Schema.Types.ObjectId,
     ref: 'Courses',
+    required: true,
+  },
+  department: {
+    type: Schema.Types.ObjectId,
+    ref: 'Departments',
     required: true,
   },
   isActive: {
@@ -195,6 +196,23 @@ const RoomSchema = new Schema({
     type: Boolean,
     default: true,
   },
+  updateHistory: [{
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+      required: true
+    },
+    action: {
+      type: String,
+      enum: ['created', 'updated', 'deleted'],
+      required: true
+    }
+  }],
 }, {
   timestamps: true,
   collection: 'rooms'
@@ -469,7 +487,6 @@ const ScheduleSchema = new Schema({
   timestamps: true,
   collection: 'schedules'
 });
-
 
 export {
   UserSchema,

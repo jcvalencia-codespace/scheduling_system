@@ -6,8 +6,10 @@ import {
   ChevronUpDownIcon,
   PencilSquareIcon,
   TrashIcon,
+  EyeIcon,
 } from '@heroicons/react/24/outline';
 import AddEditDepartmentModal from './_components/AddEditDepartmentModal';
+import ViewCourses from './_components/ViewCourses';
 import { getDepartments, removeDepartment, getCoursesByDepartment } from './_actions';
 import Swal from 'sweetalert2';
 import { useLoading } from '../../../context/LoadingContext';
@@ -23,6 +25,8 @@ export default function DepartmentsPage() {
     direction: 'asc',
   });
   const [departmentCourses, setDepartmentCourses] = useState({});
+  const [showViewCourses, setShowViewCourses] = useState(false);
+  const [selectedViewDepartment, setSelectedViewDepartment] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -187,6 +191,11 @@ export default function DepartmentsPage() {
     fetchData();
   };
 
+  const handleViewCourses = (department) => {
+    setSelectedViewDepartment(department);
+    setShowViewCourses(true);
+  };
+
   const getSortIcon = (key) => {
     if (sortConfig.key === key) {
       return (
@@ -203,8 +212,8 @@ export default function DepartmentsPage() {
   const getCoursesDisplay = (departmentCode) => {
     const courses = departmentCourses[departmentCode] || [];
     return courses.length > 0 
-      ? courses.map(course => course.courseCode).join(', ')
-      : '-';
+      ? courses.map(course => course.courseCode || course.courseTitle).join(', ')
+      : 'No courses';
   };
 
   if (isLoading) {
@@ -282,7 +291,7 @@ export default function DepartmentsPage() {
                   </th>
                   <th
                     scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                    className="px-3 py-3.5 text-center text-sm font-semibold justify-center text-gray-900"
                   >
                     Courses
                   </th>
@@ -304,7 +313,14 @@ export default function DepartmentsPage() {
                       {department.departmentName}
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {getCoursesDisplay(department.departmentCode)}
+                      <div className="flex justify-center">
+                        <button
+                          onClick={() => handleViewCourses(department)}
+                          className="text-[#323E8F] hover:text-[#35408E]"
+                        >
+                          <EyeIcon className="h-5 w-5" />
+                        </button>
+                      </div>
                     </td>
                     <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                       <button
@@ -335,6 +351,13 @@ export default function DepartmentsPage() {
         onClose={handleModalClose}
         department={selectedDepartment}
         onSuccess={handleModalSuccess}
+      />
+
+      <ViewCourses
+        show={showViewCourses}
+        onClose={() => setShowViewCourses(false)}
+        department={selectedViewDepartment}
+        courses={selectedViewDepartment ? departmentCourses[selectedViewDepartment.departmentCode] : []}
       />
     </div>
   );

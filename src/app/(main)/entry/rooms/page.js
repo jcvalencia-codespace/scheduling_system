@@ -166,9 +166,9 @@ export default function RoomsPage() {
     fetchData();
   };
 
-  const getDepartmentName = (departmentCode) => {
-    const department = departments.find(d => d.departmentCode === departmentCode);
-    return department ? department.departmentCode : departmentCode;
+  const getDepartmentName = (department) => {
+    if (!department) return '';
+    return `${department.departmentCode} - ${department.departmentName}`;
   };
 
   const getSortIcon = (key) => {
@@ -308,7 +308,7 @@ export default function RoomsPage() {
                       {room.floor}
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {getDepartmentName(room.departmentCode)}
+                      {getDepartmentName(room.department)}
                     </td>
                     <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                       {room.capacity}
