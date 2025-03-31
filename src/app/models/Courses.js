@@ -72,6 +72,25 @@ class CoursesModel {
     return JSON.parse(JSON.stringify(courses));
   }
 
+  async getCoursesByDepartmentCode(departmentCode) {
+    const Course = await this.initModel();
+    const Department = this.DEPARTMENT_MODEL;
+    
+    // First find the department by code
+    const department = await Department.findOne({ departmentCode, isActive: true });
+    if (!department) {
+      return [];
+    }
+  
+    // Then find all courses for this department
+    const courses = await Course.find({
+      department: department._id,
+      isActive: true
+    }).lean();
+    
+    return JSON.parse(JSON.stringify(courses));
+  }
+
   async getAllCoursesWithDepartment() {
     try {
       const Course = await this.initModel();

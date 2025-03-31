@@ -85,7 +85,7 @@ export async function removeDepartment(departmentCode) {
 
 export async function getCoursesByDepartment(departmentCode) {
   try {
-    const courses = await coursesModel.getCoursesByDepartment(departmentCode);
+    const courses = await coursesModel.getCoursesByDepartmentCode(departmentCode);
     return { courses };
   } catch (error) {
     console.error('Error in getCoursesByDepartment:', error);
