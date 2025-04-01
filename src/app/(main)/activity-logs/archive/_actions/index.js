@@ -2,20 +2,31 @@
 
 import { revalidatePath } from 'next/cache';
 import archiveModel from '@/app/models/Archive';
+import termsModel from '@/app/models/Terms';
 import connectDB from '../../../../../../lib/mongo';
+
+async function getActiveTerm() {
+  const term = await termsModel.getActiveTerm();
+  if (!term) {
+    throw new Error('No active term found');
+  }
+  return term;
+}
 
 export async function getUpdateHistory() {
   try {
-    // Ensure database connection
     await connectDB();
+    const activeTerm = await getActiveTerm();
     
-    const history = await archiveModel.getUpdateHistory();
+    const history = await archiveModel.getUpdateHistory(
+      activeTerm.startDate,
+      activeTerm.endDate
+    );
     
     if (!Array.isArray(history)) {
       throw new Error('Invalid history data format');
     }
 
-    // Revalidate the archive page
     revalidatePath('/activity-logs/archive');
     
     return history;
@@ -28,7 +39,12 @@ export async function getUpdateHistory() {
 export async function getSubjectHistory() {
   try {
     await connectDB();
-    const history = await archiveModel.getSubjectHistory();
+    const activeTerm = await getActiveTerm();
+    
+    const history = await archiveModel.getSubjectHistory(
+      activeTerm.startDate,
+      activeTerm.endDate
+    );
     
     if (!Array.isArray(history)) {
       throw new Error('Invalid history data format');
@@ -45,7 +61,12 @@ export async function getSubjectHistory() {
 export async function getSectionHistory() {
   try {
     await connectDB();
-    const history = await archiveModel.getSectionHistory();
+    const activeTerm = await getActiveTerm();
+    
+    const history = await archiveModel.getSectionHistory(
+      activeTerm.startDate,
+      activeTerm.endDate
+    );
     
     if (!Array.isArray(history)) {
       throw new Error('Invalid history data format');
@@ -62,7 +83,12 @@ export async function getSectionHistory() {
 export async function getRoomHistory() {
   try {
     await connectDB();
-    const history = await archiveModel.getRoomHistory();
+    const activeTerm = await getActiveTerm();
+    
+    const history = await archiveModel.getRoomHistory(
+      activeTerm.startDate,
+      activeTerm.endDate
+    );
     
     if (!Array.isArray(history)) {
       throw new Error('Invalid history data format');
