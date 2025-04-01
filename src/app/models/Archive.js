@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { AssignSubjectsSchema, SectionSchema, CourseSchema, UserSchema } from '../../../db/schema';
+import { AssignSubjectsSchema, SectionSchema, CourseSchema, UserSchema, RoomSchema } from '../../../db/schema';
 import connectDB from '../../../lib/mongo';
 
 class ArchiveModel {
@@ -8,7 +8,8 @@ class ArchiveModel {
       AssignSubjects: null,
       Section: null,
       Course: null,
-      Users: null
+      Users: null,
+      Rooms: null  // Add Rooms model
     };
   }
 
@@ -29,6 +30,9 @@ class ArchiveModel {
       this.models.Users = mongoose.models.Users || 
         mongoose.model('Users', UserSchema);
 
+      this.models.Rooms = mongoose.models.Rooms || 
+        mongoose.model('Rooms', RoomSchema);
+
       return true;
     } catch (error) {
       console.error('Error initializing models:', error);
@@ -36,34 +40,45 @@ class ArchiveModel {
     }
   }
 
-  async getUpdateHistory() {
+  async getUpdateHistory(startDate, endDate) {
     try {
       await this.initializeModels();
 
-      const assignments = await this.models.AssignSubjects.find()
-        .populate({
-          path: 'classId',
-          model: this.models.Section,
-          select: 'sectionName course yearLevel',
-          populate: {
-            path: 'course',
-            model: this.models.Course,
-            select: 'courseCode'
-          }
-        })
-        .populate({
-          path: 'updateHistory.updatedBy',
-          model: this.models.Users,
-          select: 'firstName lastName email role course'  // Added role and course
-        })
-        .select('yearLevel classId updateHistory')
-        .lean();
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      const assignments = await this.models.AssignSubjects.find({
+        'updateHistory.updatedAt': { 
+          $gte: start,
+          $lte: end 
+        }
+      })
+      .populate({
+        path: 'classId',
+        model: this.models.Section,
+        select: 'sectionName course yearLevel',
+        populate: {
+          path: 'course',
+          model: this.models.Course,
+          select: 'courseCode'
+        }
+      })
+      .populate({
+        path: 'updateHistory.updatedBy',
+        model: this.models.Users,
+        select: 'firstName lastName email role course'  // Added role and course
+      })
+      .select('yearLevel classId updateHistory')
+      .lean();
 
       const history = assignments.reduce((acc, assignment) => {
         if (!assignment?.updateHistory) return acc;
 
         const historyEntries = assignment.updateHistory
-          .filter(entry => entry)
+          .filter(entry => {
+            const entryDate = new Date(entry.updatedAt);
+            return entryDate >= start && entryDate <= end;
+          })
           .map(entry => ({
             _id: entry._id?.toString() || '',
             action: entry.action || 'unknown',
@@ -92,28 +107,39 @@ class ArchiveModel {
     }
   }
 
-  async getSubjectHistory() {
+  async getSubjectHistory(startDate, endDate) {
     try {
       await this.initializeModels();
+      
+      const start = new Date(startDate);
+      const end = new Date(endDate);
 
-      const subjects = await mongoose.models.Subjects.find()
-        .populate({
-          path: 'department',
-          select: 'departmentCode departmentName'
-        })
-        .populate({
-          path: 'updateHistory.updatedBy',
-          model: this.models.Users,
-          select: 'firstName lastName email role course'
-        })
-        .select('subjectCode subjectName department updateHistory')
-        .lean();
+      const subjects = await mongoose.models.Subjects.find({
+        'updateHistory.updatedAt': { 
+          $gte: start,
+          $lte: end 
+        }
+      })
+      .populate({
+        path: 'department',
+        select: 'departmentCode departmentName'
+      })
+      .populate({
+        path: 'updateHistory.updatedBy',
+        model: this.models.Users,
+        select: 'firstName lastName email role course'
+      })
+      .select('subjectCode subjectName department updateHistory')
+      .lean();
 
       const history = subjects.reduce((acc, subject) => {
         if (!subject?.updateHistory) return acc;
 
         const historyEntries = subject.updateHistory
-          .filter(entry => entry)
+          .filter(entry => {
+            const entryDate = new Date(entry.updatedAt);
+            return entryDate >= start && entryDate <= end;
+          })
           .map(entry => ({
             _id: entry._id?.toString() || '',
             action: entry.action || 'unknown',
@@ -127,7 +153,7 @@ class ArchiveModel {
             } : { name: 'System', email: 'N/A', role: 'System', course: 'N/A' },
             subjectCode: subject.subjectCode,
             subjectName: subject.subjectName,
-            department: subject.department?.departmentName || 'N/A'
+            departmentCode: subject.department?.departmentCode || 'N/A'
           }));
 
         return [...acc, ...historyEntries];
@@ -140,32 +166,43 @@ class ArchiveModel {
     }
   }
 
-  async getSectionHistory() {
+  async getSectionHistory(startDate, endDate) {
     try {
       await this.initializeModels();
 
-      const sections = await mongoose.models.Sections.find()
-        .populate({
-          path: 'course',
-          select: 'courseCode courseTitle',
-          populate: {
-            path: 'department',
-            select: 'departmentCode departmentName'
-          }
-        })
-        .populate({
-          path: 'updateHistory.updatedBy',
-          model: this.models.Users,
-          select: 'firstName lastName email role course'
-        })
-        .select('sectionName yearLevel course updateHistory')
-        .lean();
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      const sections = await mongoose.models.Sections.find({
+        'updateHistory.updatedAt': { 
+          $gte: start,
+          $lte: end 
+        }
+      })
+      .populate({
+        path: 'course',
+        select: 'courseCode courseTitle',
+        populate: {
+          path: 'department',
+          select: 'departmentCode departmentName'
+        }
+      })
+      .populate({
+        path: 'updateHistory.updatedBy',
+        model: this.models.Users,
+        select: 'firstName lastName email role course'
+      })
+      .select('sectionName yearLevel course updateHistory')
+      .lean();
 
       const history = sections.reduce((acc, section) => {
         if (!section?.updateHistory) return acc;
 
         const historyEntries = section.updateHistory
-          .filter(entry => entry)
+          .filter(entry => {
+            const entryDate = new Date(entry.updatedAt);
+            return entryDate >= start && entryDate <= end;
+          })
           .map(entry => ({
             _id: entry._id?.toString() || '',
             action: entry.action || 'unknown',
@@ -195,28 +232,39 @@ class ArchiveModel {
     }
   }
 
-  async getRoomHistory() {
+  async getRoomHistory(startDate, endDate) {
     try {
       await this.initializeModels();
 
-      const rooms = await mongoose.models.Rooms.find()
-        .populate({
-          path: 'department',
-          select: 'departmentCode departmentName'
-        })
-        .populate({
-          path: 'updateHistory.updatedBy',
-          model: this.models.Users,
-          select: 'firstName lastName email role course'
-        })
-        .select('roomCode roomName capacity isActive department updateHistory')
-        .lean();
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      const rooms = await this.models.Rooms.find({
+        'updateHistory.updatedAt': { 
+          $gte: start,
+          $lte: end 
+        }
+      })
+      .populate({
+        path: 'department',
+        select: 'departmentCode departmentName'
+      })
+      .populate({
+        path: 'updateHistory.updatedBy',
+        model: this.models.Users,
+        select: 'firstName lastName email role course'
+      })
+      .select('roomCode roomName capacity isActive department updateHistory')
+      .lean();
 
       const history = rooms.reduce((acc, room) => {
         if (!room?.updateHistory) return acc;
 
         const historyEntries = room.updateHistory
-          .filter(entry => entry)
+          .filter(entry => {
+            const entryDate = new Date(entry.updatedAt);
+            return entryDate >= start && entryDate <= end;
+          })
           .map(entry => ({
             _id: entry._id?.toString() || '',
             action: entry.action || 'unknown',

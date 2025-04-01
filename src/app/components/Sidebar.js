@@ -50,12 +50,12 @@ const roleMenuItems = {
     },
     {
       title: 'Activity Logs',
-      href: '/logs',
+      href: '/activity-logs',
       icon: ClipboardDocumentListIcon,
       hasDropdown: true,
       subItems: [
-        { title: 'Schedule History', href: '/logs/schedule-history', icon: ListBulletIcon },
-        { title: 'Override History', href: '/logs/override-history', icon: ListBulletIcon },
+        { title: 'Schedule History', href: '/activity-logs/schedule-history', icon: ListBulletIcon },
+        { title: 'Override History', href: '/activity-logs/override-history', icon: ListBulletIcon },
         { title: 'Archive', href: '/activity-logs/archive', icon: ListBulletIcon }
       ]
     },
@@ -89,13 +89,13 @@ const roleMenuItems = {
     },
     {
       title: 'Activity Logs',
-      href: '/logs',
+      href: '/activity-logs',
       icon: ClipboardDocumentListIcon,
       hasDropdown: true,
       subItems: [
-        { title: 'Schedule History', href: '/logs/schedule-history', icon: ListBulletIcon },
-        { title: 'Override History', href: '/logs/override-history', icon: ListBulletIcon },
-        { title: 'Archive', href: '/logs/archive', icon: ListBulletIcon }
+        { title: 'Schedule History', href: '/activity-logs/schedule-history', icon: ListBulletIcon },
+        { title: 'Override History', href: '/activity-logs/override-history', icon: ListBulletIcon },
+        { title: 'Archive', href: '/activity-logs/archive', icon: ListBulletIcon }
       ]
     },
     {
@@ -146,13 +146,13 @@ const roleMenuItems = {
     },
     {
       title: 'Activity Logs',
-      href: '/logs',
+      href: '/activity-logs',
       icon: ClipboardDocumentListIcon,
       hasDropdown: true,
       subItems: [
-        { title: 'Schedule History', href: '/logs/schedule-history', icon: ListBulletIcon },
-        { title: 'Override History', href: '/logs/override-history', icon: ListBulletIcon },
-        { title: 'Archive', href: '/logs/archive', icon: ListBulletIcon }
+        { title: 'Schedule History', href: '/activity-logs/schedule-history', icon: ListBulletIcon },
+        { title: 'Override History', href: '/activity-logs/override-history', icon: ListBulletIcon },
+        { title: 'Archive', href: '/activity-logs/archive', icon: ListBulletIcon }
       ]
     },
     {
