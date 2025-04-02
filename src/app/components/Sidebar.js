@@ -28,8 +28,8 @@ import {
 const roleMenuItems = {
   Dean: [
     {
-      title: 'Home',
-      href: '/home',
+      title: 'Schedules',
+      href: '/schedules',
       icon: CalendarDaysIcon,
     },
     {
@@ -67,8 +67,8 @@ const roleMenuItems = {
   ],
   'Program Chair': [
     {
-      title: 'Home',
-      href: '/home',
+      title: 'Schedules',
+      href: '/schedules',
       icon: CalendarDaysIcon,
     },
     {
@@ -106,8 +106,8 @@ const roleMenuItems = {
   ],
   Administrator: [
     {
-      title: 'Home',
-      href: '/home',
+      title: 'Schedules',
+      href: '/schedules',
       icon: CalendarDaysIcon,
     },
     {
@@ -163,8 +163,8 @@ const roleMenuItems = {
   ],
   Faculty: [
     {
-      title: 'Home',
-      href: '/home',
+      title: 'Schedules',
+      href: '/schedules',
       icon: CalendarDaysIcon,
     },
     {

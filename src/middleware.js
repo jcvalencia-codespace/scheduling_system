@@ -21,7 +21,7 @@ export async function middleware(request) {
         })
         // If user is already logged in and tries to access login page, redirect to home
         if (session.user && pathname === '/login') {
-          return NextResponse.redirect(new URL('/home', request.url))
+          return NextResponse.redirect(new URL('/schedules', request.url))
         }
       } catch (error) {
         // Invalid session, continue as unauthenticated

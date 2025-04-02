@@ -135,12 +135,12 @@ export default class SchedulesModel {
         {
           $lookup: {
             from: 'departments',
-            localField: 'departmentCode',
-            foreignField: 'departmentCode',
-            as: 'department'
+            localField: 'department',  // Changed from departmentCode
+            foreignField: '_id',       // Changed to _id
+            as: 'departmentInfo'
           }
         },
-        { $unwind: '$department' },
+        { $unwind: '$departmentInfo' },
         {
           $project: {
             _id: 1,
@@ -149,7 +149,17 @@ export default class SchedulesModel {
             capacity: 1,
             type: 1,
             floor: 1,
-            displayName: { $concat: ['$roomCode', ' - ', '$roomName'] }
+            department: '$departmentInfo',
+            displayName: {
+              $concat: [
+                '$roomCode',
+                ' - ',
+                '$roomName',
+                ' (',
+                { $toString: '$capacity' },
+                ' capacity)'
+              ]
+            }
           }
         },
         { $sort: { roomCode: 1 } }
