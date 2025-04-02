@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getUpdateHistory, getSubjectHistory, getSectionHistory, getRoomHistory } from './_actions';
+import { getUpdateHistory, getSubjectHistory, getSectionHistory, getRoomHistory, getActiveTerm } from './_actions';
 import { useLoading } from '../../../context/LoadingContext';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 import ClassLoadHistory from './_components/ClassLoadHistory';
@@ -15,6 +15,7 @@ export default function ArchivePage() {
   const [subjectHistory, setSubjectHistory] = useState([]);
   const [sectionHistory, setSectionHistory] = useState([]);
   const [roomHistory, setRoomHistory] = useState([]);
+  const [activeTerm, setActiveTerm] = useState(null);
   const { isLoading, setIsLoading } = useLoading();
   const [expandedRows, setExpandedRows] = useState({});
   const [filters, setFilters] = useState({
@@ -23,35 +24,56 @@ export default function ArchivePage() {
   });
 
   useEffect(() => {
-    loadHistories();
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        const termData = await getActiveTerm();
+        setActiveTerm(termData);
+
+        const [classData, subjectData, sectionData, roomData] = await Promise.all([
+          getUpdateHistory(),
+          getSubjectHistory(),
+          getSectionHistory(),
+          getRoomHistory()
+        ]);
+        
+        setClassHistory(Array.isArray(classData) ? classData : []);
+        setSubjectHistory(Array.isArray(subjectData) ? subjectData : []);
+        setSectionHistory(Array.isArray(sectionData) ? sectionData : []);
+        setRoomHistory(Array.isArray(roomData) ? roomData : []);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Load saved filters from localStorage
+    const savedFilters = localStorage.getItem('archiveFilters');
+    if (savedFilters) {
+      setFilters(JSON.parse(savedFilters));
+    }
+    
+    loadData();
   }, []);
 
-  const loadHistories = async () => {
-    try {
-      setIsLoading(true);
-      const [classData, subjectData, sectionData, roomData] = await Promise.all([
-        getUpdateHistory(),
-        getSubjectHistory(),
-        getSectionHistory(),
-        getRoomHistory()
-      ]);
-      
-      setClassHistory(Array.isArray(classData) ? classData : []);
-      setSubjectHistory(Array.isArray(subjectData) ? subjectData : []);
-      setSectionHistory(Array.isArray(sectionData) ? sectionData : []);
-      setRoomHistory(Array.isArray(roomData) ? roomData : []);
-    } catch (error) {
-      console.error('Error loading histories:', error);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleFilterChange = (type, value) => {
+    const newFilters = {
+      ...filters,
+      [type]: value
+    };
+    setFilters(newFilters);
+    // Save filters to localStorage
+    localStorage.setItem('archiveFilters', JSON.stringify(newFilters));
   };
 
-  const handleFilterChange = (type, value) => {
-    setFilters(prev => ({
-      ...prev,
-      [type]: value
-    }));
+  const handleFilterReset = () => {
+    const resetFilters = {
+      year: '',
+      month: ''
+    };
+    setFilters(resetFilters);
+    localStorage.removeItem('archiveFilters');
   };
 
   return (
@@ -64,7 +86,11 @@ export default function ArchivePage() {
               View a comprehensive record of all system changes and user activities. Monitor updates, modifications, and actions performed within the system.
             </p>
           </div>
-          <HistoryFilter onFilterChange={handleFilterChange} />
+          <HistoryFilter 
+            onFilterChange={handleFilterChange} 
+            initialFilters={filters}
+            onReset={handleFilterReset}
+          />
         </div>
 
         <div className="space-y-6">
@@ -92,7 +118,8 @@ export default function ArchivePage() {
             {expandedRows.classLoad && (
               <ClassLoadHistory 
                 history={classHistory} 
-                filters={filters} 
+                filters={filters}
+                activeTerm={activeTerm} 
               />
             )}
           </div>
@@ -121,7 +148,8 @@ export default function ArchivePage() {
             {expandedRows.subjects && (
               <SubjectHistory 
                 history={subjectHistory} 
-                filters={filters} 
+                filters={filters}
+                activeTerm={activeTerm}
               />
             )}
           </div>
@@ -150,7 +178,8 @@ export default function ArchivePage() {
             {expandedRows.sections && (
               <SectionHistory 
                 history={sectionHistory} 
-                filters={filters} 
+                filters={filters}
+                activeTerm={activeTerm}
               />
             )}
           </div>
@@ -179,7 +208,8 @@ export default function ArchivePage() {
             {expandedRows.rooms && (
               <RoomHistory 
                 history={roomHistory} 
-                filters={filters} 
+                filters={filters}
+                activeTerm={activeTerm}
               />
             )}
           </div>

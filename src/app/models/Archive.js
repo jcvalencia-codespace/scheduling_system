@@ -40,19 +40,11 @@ class ArchiveModel {
     }
   }
 
-  async getUpdateHistory(startDate, endDate) {
+  async getUpdateHistory() {
     try {
       await this.initializeModels();
 
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-
-      const assignments = await this.models.AssignSubjects.find({
-        'updateHistory.updatedAt': { 
-          $gte: start,
-          $lte: end 
-        }
-      })
+      const assignments = await this.models.AssignSubjects.find({})
       .populate({
         path: 'classId',
         model: this.models.Section,
@@ -75,10 +67,6 @@ class ArchiveModel {
         if (!assignment?.updateHistory) return acc;
 
         const historyEntries = assignment.updateHistory
-          .filter(entry => {
-            const entryDate = new Date(entry.updatedAt);
-            return entryDate >= start && entryDate <= end;
-          })
           .map(entry => ({
             _id: entry._id?.toString() || '',
             action: entry.action || 'unknown',
@@ -107,19 +95,11 @@ class ArchiveModel {
     }
   }
 
-  async getSubjectHistory(startDate, endDate) {
+  async getSubjectHistory() {
     try {
       await this.initializeModels();
       
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-
-      const subjects = await mongoose.models.Subjects.find({
-        'updateHistory.updatedAt': { 
-          $gte: start,
-          $lte: end 
-        }
-      })
+      const subjects = await mongoose.models.Subjects.find({})
       .populate({
         path: 'department',
         select: 'departmentCode departmentName'
@@ -136,10 +116,6 @@ class ArchiveModel {
         if (!subject?.updateHistory) return acc;
 
         const historyEntries = subject.updateHistory
-          .filter(entry => {
-            const entryDate = new Date(entry.updatedAt);
-            return entryDate >= start && entryDate <= end;
-          })
           .map(entry => ({
             _id: entry._id?.toString() || '',
             action: entry.action || 'unknown',
@@ -166,19 +142,11 @@ class ArchiveModel {
     }
   }
 
-  async getSectionHistory(startDate, endDate) {
+  async getSectionHistory() {
     try {
       await this.initializeModels();
 
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-
-      const sections = await mongoose.models.Sections.find({
-        'updateHistory.updatedAt': { 
-          $gte: start,
-          $lte: end 
-        }
-      })
+      const sections = await mongoose.models.Sections.find({})
       .populate({
         path: 'course',
         select: 'courseCode courseTitle',
@@ -199,10 +167,6 @@ class ArchiveModel {
         if (!section?.updateHistory) return acc;
 
         const historyEntries = section.updateHistory
-          .filter(entry => {
-            const entryDate = new Date(entry.updatedAt);
-            return entryDate >= start && entryDate <= end;
-          })
           .map(entry => ({
             _id: entry._id?.toString() || '',
             action: entry.action || 'unknown',
@@ -232,19 +196,11 @@ class ArchiveModel {
     }
   }
 
-  async getRoomHistory(startDate, endDate) {
+  async getRoomHistory() {
     try {
       await this.initializeModels();
 
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-
-      const rooms = await this.models.Rooms.find({
-        'updateHistory.updatedAt': { 
-          $gte: start,
-          $lte: end 
-        }
-      })
+      const rooms = await this.models.Rooms.find({})
       .populate({
         path: 'department',
         select: 'departmentCode departmentName'
@@ -261,10 +217,6 @@ class ArchiveModel {
         if (!room?.updateHistory) return acc;
 
         const historyEntries = room.updateHistory
-          .filter(entry => {
-            const entryDate = new Date(entry.updatedAt);
-            return entryDate >= start && entryDate <= end;
-          })
           .map(entry => ({
             _id: entry._id?.toString() || '',
             action: entry.action || 'unknown',

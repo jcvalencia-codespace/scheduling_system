@@ -5,12 +5,20 @@ import archiveModel from '@/app/models/Archive';
 import termsModel from '@/app/models/Terms';
 import connectDB from '../../../../../../lib/mongo';
 
-async function getActiveTerm() {
-  const term = await termsModel.getActiveTerm();
-  if (!term) {
-    throw new Error('No active term found');
+export async function getActiveTerm() {
+  try {
+    await connectDB();
+    const term = await termsModel.getActiveTerm();
+    
+    if (!term) {
+      throw new Error('No active term found');
+    }
+
+    return term;
+  } catch (error) {
+    console.error('Server error in getActiveTerm:', error);
+    throw new Error(error.message || 'Failed to fetch active term');
   }
-  return term;
 }
 
 export async function getUpdateHistory() {

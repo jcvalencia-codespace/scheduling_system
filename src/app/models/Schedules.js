@@ -63,14 +63,14 @@ export default class SchedulesModel {
         },
         { $sort: { sectionName: 1 } }
       ]);
-  
+
       return sections;
     } catch (error) {
       console.error('Section fetch error:', error);
       throw new Error('Failed to fetch sections');
     }
   }
-  
+
   static async getFaculty() {
     try {
       const faculty = await Users.aggregate([
@@ -98,7 +98,7 @@ export default class SchedulesModel {
         },
         { $sort: { lastName: 1, firstName: 1 } }
       ]);
-      
+
       console.log('Fetched users:', faculty); // Debug log
       return faculty;
     } catch (error) {
@@ -135,12 +135,12 @@ export default class SchedulesModel {
         {
           $lookup: {
             from: 'departments',
-            localField: 'departmentCode',
-            foreignField: 'departmentCode',
-            as: 'department'
+            localField: 'department',  // Changed from departmentCode
+            foreignField: '_id',       // Changed to _id
+            as: 'departmentInfo'
           }
         },
-        { $unwind: '$department' },
+        { $unwind: '$departmentInfo' },
         {
           $project: {
             _id: 1,
@@ -149,7 +149,17 @@ export default class SchedulesModel {
             capacity: 1,
             type: 1,
             floor: 1,
-            displayName: { $concat: ['$roomCode', ' - ', '$roomName'] }
+            department: '$departmentInfo',
+            displayName: {
+              $concat: [
+                '$roomCode',
+                ' - ',
+                '$roomName',
+                ' (',
+                { $toString: '$capacity' },
+                ' capacity)'
+              ]
+            }
           }
         },
         { $sort: { roomCode: 1 } }
@@ -168,7 +178,7 @@ export default class SchedulesModel {
         const [hours, minutes] = time.split(':');
         return `${hours}:${minutes} ${period.toUpperCase()}`;
       };
-  
+
       // Prepare schedule slots
       const scheduleSlots = [{
         days: scheduleData.days,
@@ -177,7 +187,7 @@ export default class SchedulesModel {
         room: scheduleData.room,
         scheduleType: scheduleData.scheduleType
       }];
-  
+
       // Add paired schedule slot if exists
       if (scheduleData.isPaired && scheduleData.pairedSchedule) {
         scheduleSlots.push({
@@ -188,7 +198,7 @@ export default class SchedulesModel {
           scheduleType: scheduleData.pairedSchedule.scheduleType
         });
       }
-  
+
       // Create schedule document with update history
       const schedule = await Schedules.create({
         term: scheduleData.term,
@@ -207,7 +217,7 @@ export default class SchedulesModel {
           action: 'created'
         }]
       });
-  
+
       return schedule;
     } catch (error) {
       console.error('Schedule creation error:', error);
@@ -332,7 +342,7 @@ export default class SchedulesModel {
     try {
       const result = await Schedules.findByIdAndUpdate(
         scheduleId,
-        { 
+        {
           $set: { isActive: false },
           $push: {
             updateHistory: {
@@ -359,13 +369,13 @@ export default class SchedulesModel {
       if (!scheduleId) {
         throw new Error('Schedule ID is required for update');
       }
-  
+
       const formatTime = (timeStr) => {
         const [time, period] = timeStr.split(' ');
         const [hours, minutes] = time.split(':');
         return `${hours}:${minutes} ${period.toUpperCase()}`;
       };
-  
+
       // Prepare schedule slots
       const scheduleSlots = [{
         days: scheduleData.days,
@@ -374,7 +384,7 @@ export default class SchedulesModel {
         room: new mongoose.Types.ObjectId(scheduleData.room),
         scheduleType: scheduleData.scheduleType
       }];
-  
+
       // Add paired schedule slot if exists
       if (scheduleData.isPaired && scheduleData.pairedSchedule) {
         scheduleSlots.push({
@@ -385,7 +395,7 @@ export default class SchedulesModel {
           scheduleType: scheduleData.pairedSchedule.scheduleType
         });
       }
-  
+
       const updatedData = {
         term: new mongoose.Types.ObjectId(scheduleData.term),
         section: new mongoose.Types.ObjectId(scheduleData.section),
@@ -405,7 +415,7 @@ export default class SchedulesModel {
           }
         }
       };
-  
+
       const schedule = await Schedules.findByIdAndUpdate(
         scheduleId,
         updatedData,
@@ -415,16 +425,16 @@ export default class SchedulesModel {
         { path: 'section' },
         { path: 'faculty' },
         { path: 'subject' },
-        { 
+        {
           path: 'scheduleSlots.room',
           model: 'Rooms'
         }
       ]);
-  
+
       if (!schedule) {
         throw new Error('Schedule not found');
       }
-  
+
       return schedule;
     } catch (error) {
       console.error('Schedule update error:', error);
