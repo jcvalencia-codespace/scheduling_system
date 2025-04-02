@@ -4,7 +4,7 @@
 export const rolePermissions = {
   Administrator: ['*'], // Full access to all routes and features
   Dean: [
-    '/home',
+    '/schedules',
     '/entry',
     '/entry/subjects',
     '/entry/sections',
@@ -17,7 +17,7 @@ export const rolePermissions = {
     '/feedback'
   ],
   'Program Chair': [
-    '/home',
+    '/schedules',
     '/entry',
     '/entry/subjects',
     '/entry/sections',
@@ -31,7 +31,7 @@ export const rolePermissions = {
   ],
  
   Faculty: [
-    '/home',
+    '/schedules',
     '/feedback',
     '/profile'
   ]
@@ -40,8 +40,8 @@ export const rolePermissions = {
 // Define menu items with their access roles
 export const menuItems = [
   {
-    title: 'Home',
-    href: '/home',
+    title: 'Schedules',
+    href: '/schedules',
     icon: 'CalendarDaysIcon',
     roles: ['Administrator', 'Dean', 'Program Chair', 'Faculty']
   },

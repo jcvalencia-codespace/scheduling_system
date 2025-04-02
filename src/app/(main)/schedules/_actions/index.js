@@ -56,15 +56,19 @@ export async function createSchedule(scheduleData) {
     if (!scheduleData.userId) {
       throw new Error('User ID is required');
     }
-    
-    // Convert userId to ObjectId
-    scheduleData.userId = new mongoose.Types.ObjectId(scheduleData.userId);
+
+    console.log('Creating schedule with data:', scheduleData);
     
     const schedule = await schedulesModel.createSchedule(scheduleData);
+    
+    if (!schedule) {
+      throw new Error('Failed to create schedule');
+    }
+    
     return { schedule: JSON.parse(JSON.stringify(schedule)) };
   } catch (error) {
     console.error('Error creating schedule:', error);
-    return { error: error.message || 'Failed to create schedule' };
+    return { error: error.message };
   }
 }
 

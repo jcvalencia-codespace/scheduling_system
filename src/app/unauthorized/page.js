@@ -13,7 +13,7 @@ export default function UnauthorizedPage() {
     };
 
     const handleGoHome = () => {
-        router.push('/home');
+        router.push('/schedules');
     };
 
     return (
