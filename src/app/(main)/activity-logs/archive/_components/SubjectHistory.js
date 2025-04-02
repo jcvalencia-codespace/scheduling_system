@@ -5,7 +5,7 @@ import { ClockIcon } from '@heroicons/react/24/outline';
 import Pagination from './Pagination';
 import HistoryFilter from './HistoryFilter';
 
-export default function SubjectHistory({ history, filters }) {
+export default function SubjectHistory({ history, filters, activeTerm }) {
   const [localFilters, setLocalFilters] = useState(filters);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -30,12 +30,18 @@ export default function SubjectHistory({ history, filters }) {
   const filteredHistory = history.filter(entry => {
     const entryDate = new Date(entry.updatedAt);
     
-    if (filters?.year && entryDate.getFullYear().toString() !== filters.year) {
-      return false;
+    // If filters are active, apply them
+    if (filters?.year || filters?.month !== '') {
+      const matchesYear = !filters.year || entryDate.getFullYear().toString() === filters.year;
+      const matchesMonth = filters.month === '' || entryDate.getMonth().toString() === filters.month;
+      return matchesYear && matchesMonth;
     }
     
-    if (filters?.month !== '' && entryDate.getMonth().toString() !== filters.month) {
-      return false;
+    // If no filters, check term dates
+    if (activeTerm?.startDate && activeTerm?.endDate) {
+      const termStart = new Date(activeTerm.startDate);
+      const termEnd = new Date(activeTerm.endDate);
+      return entryDate >= termStart && entryDate <= termEnd;
     }
     
     return true;
