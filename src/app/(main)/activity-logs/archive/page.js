@@ -20,8 +20,10 @@ export default function ArchivePage() {
   const [expandedRows, setExpandedRows] = useState({});
   const [filters, setFilters] = useState({
     year: '',
-    month: ''
+    month: '',
+    showAllDates: false
   });
+  const [activeAccordion, setActiveAccordion] = useState(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -70,10 +72,15 @@ export default function ArchivePage() {
   const handleFilterReset = () => {
     const resetFilters = {
       year: '',
-      month: ''
+      month: '',
+      showAllDates: false
     };
     setFilters(resetFilters);
     localStorage.removeItem('archiveFilters');
+  };
+
+  const handleAccordionClick = (accordionId) => {
+    setActiveAccordion(activeAccordion === accordionId ? null : accordionId);
   };
 
   return (
@@ -103,10 +110,10 @@ export default function ArchivePage() {
               </div>
               <div className="flex items-center space-x-4">
                 <button
-                  onClick={() => setExpandedRows(prev => ({ ...prev, classLoad: !prev.classLoad }))}
-                  className="p-2 hover:bg-gray-100 rounded-full"
+                  onClick={() => handleAccordionClick('classLoad')}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
                 >
-                  {expandedRows.classLoad ? (
+                  {activeAccordion === 'classLoad' ? (
                     <ChevronUpIcon className="h-5 w-5 text-gray-500" />
                   ) : (
                     <ChevronDownIcon className="h-5 w-5 text-gray-500" />
@@ -115,13 +122,15 @@ export default function ArchivePage() {
               </div>
             </div>
 
-            {expandedRows.classLoad && (
+            <div className={`transition-all duration-300 ease-in-out ${
+              activeAccordion === 'classLoad' ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
+            }`}>
               <ClassLoadHistory 
                 history={classHistory} 
                 filters={filters}
                 activeTerm={activeTerm} 
               />
-            )}
+            </div>
           </div>
 
           {/* Subjects History Dropdown */}
@@ -133,10 +142,10 @@ export default function ArchivePage() {
               </div>
               <div className="flex items-center space-x-4">
                 <button
-                  onClick={() => setExpandedRows(prev => ({ ...prev, subjects: !prev.subjects }))}
-                  className="p-2 hover:bg-gray-100 rounded-full"
+                  onClick={() => handleAccordionClick('subjects')}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
                 >
-                  {expandedRows.subjects ? (
+                  {activeAccordion === 'subjects' ? (
                     <ChevronUpIcon className="h-5 w-5 text-gray-500" />
                   ) : (
                     <ChevronDownIcon className="h-5 w-5 text-gray-500" />
@@ -145,13 +154,15 @@ export default function ArchivePage() {
               </div>
             </div>
 
-            {expandedRows.subjects && (
+            <div className={`transition-all duration-300 ease-in-out ${
+              activeAccordion === 'subjects' ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
+            }`}>
               <SubjectHistory 
                 history={subjectHistory} 
                 filters={filters}
                 activeTerm={activeTerm}
               />
-            )}
+            </div>
           </div>
 
           {/* Sections History Dropdown */}
@@ -163,10 +174,10 @@ export default function ArchivePage() {
               </div>
               <div className="flex items-center space-x-4">
                 <button
-                  onClick={() => setExpandedRows(prev => ({ ...prev, sections: !prev.sections }))}
-                  className="p-2 hover:bg-gray-100 rounded-full"
+                  onClick={() => handleAccordionClick('sections')}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
                 >
-                  {expandedRows.sections ? (
+                  {activeAccordion === 'sections' ? (
                     <ChevronUpIcon className="h-5 w-5 text-gray-500" />
                   ) : (
                     <ChevronDownIcon className="h-5 w-5 text-gray-500" />
@@ -175,13 +186,15 @@ export default function ArchivePage() {
               </div>
             </div>
 
-            {expandedRows.sections && (
+            <div className={`transition-all duration-300 ease-in-out ${
+              activeAccordion === 'sections' ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
+            }`}>
               <SectionHistory 
                 history={sectionHistory} 
                 filters={filters}
                 activeTerm={activeTerm}
               />
-            )}
+            </div>
           </div>
 
           {/* Rooms History Dropdown */}
@@ -193,10 +206,10 @@ export default function ArchivePage() {
               </div>
               <div className="flex items-center space-x-4">
                 <button
-                  onClick={() => setExpandedRows(prev => ({ ...prev, rooms: !prev.rooms }))}
-                  className="p-2 hover:bg-gray-100 rounded-full"
+                  onClick={() => handleAccordionClick('rooms')}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
                 >
-                  {expandedRows.rooms ? (
+                  {activeAccordion === 'rooms' ? (
                     <ChevronUpIcon className="h-5 w-5 text-gray-500" />
                   ) : (
                     <ChevronDownIcon className="h-5 w-5 text-gray-500" />
@@ -205,13 +218,15 @@ export default function ArchivePage() {
               </div>
             </div>
 
-            {expandedRows.rooms && (
+            <div className={`transition-all duration-300 ease-in-out ${
+              activeAccordion === 'rooms' ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
+            }`}>
               <RoomHistory 
                 history={roomHistory} 
                 filters={filters}
                 activeTerm={activeTerm}
               />
-            )}
+            </div>
           </div>
         </div>
       </div>

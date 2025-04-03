@@ -38,16 +38,20 @@ const customSelectStyles = {
   }),
   menu: (provided) => ({
     ...provided,
-    zIndex: 99999,
+    zIndex: 9999999, // Increased z-index
     position: 'relative'
   }),
   menuPortal: (provided) => ({
     ...provided,
-    zIndex: 99999
+    zIndex: 9999999 // Increased z-index
+  }),
+  menuList: (provided) => ({
+    ...provided,
+    zIndex: 9999999 // Increased z-index
   }),
   container: (provided) => ({
     ...provided,
-    zIndex: 99999,
+    zIndex: 9999999, // Increased z-index
     position: 'relative'
   })
 };
@@ -390,6 +394,9 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                                 : 'Select a year level to view available classes'
                               }
                               styles={customSelectStyles}
+                              menuPortalTarget={portalTarget}
+                              menuShouldBlockScroll={true}
+                              menuPlacement="auto"
                             />
                             <p className="mt-1 text-xs text-gray-500">
                               {availableClasses.length > 0 

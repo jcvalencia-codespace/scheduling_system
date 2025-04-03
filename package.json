@@ -26,6 +26,8 @@
     "emailjs": "^4.0.3",
     "googleapis": "^144.0.0",
     "iron-session": "^8.0.4",
+    "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2",
     "mongoose": "^8.9.5",
     "next": "^15.1.6",
     "next-auth": "^4.24.11",

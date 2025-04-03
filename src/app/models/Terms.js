@@ -187,6 +187,21 @@ class TermsModel {
     }
   }
 
+  async getTermsByNumbers(termNumbers = []) {
+    try {
+      const Term = await this.initModel();
+      const terms = await Term.find({
+        term: { $in: termNumbers.map(num => `Term ${num}`) }
+      })
+        .sort({ academicYear: -1 })
+        .lean();
+      return terms.map(this.mapTermData);
+    } catch (error) {
+      console.error('Error in getTermsByNumbers:', error);
+      throw error;
+    }
+  }
+
   mapTermData(term) {
     return {
       id: term._id.toString(),

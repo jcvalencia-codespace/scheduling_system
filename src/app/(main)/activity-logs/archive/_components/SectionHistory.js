@@ -23,19 +23,20 @@ export default function SectionHistory({ history, filters, activeTerm }) {
 
   const filteredHistory = history.filter(entry => {
     const entryDate = new Date(entry.updatedAt);
+    const termStart = activeTerm?.startDate ? new Date(activeTerm.startDate) : null;
+    const termEnd = activeTerm?.endDate ? new Date(activeTerm.endDate) : null;
     
-    // If filters are active, apply them
+    // First check if date is within term unless showAllDates is true
+    if (!filters.showAllDates && termStart && termEnd) {
+      const isWithinTerm = entryDate >= termStart && entryDate <= termEnd;
+      if (!isWithinTerm) return false;
+    }
+
+    // Then apply year/month filters if any
     if (filters?.year || filters?.month !== '') {
       const matchesYear = !filters.year || entryDate.getFullYear().toString() === filters.year;
       const matchesMonth = filters.month === '' || entryDate.getMonth().toString() === filters.month;
       return matchesYear && matchesMonth;
-    }
-    
-    // If no filters, check term dates
-    if (activeTerm?.startDate && activeTerm?.endDate) {
-      const termStart = new Date(activeTerm.startDate);
-      const termEnd = new Date(activeTerm.endDate);
-      return entryDate >= termStart && entryDate <= termEnd;
     }
     
     return true;

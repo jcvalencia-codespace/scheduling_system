@@ -384,6 +384,26 @@ class AssignSubjectsModel {
       throw error;
     }
   }
+
+  async getActiveTerm() {
+    try {
+      const Term = mongoose.models.Term || mongoose.model("Term", TermSchema);
+      const activeTerm = await Term.findOne({ status: 'Active' }).lean();
+      
+      if (!activeTerm) {
+        const currentYear = new Date().getFullYear();
+        return {
+          academicYear: `${currentYear}-${currentYear + 1}`,
+          term: '1'
+        };
+      }
+
+      return activeTerm;
+    } catch (error) {
+      console.error('Error getting active term:', error);
+      throw error;
+    }
+  }
 }
 
 // Create and export singleton instance

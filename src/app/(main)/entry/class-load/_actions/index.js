@@ -1,6 +1,7 @@
 'use server'
 
 import AssignSubjectsModel from '@/app/models/AssignSubjects';
+import TermsModel from '@/app/models/Terms';
 
 export async function getClasses(yearLevel) {
   try {
@@ -76,5 +77,46 @@ export async function createAssignment(data, userId) {
     return { success: true, message: 'Subjects assigned successfully' };
   } catch (error) {
     return { success: false, message: error.message || 'Failed to create assignment' };
+  }
+}
+
+export async function getActiveTerm() {
+  try {
+    const activeTerm = await AssignSubjectsModel.getActiveTerm();
+    return {
+      success: true,
+      term: {
+        sy: activeTerm.academicYear,
+        term: activeTerm.term.replace('Term ', ''),
+        termName: activeTerm.term
+      }
+    };
+  } catch (error) {
+    console.error('Error fetching active term:', error);
+    const currentYear = new Date().getFullYear();
+    return {
+      success: false,
+      term: {
+        sy: `${currentYear}-${currentYear + 1}`,
+        term: 1,
+        termName: 'Term 1'
+      }
+    };
+  }
+}
+
+export async function getTermDetails(termNumbers) {
+  try {
+    const terms = await TermsModel.getTermsByNumbers(termNumbers);
+    return {
+      success: true,
+      terms: terms
+    };
+  } catch (error) {
+    console.error('Error fetching terms:', error);
+    return {
+      success: false,
+      terms: []
+    };
   }
 }

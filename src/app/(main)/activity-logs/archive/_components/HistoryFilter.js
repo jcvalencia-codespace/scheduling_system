@@ -2,11 +2,13 @@
 
 import { Fragment, useState } from 'react';
 import { Menu, Transition } from '@headlessui/react';
-import { FunnelIcon } from '@heroicons/react/24/outline';
+import { FunnelIcon, CalendarIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Switch } from '@headlessui/react';
 
 export default function HistoryFilter({ onFilterChange, initialFilters, onReset }) {
   const [selectedYear, setSelectedYear] = useState(initialFilters?.year || '');
   const [selectedMonth, setSelectedMonth] = useState(initialFilters?.month || '');
+  const [showAllDates, setShowAllDates] = useState(initialFilters?.showAllDates || false);
   
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
@@ -36,25 +38,38 @@ export default function HistoryFilter({ onFilterChange, initialFilters, onReset 
     onFilterChange('month', value);
   };
 
+  const handleShowAllDatesChange = (checked) => {
+    setShowAllDates(checked);
+    onFilterChange('showAllDates', checked);
+  };
+
   const handleReset = () => {
     setSelectedYear('');
     setSelectedMonth('');
+    setShowAllDates(false); // Add this line to reset the toggle
     onReset();
   };
 
   return (
     <Menu as="div" className="relative inline-block text-left">
+      {/* Filter Button Group */}
       <div className="flex space-x-2">
         <Menu.Button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
           <FunnelIcon className="h-5 w-5 mr-2 text-gray-400" />
-          Filter
+          <span>Filter Options</span>
+          {(selectedYear || selectedMonth || showAllDates) && (
+            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              Active
+            </span>
+          )}
         </Menu.Button>
-        {(selectedYear || selectedMonth) && (
+        {(selectedYear || selectedMonth || showAllDates) && (
           <button
             onClick={handleReset}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-red-600 bg-white hover:bg-red-50"
+            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-red-600 bg-white hover:bg-red-50 transition-colors duration-150"
           >
-            Reset
+            <XMarkIcon className="h-4 w-4 mr-1" />
+            Clear
           </button>
         )}
       </div>
@@ -68,45 +83,107 @@ export default function HistoryFilter({ onFilterChange, initialFilters, onReset 
         leaveFrom="transform opacity-100 scale-100"
         leaveTo="transform opacity-0 scale-95"
       >
-        <Menu.Items className="absolute right-0 mt-1 w-80 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-[9999]">
-          <div className="p-4 space-y-4">
-            <div className="mb-4">
-              <p className="text-sm text-gray-500">
-                Filter history records by year and month. By default, only records within the current term are shown. 
-                Using these filters will show records outside the current term period.
-              </p>
+        <Menu.Items className="absolute right-0 mt-2 w-96 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-[9999] divide-y divide-gray-100">
+          {/* Header */}
+          <div className="px-4 py-3 bg-gray-50 rounded-t-lg">
+            <h3 className="text-lg font-medium text-gray-900">Filter Options</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Customize your view of the activity logs
+            </p>
+          </div>
+
+          {/* Filter Content */}
+          <div className="p-4 space-y-6">
+            {/* Show All Dates Toggle */}
+            <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+              <div className="flex-1">
+                <label className="text-sm font-medium text-gray-900">Show All Historical Data</label>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Include records outside the current academic term
+                </p>
+              </div>
+              <Switch
+                checked={showAllDates}
+                onChange={handleShowAllDatesChange}
+                className={`${
+                  showAllDates ? 'bg-green-600' : 'bg-gray-200'
+                } relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-in-out`}
+              >
+                <span
+                  className={`${
+                    showAllDates ? 'translate-x-6' : 'translate-x-1'
+                  } inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out shadow-sm`}
+                />
+              </Switch>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Year</label>
-              <select
-                value={selectedYear}
-                onChange={(e) => handleYearChange(e.target.value)}
-                className="mt-1 text-black block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm rounded-md"
-              >
-                <option value="">All Years</option>
-                {years.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
+            {/* Date Filters */}
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                {/* Year Selection */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700 flex items-center">
+                    <CalendarIcon className="h-4 w-4 mr-1 text-gray-400" />
+                    Year
+                  </label>
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => handleYearChange(e.target.value)}
+                    className="w-full rounded-md text-black border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
+                  >
+                    <option value="">All Years</option>
+                    {years.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Month Selection */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700 flex items-center">
+                    <CalendarIcon className="h-4 w-4 mr-1 text-gray-400" />
+                    Month
+                  </label>
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => handleMonthChange(e.target.value)}
+                    className="w-full text-black rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
+                  >
+                    {months.map((month) => (
+                      <option key={month.value} value={month.value}>
+                        {month.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Month</label>
-              <select
-                value={selectedMonth}
-                onChange={(e) => handleMonthChange(e.target.value)}
-                className="mt-1 text-black block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm rounded-md"
-              >
-                {months.map((month) => (
-                  <option key={month.value} value={month.value}>
-                    {month.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Active Filters Summary */}
+            {(selectedYear || selectedMonth || showAllDates) && (
+              <div className="mt-4 bg-gray-50 rounded-lg p-3">
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Active Filters:</h4>
+                <div className="flex flex-wrap gap-2">
+                  {showAllDates && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
+                      All Historical Data
+                    </span>
+                  )}
+                  {selectedYear && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800">
+                      Year: {selectedYear}
+                    </span>
+                  )}
+                  {selectedMonth !== '' && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800">
+                      Month: {months.find(m => m.value === selectedMonth)?.label}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </Menu.Items>
       </Transition>
