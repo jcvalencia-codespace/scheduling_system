@@ -26,6 +26,7 @@
     "emailjs": "^4.0.3",
     "googleapis": "^144.0.0",
     "iron-session": "^8.0.4",
+    "moment": "^2.30.1",
     "mongoose": "^8.9.5",
     "next": "^15.1.6",
     "next-auth": "^4.24.11",
