@@ -29,6 +29,9 @@ export async function getAssignments() {
     return Object.values(groupedAssignments);
   } catch (error) {
     console.error('Error fetching assignments:', error);
+    if (error.message === 'No active term found') {
+      return [];
+    }
     return [];
   }
 }
@@ -57,7 +60,14 @@ export async function deleteAssignment(id, userId) {
 export async function updateAssignment(id, data, userId) {
   try {
     if (!userId) throw new Error('User not authenticated');
-    await AssignSubjectsModel.updateAssignmentById(id, data, userId);
+    const activeTerm = await AssignSubjectsModel.getActiveTerm();
+    if (!activeTerm._id) throw new Error('No active term found');
+
+    await AssignSubjectsModel.updateAssignmentById(id, {
+      ...data,
+      termId: activeTerm._id,
+      academicYear: activeTerm.academicYear
+    }, userId);
     return { success: true, message: 'Assignment updated successfully' };
   } catch (error) {
     return { success: false, message: error.message || 'Failed to update assignment' };
@@ -67,10 +77,15 @@ export async function updateAssignment(id, data, userId) {
 export async function createAssignment(data, userId) {
   try {
     if (!userId) throw new Error('User not authenticated');
+    const activeTerm = await AssignSubjectsModel.getActiveTerm();
+    if (!activeTerm._id) throw new Error('No active term found');
+    
     for (const classId of data.classes) {
       await AssignSubjectsModel.updateOrCreateAssignment(classId, {
         yearLevel: data.yearLevel.replace(' Year', ''),
         term: Number(data.term),
+        termId: activeTerm._id,
+        academicYear: activeTerm.academicYear,
         subjects: data.subjects
       }, userId);
     }

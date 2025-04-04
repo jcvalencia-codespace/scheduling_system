@@ -35,7 +35,7 @@ const customSelectStyles = {
   }),
 };
 
-export default function Filter({ filters, handleFilterChange, departments, courses }) {
+export default function Filter({ filters, handleFilterChange, departments }) {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -45,13 +45,9 @@ export default function Filter({ filters, handleFilterChange, departments, cours
   if (!isMounted) {
     return (
       <div className="bg-white shadow rounded-lg p-6 mb-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {[...Array(2)].map((_, i) => (
-            <div key={i}>
-              <div className="h-5 w-24 bg-gray-200 rounded mb-2"></div>
-              <div className="h-9 bg-gray-100 rounded w-full"></div>
-            </div>
-          ))}
+        <div>
+          <div className="h-5 w-24 bg-gray-200 rounded mb-2"></div>
+          <div className="h-9 bg-gray-100 rounded w-full"></div>
         </div>
       </div>
     );
@@ -59,42 +55,22 @@ export default function Filter({ filters, handleFilterChange, departments, cours
 
   return (
     <div className="bg-white shadow rounded-lg p-6 mb-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-          <ReactSelect
-            value={filters.department ? {
-              value: filters.department,
-              label: `${filters.department} - ${departments.find(d => d.departmentCode === filters.department)?.departmentName || ''}`
-            } : null}
-            onChange={(option) => handleFilterChange('department', option?.value || '')}
-            options={departments.map(dept => ({
-              value: dept.departmentCode,
-              label: `${dept.departmentCode} - ${dept.departmentName}`
-            }))}
-            isClearable
-            placeholder="All Departments"
-            styles={customSelectStyles}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Course</label>
-          <ReactSelect
-            value={filters.course ? {
-              value: filters.course,
-              label: `${filters.course} - ${courses.find(c => c.courseCode === filters.course)?.courseTitle || ''}`
-            } : null}
-            onChange={(option) => handleFilterChange('course', option?.value || '')}
-            options={courses.map(course => ({
-              value: course.courseCode,
-              label: `${course.courseCode} - ${course.courseTitle}`
-            }))}
-            isClearable
-            placeholder="All Courses"
-            styles={customSelectStyles}
-          />
-        </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+        <ReactSelect
+          value={filters.department ? {
+            value: filters.department,
+            label: `${filters.department} - ${departments.find(d => d.departmentCode === filters.department)?.departmentName || ''}`
+          } : null}
+          onChange={(option) => handleFilterChange('department', option?.value || '')}
+          options={departments.map(dept => ({
+            value: dept.departmentCode,
+            label: `${dept.departmentCode} - ${dept.departmentName}`
+          }))}
+          isClearable
+          placeholder="All Departments"
+          styles={customSelectStyles}
+        />
       </div>
     </div>
   );

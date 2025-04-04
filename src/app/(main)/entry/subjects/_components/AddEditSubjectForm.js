@@ -13,7 +13,6 @@ const initialFormState = {
   subjectName: '',
   lectureHours: '',
   labHours: '',
-  course: '',
   department: ''
 };
 
@@ -21,41 +20,31 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
   const { user } = useAuthStore();
   const [formData, setFormData] = useState(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [courses, setCourses] = useState([]);
-  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [departments, setDepartments] = useState([]);
 
   useEffect(() => {
     if (subject) {
-      const selectedCourseOption = courses.find(c => c.value === (subject.course?._id || subject.course));
-      setSelectedCourse(selectedCourseOption);
-      
       setFormData({
         subjectCode: subject.subjectCode,
         subjectName: subject.subjectName,
         lectureHours: subject.lectureHours,
         labHours: subject.labHours,
-        course: subject.course?._id || subject.course,
         department: subject.department?._id || subject.department
       });
     } else {
       setFormData(initialFormState);
-      setSelectedCourse(null);
     }
-  }, [subject, show, courses]);
+  }, [subject, show]);
 
   useEffect(() => {
-    const fetchCourses = async () => {
+    const fetchDepartments = async () => {
       const result = await getSubjects();
-      if (result.courses) {
-        setCourses(result.courses.map(course => ({
-          value: course._id,
-          label: `${course.courseCode} - ${course.courseTitle}`,
-          department: course.department
-        })));
+      if (result.departments) {
+        setDepartments(result.departments);
       }
     };
 
-    fetchCourses();
+    fetchDepartments();
   }, []);
 
   const handleSubmit = async (e) => {
@@ -119,15 +108,6 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
     setFormData(prev => ({
       ...prev,
       [name]: value
-    }));
-  };
-
-  const handleCourseChange = (selectedOption) => {
-    setSelectedCourse(selectedOption);
-    setFormData(prev => ({
-      ...prev,
-      course: selectedOption.value,
-      department: selectedOption.department?._id // Update to get department ID
     }));
   };
 
@@ -255,19 +235,30 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
                           </div>
 
                           <div className="sm:col-span-2">
-                            <label htmlFor="course" className="block text-sm font-medium text-gray-700">
-                              Course
+                            <label htmlFor="department" className="block text-sm font-medium text-gray-700">
+                              Department
                             </label>
                             <Select
-                              id="course"
-                              name="course"
-                              value={courses.find(option => option.value === formData.course)}
-                              onChange={handleCourseChange}
-                              options={courses}
+                              id="department"
+                              name="department" 
+                              value={departments.find(d => d._id === formData.department) ? {
+                                value: formData.department,
+                                label: `${departments.find(d => d._id === formData.department).departmentCode} - ${departments.find(d => d._id === formData.department).departmentName}`
+                              } : null}
+                              onChange={(selectedOption) => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  department: selectedOption?.value || ''
+                                }));
+                              }}
+                              options={departments.map(dept => ({
+                                value: dept._id,
+                                label: `${dept.departmentCode} - ${dept.departmentName}`
+                              }))}
                               isDisabled={isSubmitting}
                               className="mt-1"
                               classNamePrefix="select"
-                              placeholder="Select a course..."
+                              placeholder="Select a department..."
                               isSearchable
                               required
                               styles={{
@@ -281,19 +272,6 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
                                 })
                               }}
                               menuPlacement="auto"
-                            />
-                          </div>
-
-                          <div className="sm:col-span-2">
-                            <label htmlFor="department" className="block text-sm font-medium text-gray-700">
-                              Department
-                            </label>
-                            <input
-                              type="text"
-                              id="department"
-                              value={selectedCourse ? `${selectedCourse.department.departmentCode} - ${selectedCourse.department.departmentName}` : ''}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 bg-gray-100 shadow-sm ring-1 ring-inset ring-gray-300 sm:text-sm sm:leading-6"
-                              disabled
                             />
                           </div>
                         </div>

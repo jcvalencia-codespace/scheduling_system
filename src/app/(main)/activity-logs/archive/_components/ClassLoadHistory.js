@@ -22,17 +22,16 @@ export default function ClassLoadHistory({ history, filters, activeTerm }) {
   };
 
   const filteredHistory = history.filter(entry => {
-    const entryDate = new Date(entry.updatedAt);
-    const termStart = activeTerm?.startDate ? new Date(activeTerm.startDate) : null;
-    const termEnd = activeTerm?.endDate ? new Date(activeTerm.endDate) : null;
-    
-    // First check if date is within term unless showAllDates is true
-    if (!filters.showAllDates && termStart && termEnd) {
-      const isWithinTerm = entryDate >= termStart && entryDate <= termEnd;
-      if (!isWithinTerm) return false;
+    // First apply academicYear filter only if showAllDates is false
+    if (!filters.showAllDates) {
+      const entryYear = entry.academicYear?.toString();
+      const targetYear = activeTerm?.academicYear?.toString();
+      return entryYear === targetYear;
     }
 
-    // Then apply year/month filters if any
+    // When showAllDates is true, show all entries regardless of academicYear
+    // Only apply year/month filters if they exist
+    const entryDate = new Date(entry.updatedAt);
     if (filters?.year || filters?.month !== '') {
       const matchesYear = !filters.year || entryDate.getFullYear().toString() === filters.year;
       const matchesMonth = filters.month === '' || entryDate.getMonth().toString() === filters.month;
@@ -47,8 +46,54 @@ export default function ClassLoadHistory({ history, filters, activeTerm }) {
   const currentItems = filteredHistory.slice(indexOfFirstItem, indexOfLastItem);
 
   return (
-    <div>
-      <div className="overflow-x-auto">
+    <div className="overflow-x-auto pb-4">
+      {/* Mobile view */}
+      <div className="block md:hidden px-2 pb-4">
+        <div className="space-y-4">
+          {currentItems.map((entry, idx) => (
+            <div key={idx} className="bg-white p-4 rounded-lg shadow space-y-3 border border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center text-sm text-gray-500">
+                  <ClockIcon className="h-4 w-4 mr-2" />
+                  {formatDate(entry.updatedAt)}
+                </div>
+                <span className={`capitalize text-sm font-medium ${getActionColor(entry.action)}`}>
+                  {entry.action}
+                </span>
+              </div>
+              
+              <div className="space-y-2">
+                <div>
+                  <label className="text-xs text-gray-500">Section:</label>
+                  <div className="font-medium">{entry.classDetails.section}</div>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Course:</label>
+                  <div className="font-medium">{entry.classDetails.course}</div>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Year Level:</label>
+                  <div>{entry.classDetails.yearLevel}</div>
+                </div>
+              </div>
+
+              <div className="border-t pt-2">
+                <label className="text-xs text-gray-500">Updated by:</label>
+                <div className="flex flex-col">
+                  <span className="font-medium">{entry.updatedBy.name}</span>
+                  <span className="text-xs text-gray-500">{entry.updatedBy.email}</span>
+                  <span className="text-xs text-gray-500">
+                    {entry.updatedBy.role} {entry.updatedBy.course ? `- ${entry.updatedBy.course}` : ''}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Desktop view */}
+      <div className="hidden md:block">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -116,12 +161,15 @@ export default function ClassLoadHistory({ history, filters, activeTerm }) {
           </tbody>
         </table>
       </div>
-      <Pagination
-        totalItems={filteredHistory.length}
-        itemsPerPage={itemsPerPage}
-        currentPage={currentPage}
-        onPageChange={setCurrentPage}
-      />
+
+      <div className="mt-4 bg-white sticky bottom-0 shadow-t">
+        <Pagination
+          totalItems={filteredHistory.length}
+          itemsPerPage={itemsPerPage}
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+        />
+      </div>
     </div>
   );
 }

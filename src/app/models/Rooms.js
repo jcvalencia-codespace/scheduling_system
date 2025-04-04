@@ -1,4 +1,4 @@
-import { RoomSchema } from '../../../db/schema';
+import { RoomSchema, TermSchema } from '../../../db/schema';
 import connectDB from '../../../lib/mongo';
 import mongoose from 'mongoose';
 
@@ -15,6 +15,18 @@ class RoomsModel {
     return this.MODEL;
   }
 
+  async validateRoomData(roomData) {
+    // Get active term
+    const Term = mongoose.models.Term || mongoose.model('Term', TermSchema);
+    const activeTerm = await Term.findOne({ status: 'Active' });
+    if (!activeTerm) {
+      throw new Error('No active term found');
+    }
+    roomData.academicYear = activeTerm.academicYear;
+
+    // Continue with existing validation
+  }
+
   async createRoom(roomData) {
     const Room = await this.initModel();
     const room = new Room({
@@ -22,7 +34,8 @@ class RoomsModel {
       updateHistory: [{
         updatedBy: roomData.updatedBy,
         updatedAt: new Date(),
-        action: 'created'
+        action: 'created',
+        academicYear: roomData.academicYear // Make sure academicYear is passed through
       }]
     });
     const savedRoom = await room.save();
@@ -31,6 +44,14 @@ class RoomsModel {
   }
 
   async processRoomCreation(roomData) {
+    // Get active term first
+    const Term = mongoose.models.Term || mongoose.model('Term', TermSchema);
+    const activeTerm = await Term.findOne({ status: 'Active' });
+    if (!activeTerm) {
+      throw new Error('No active term found');
+    }
+    roomData.academicYear = activeTerm.academicYear;
+
     // Check for existing active room
     const existingActive = await this.getRoomByCode(roomData.roomCode);
     if (existingActive) {
@@ -78,32 +99,28 @@ class RoomsModel {
     const Rooms = await this.initModel();
     const rooms = await Rooms.find({ isActive: true })
       .sort({ roomCode: 1 })
-      .populate('department', 'departmentCode departmentName');
+      .populate('department', 'departmentCode departmentName')
+      .populate('updateHistory.updatedBy', 'firstName lastName'); // Add this line
     return JSON.parse(JSON.stringify(rooms));
   }
 
   async getRoomByCode(roomCode) {
     const Room = await this.initModel();
     const room = await Room.findOne({ roomCode, isActive: true })
-      .populate('department', 'departmentCode departmentName');
+      .populate('department', 'departmentCode departmentName')
+      .populate('updateHistory.updatedBy', 'firstName lastName'); // Add this line
     return room ? JSON.parse(JSON.stringify(room)) : null;
   }
 
   async updateRoom(roomCode, updateData) {
     const Room = await this.initModel();
-    const { updatedBy, ...otherData } = updateData;
+    const { $push, ...otherUpdateData } = updateData;
     
     const room = await Room.findOneAndUpdate(
       { roomCode, isActive: true },
-      {
-        $set: otherData,
-        $push: {
-          updateHistory: {
-            updatedBy,
-            updatedAt: new Date(),
-            action: 'updated'
-          }
-        }
+      { 
+        $set: otherUpdateData,
+        $push: updateData.$push // Remove nesting since it's already structured correctly
       },
       { new: true, runValidators: true }
     ).populate('department', 'departmentCode departmentName');
@@ -119,17 +136,17 @@ class RoomsModel {
     return updatedRoom;
   }
 
-  async deleteRoom(roomCode, userId) {
+  async deleteRoom(roomCode, updateData) {
     const Room = await this.initModel();
+    const { $push, academicYear, ...otherUpdateData } = updateData;
+    
     const room = await Room.findOneAndUpdate(
       { roomCode, isActive: true },
-      {
-        $set: { isActive: false },
+      { 
+        $set: { ...otherUpdateData, isActive: false },
         $push: {
-          updateHistory: {
-            updatedBy: userId,
-            action: 'deleted'
-          }
+          ...updateData.$push,
+          'updateHistory.$.academicYear': academicYear
         }
       },
       { new: true }
@@ -138,11 +155,26 @@ class RoomsModel {
   }
 
   async processRoomDeletion(roomCode, userId) {
-    if (!roomCode) {
-      throw new Error('Room code is required');
+    // Get active term
+    const Term = mongoose.models.Term || mongoose.model('Term', TermSchema);
+    const activeTerm = await Term.findOne({ status: 'Active' });
+    if (!activeTerm) {
+      throw new Error('No active term found');
     }
 
-    const deletedRoom = await this.deleteRoom(roomCode, userId);
+    const updateData = {
+      updatedBy: userId,
+      $push: {
+        updateHistory: {
+          updatedBy: userId,
+          updatedAt: new Date(),
+          action: 'deleted',
+          academicYear: activeTerm.academicYear
+        }
+      }
+    };
+
+    const deletedRoom = await this.deleteRoom(roomCode, updateData);
     if (!deletedRoom) {
       throw new Error('Failed to delete room');
     }

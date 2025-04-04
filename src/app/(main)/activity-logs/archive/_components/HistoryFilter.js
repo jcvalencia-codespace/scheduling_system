@@ -51,10 +51,9 @@ export default function HistoryFilter({ onFilterChange, initialFilters, onReset 
   };
 
   return (
-    <Menu as="div" className="relative inline-block text-left">
-      {/* Filter Button Group */}
-      <div className="flex space-x-2">
-        <Menu.Button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+    <Menu as="div" className="relative w-full sm:w-auto">
+      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+        <Menu.Button className="w-full sm:w-auto inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
           <FunnelIcon className="h-5 w-5 mr-2 text-gray-400" />
           <span>Filter Options</span>
           {(selectedYear || selectedMonth || showAllDates) && (
@@ -66,7 +65,7 @@ export default function HistoryFilter({ onFilterChange, initialFilters, onReset 
         {(selectedYear || selectedMonth || showAllDates) && (
           <button
             onClick={handleReset}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-red-600 bg-white hover:bg-red-50 transition-colors duration-150"
+            className="w-full sm:w-auto inline-flex justify-center items-center px-3 py-2 border border-gray-300 rounded-md"
           >
             <XMarkIcon className="h-4 w-4 mr-1" />
             Clear
@@ -83,7 +82,7 @@ export default function HistoryFilter({ onFilterChange, initialFilters, onReset 
         leaveFrom="transform opacity-100 scale-100"
         leaveTo="transform opacity-0 scale-95"
       >
-        <Menu.Items className="absolute right-0 mt-2 w-96 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-[9999] divide-y divide-gray-100">
+        <Menu.Items className="fixed sm:absolute left-1/2 sm:left-auto right-auto sm:right-0 -translate-x-1/2 sm:translate-x-0 top-1/2 sm:top-auto -translate-y-1/2 sm:translate-y-0 mt-0 sm:mt-2 w-[calc(100vw-2rem)] sm:w-96 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-[9999] divide-y divide-gray-100">
           {/* Header */}
           <div className="px-4 py-3 bg-gray-50 rounded-t-lg">
             <h3 className="text-lg font-medium text-gray-900">Filter Options</h3>
@@ -95,8 +94,8 @@ export default function HistoryFilter({ onFilterChange, initialFilters, onReset 
           {/* Filter Content */}
           <div className="p-4 space-y-6">
             {/* Show All Dates Toggle */}
-            <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-              <div className="flex-1">
+            <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg flex-wrap gap-2">
+              <div className="flex-1 min-w-[200px]">
                 <label className="text-sm font-medium text-gray-900">Show All Historical Data</label>
                 <p className="text-xs text-gray-500 mt-0.5">
                   Include records outside the current academic term
@@ -107,7 +106,7 @@ export default function HistoryFilter({ onFilterChange, initialFilters, onReset 
                 onChange={handleShowAllDatesChange}
                 className={`${
                   showAllDates ? 'bg-green-600' : 'bg-gray-200'
-                } relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-in-out`}
+                } relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-in-out flex-shrink-0`}
               >
                 <span
                   className={`${
@@ -119,7 +118,7 @@ export default function HistoryFilter({ onFilterChange, initialFilters, onReset 
 
             {/* Date Filters */}
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Year Selection */}
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700 flex items-center">

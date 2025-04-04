@@ -73,11 +73,6 @@ const SubjectSchema = new Schema({
     required: true,
     min: 0,
   },
-  course: {
-    type: Schema.Types.ObjectId,
-    ref: 'Courses',
-    required: true,
-  },
   department: {
     type: Schema.Types.ObjectId,
     ref: 'Departments',
@@ -101,6 +96,10 @@ const SubjectSchema = new Schema({
     action: {
       type: String,
       enum: ['created', 'updated', 'deleted'],
+      required: true
+    },
+    academicYear: {
+      type: String,
       required: true
     }
   }],
@@ -211,6 +210,10 @@ const RoomSchema = new Schema({
       type: String,
       enum: ['created', 'updated', 'deleted'],
       required: true
+    },
+    academicYear: {
+      type: String,
+      required: true  
     }
   }],
 }, {
@@ -259,6 +262,10 @@ const SectionSchema = new Schema({
     action: {
       type: String,
       enum: ['created', 'updated', 'deleted'],
+      required: true
+    },
+    academicYear: {
+      type: String,
       required: true
     }
   }],
@@ -356,6 +363,11 @@ const AssignSubjectsSchema = new Schema({
     required: true,
     enum: ['1st', '2nd', '3rd', '4th', 'grad']
   },
+  academicYear: {
+    type: String,
+    required: true,
+    trim: true
+  },
   classId: {
     type: Schema.Types.ObjectId,
     ref: 'Section',
@@ -371,8 +383,17 @@ const AssignSubjectsSchema = new Schema({
       type: Number,
       required: true,
       enum: [1, 2, 3]
+    },
+    termId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Terms',
+      required: true
     }
   }],
+  isActive: {
+    type: Boolean,
+    default: true
+  },
   updateHistory: [{
     updatedBy: {
       type: Schema.Types.ObjectId,
@@ -387,6 +408,10 @@ const AssignSubjectsSchema = new Schema({
     action: {
       type: String,
       enum: ['created', 'updated', 'deleted'],
+      required: true
+    },
+    academicYear: {
+      type: String,
       required: true
     }
   }]
@@ -480,6 +505,10 @@ const ScheduleSchema = new Schema({
     action: {
       type: String,
       enum: ['created', 'updated', 'deleted'],
+      required: true
+    },
+    academicYear: {
+      type: String,
       required: true
     }
   }]

@@ -125,31 +125,42 @@ class AssignSubjectsModel {
   async fetchAssignments() {
     try {
       await this.initializeModels();
-      console.log('Models initialized, fetching assignments...');
       
-      const assignments = await this.models.AssignSubjects.find()
-        .populate({
-          path: 'classId',
-          model: 'Sections',
-          select: 'sectionName course yearLevel',
-          populate: {
-            path: 'course',
-            model: 'Courses',
-            select: 'courseCode courseTitle department',
-            populate: {
-              path: 'department',
-              model: 'Departments',
-              select: 'departmentCode departmentName'
-            }
-          }
-        })
-        .populate({
-          path: 'subjects.subject',
-          model: 'Subjects',
-          select: 'subjectCode subjectName'
-        })
-        .lean();
+      const Term = mongoose.models.Term || mongoose.model("Term", TermSchema);
+      const activeTerm = await Term.findOne({ status: 'Active' }).lean();
+      
+      if (!activeTerm) {
+        throw new Error('No active term found');
+      }
 
+      // Add isActive filter
+      const assignments = await this.models.AssignSubjects.find({
+        academicYear: activeTerm.academicYear,
+        isActive: true
+      })
+      .populate({
+        path: 'classId',
+        model: 'Sections',
+        select: 'sectionName course yearLevel',
+        populate: {
+          path: 'course',
+          model: 'Courses',
+          select: 'courseCode courseTitle department',
+          populate: {
+            path: 'department',
+            model: 'Departments',
+            select: 'departmentCode departmentName'
+          }
+        }
+      })
+      .populate({
+        path: 'subjects.subject',
+        model: 'Subjects',
+        select: 'subjectCode subjectName'
+      })
+      .lean();
+
+      // Rest of the mapping code remains the same
       return assignments.map(assignment => ({
         _id: assignment._id.toString(),
         yearLevel: assignment.yearLevel,
@@ -185,7 +196,11 @@ class AssignSubjectsModel {
 
   async checkExistingAssignments(classId, subjects, term, currentAssignmentId = null) {
     try {
-      const query = { classId: classId };
+      const query = { 
+        classId: classId,
+        isActive: true 
+      };
+      
       if (currentAssignmentId) {
         query._id = { $ne: currentAssignmentId };
       }
@@ -225,38 +240,49 @@ class AssignSubjectsModel {
 
   async updateOrCreateAssignment(classId, data, userId) {
     try {
+      // Initialize models first
+      await this.initializeModels();
+
+      // Find existing active assignment
       const existingAssignment = await this.models.AssignSubjects.findOne({
-        classId: classId
+        classId: classId,
+        isActive: true
       });
 
       const subjectsWithTerm = data.subjects.map(subjectId => ({
         subject: subjectId,
-        term: Number(data.term)
+        term: data.term,
+        termId: data.termId
       }));
 
       const historyEntry = {
         updatedBy: userId,
         updatedAt: new Date(),
-        action: existingAssignment ? 'updated' : 'created'
+        action: existingAssignment ? 'updated' : 'created',
+        academicYear: data.academicYear
       };
 
       if (existingAssignment) {
         const existingSubjects = existingAssignment.subjects.filter(
-          s => s.term !== Number(data.term)
+          s => s.term !== data.term
         );
 
         await existingAssignment.updateOne({
           yearLevel: data.yearLevel,
+          academicYear: data.academicYear,
           subjects: [...existingSubjects, ...subjectsWithTerm],
           $push: { updateHistory: historyEntry }
         });
 
         return existingAssignment;
       } else {
+        // Create new assignment with isActive true
         return await this.models.AssignSubjects.create({
           yearLevel: data.yearLevel,
+          academicYear: data.academicYear,
           classId: classId,
           subjects: subjectsWithTerm,
+          isActive: true,
           updateHistory: [historyEntry]
         });
       }
@@ -293,19 +319,23 @@ class AssignSubjectsModel {
     try {
       await this.initializeModels();
       
+      const assignment = await this.models.AssignSubjects.findById(id);
       const historyEntry = {
         updatedBy: userId,
         updatedAt: new Date(),
-        action: 'deleted'
+        action: 'deleted',
+        academicYear: assignment.academicYear
       };
 
-      // Add final history entry before deletion
+      // Instead of deleting, update isActive to false
       await this.models.AssignSubjects.findByIdAndUpdate(
         id,
-        { $push: { updateHistory: historyEntry } }
+        { 
+          isActive: false,
+          $push: { updateHistory: historyEntry }
+        }
       );
 
-      await this.models.AssignSubjects.findByIdAndDelete(id);
       return true;
     } catch (error) {
       console.error('Error deleting assignment:', error);
@@ -339,19 +369,22 @@ class AssignSubjectsModel {
 
       const newSubjects = data.subjects.map(subjectId => ({
         subject: subjectId,
-        term: Number(data.term)
+        term: Number(data.term),
+        termId: data.termId
       }));
 
       const historyEntry = {
         updatedBy: userId,
         updatedAt: new Date(),
-        action: 'updated'
+        action: 'updated',
+        academicYear: data.academicYear
       };
 
       await this.models.AssignSubjects.findByIdAndUpdate(
         id,
         {
           yearLevel: data.yearLevel.replace(' Year', ''),
+          academicYear: data.academicYear,
           classId: data.classes[0],
           subjects: [...existingSubjects, ...newSubjects],
           $push: { updateHistory: historyEntry }
@@ -369,7 +402,7 @@ class AssignSubjectsModel {
   async fetchDepartments() {
     try {
       await this.initializeModels();
-      
+            
       const departments = await this.models.Department.find({ isActive: true })
         .select('departmentCode departmentName')
         .lean();
@@ -406,6 +439,5 @@ class AssignSubjectsModel {
   }
 }
 
-// Create and export singleton instance
 const assignSubjectsModel = new AssignSubjectsModel();
 export default assignSubjectsModel;
