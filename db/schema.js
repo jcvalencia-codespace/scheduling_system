@@ -488,6 +488,46 @@ const ScheduleSchema = new Schema({
   collection: 'schedules'
 });
 
+// Add this to your existing schema.js file
+const NotificationSchema = new Schema({
+  userId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Users',
+    required: true,
+    index: true
+  },
+  title: {
+    type: String,
+    required: true
+  },
+  message: {
+    type: String,
+    required: true
+  },
+  type: {
+    type: String,
+    enum: ['success', 'warning', 'error', 'info'],
+    default: 'info'
+  },
+  isRead: {
+    type: Boolean,
+    default: false
+  },
+  relatedSchedule: {
+    type: Schema.Types.ObjectId,
+    ref: 'Schedules',
+    required: false
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+    expires: 2592000 // 30 days
+  }
+}, {
+  timestamps: true,
+  collection: 'notifications'
+});
+
 export {
   UserSchema,
   SubjectSchema,
@@ -498,5 +538,6 @@ export {
   TermSchema,
   FeedbackSchema,
   AssignSubjectsSchema,
-  ScheduleSchema
+  ScheduleSchema,
+  NotificationSchema
 };

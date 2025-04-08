@@ -12,6 +12,9 @@ import moment from 'moment';
 // Define the model at the top
 const Schedules = mongoose.models.Schedules || mongoose.model('Schedules', ScheduleSchema);
 
+// Add to your imports
+import { createNotification } from '../(main)/schedules/_actions/notifications';
+
 export default class SchedulesModel {
   static async getSections() {
     try {
@@ -224,6 +227,22 @@ export default class SchedulesModel {
       });
 
       // Return an object with the schedule property
+      // Get the populated schedule data
+      const populatedSchedule = await Schedules.findById(schedule._id)
+        .populate([
+          { path: 'subject', select: 'subjectCode subjectName' },
+          { path: 'section', select: 'sectionName' }
+        ]);
+
+      // Create notification with readable values
+      await createNotification({ 
+        userId: scheduleData.faculty,
+        title: 'New Schedule Assigned',
+        message: `You have been assigned to teach ${populatedSchedule.subject.subjectCode} - ${populatedSchedule.subject.subjectName} for section ${populatedSchedule.section.sectionName}`,
+        type: 'success',
+        relatedSchedule: schedule._id
+      });
+
       return { schedule };
     } catch (error) {
       console.error('Schedule creation error:', error);
@@ -346,6 +365,17 @@ export default class SchedulesModel {
 
   static async deleteSchedule(scheduleId, userId) {
     try {
+      // First get the schedule details before deletion with full population
+      const schedule = await Schedules.findById(scheduleId).populate([
+        { path: 'faculty', select: '_id' },
+        { path: 'subject', select: 'subjectCode subjectName' },
+        { path: 'section', select: 'sectionName' }
+      ]);
+
+      if (!schedule) {
+        throw new Error('Schedule not found');
+      }
+
       const result = await Schedules.findByIdAndUpdate(
         scheduleId,
         {
@@ -360,9 +390,16 @@ export default class SchedulesModel {
         },
         { new: true }
       );
-      if (!result) {
-        throw new Error('Schedule not found');
-      }
+
+      // Add notification with populated data
+      await createNotification({
+        userId: schedule.faculty._id,
+        title: 'Schedule Deleted',
+        message: `Your schedule for ${schedule.subject.subjectCode} - ${schedule.subject.subjectName} for section ${schedule.section.sectionName} has been removed`,
+        type: 'error',
+        relatedSchedule: scheduleId
+      });
+
       return result;
     } catch (error) {
       console.error('Schedule deletion error:', error);
@@ -445,7 +482,15 @@ export default class SchedulesModel {
         throw new Error('Schedule not found');
       }
 
-      // Return the schedule with the proper structure
+      // Add notification with populated data
+      await createNotification({
+        userId: scheduleData.faculty,
+        title: 'Schedule Updated',
+        message: `Your schedule for ${schedule.subject.subjectCode} - ${schedule.subject.subjectName} for section ${schedule.section.sectionName} has been updated`,
+        type: 'warning',
+        relatedSchedule: schedule._id
+      });
+
       return { schedule };
     } catch (error) {
       console.error('Schedule update error:', error);
