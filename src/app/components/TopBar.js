@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { MagnifyingGlassIcon, BellIcon, ChevronDownIcon, Bars3Icon } from '@heroicons/react/24/outline';
-import { SunIcon, MoonIcon, CheckCircleIcon, ExclamationCircleIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/solid';
+import { MagnifyingGlassIcon, BellIcon, ChevronDownIcon, Bars3Icon, ChatBubbleOvalLeftIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
+import { SunIcon, MoonIcon, CheckCircleIcon, ExclamationCircleIcon, ChatBubbleLeftIcon, XMarkIcon } from '@heroicons/react/24/solid';
 import { useTheme } from '../context/ThemeContext';
 import { useSidebar } from '../context/SidebarContext';
 import { usePathname, useRouter } from 'next/navigation';
@@ -18,6 +18,7 @@ export default function TopBar() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const { user, logout: logoutStore } = useAuthStore();
+  const [showChat, setShowChat] = useState(false);
 
   // Function to get page title from pathname
   const getPageTitle = (path) => {
@@ -73,6 +74,16 @@ export default function TopBar() {
     }
   };
 
+  const handleChatClick = (e) => {
+    e.preventDefault();
+    setShowChat(!showChat);
+  };
+
+  const navigateToChat = () => {
+    router.push('/chat');
+    setShowChat(false);
+  };
+
   return (
     <div className="sticky top-0 z-30 border-b border-gray-200 bg-white/95 backdrop-blur-sm transition-shadow dark:border-gray-800 dark:bg-gray-900/95">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -113,6 +124,43 @@ export default function TopBar() {
             >
               <MoonIcon className="h-5 w-5" />
             </button>
+          </div>
+
+          {/* Chat Icon with Dropdown */}
+          <div className="relative">
+            <button 
+              onClick={handleChatClick}
+              className="relative rounded-full bg-gray-100 p-2 text-gray-500 hover:text-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
+            >
+              <ChatBubbleOvalLeftIcon className="h-6 w-6" />
+              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-medium text-white">
+                2
+              </span>
+            </button>
+
+            {/* Chat Dropdown */}
+            {showChat && (
+              <div className="absolute right-0 mt-2 w-80 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-gray-800 z-50">
+                <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex justify-between items-center">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Messages</h3>
+                  <button
+                    onClick={navigateToChat}
+                    className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                  >
+                    View All
+                  </button>
+                </div>
+                <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                  <p className="mb-2">Recent messages will appear here</p>
+                  <button
+                    onClick={navigateToChat}
+                    className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                  >
+                    Open Chat
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Notifications */}

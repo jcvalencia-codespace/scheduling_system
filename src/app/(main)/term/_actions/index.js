@@ -106,3 +106,17 @@ export async function removeTerm(id) {
     return { error: error.message || 'Failed to delete term' };
   }
 }
+
+export async function endAllTerms() {
+  try {
+    const success = await termsModel.endAllTerms();
+    if (!success) {
+      throw new Error('No active terms found');
+    }
+    revalidatePath('/term');
+    return { success: true };
+  } catch (error) {
+    console.error('Error in endAllTerms:', error);
+    return { error: error.message || 'Failed to deactivate terms' };
+  }
+}

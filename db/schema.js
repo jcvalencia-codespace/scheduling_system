@@ -308,6 +308,11 @@ const TermSchema = new Schema({
     required: true,
     enum: ['Active', 'Inactive'],
     default: 'Inactive'
+  },
+  isVisible: {
+    type: Boolean,
+    default: true,
+    required: true
   }
 }, {
   timestamps: true,
@@ -517,6 +522,37 @@ const ScheduleSchema = new Schema({
   collection: 'schedules'
 });
 
+const ChatMessageSchema = new Schema({
+  sender: {
+    type: Schema.Types.ObjectId,
+    ref: 'Users',
+    required: true
+  },
+  receiver: {
+    type: Schema.Types.ObjectId,
+    ref: 'Users',
+    required: true
+  },
+  content: {  // Changed from message to content
+    type: String,
+    required: true
+  },
+  read: {
+    type: Boolean,
+    default: false
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+}, {
+  timestamps: true,
+  collection: 'chatMessages'
+});
+
+// Add index for better query performance
+ChatMessageSchema.index({ sender: 1, receiver: 1, createdAt: -1 });
+
 export {
   UserSchema,
   SubjectSchema,
@@ -527,5 +563,6 @@ export {
   TermSchema,
   FeedbackSchema,
   AssignSubjectsSchema,
-  ScheduleSchema
+  ScheduleSchema,
+  ChatMessageSchema
 };

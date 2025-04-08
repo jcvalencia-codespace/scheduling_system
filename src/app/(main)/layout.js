@@ -36,6 +36,7 @@ export default function MainLayout({ children }) {
             </main>
           </div>
         </div>
+        <div id="modal-root"></div>
       </>
     </LoadingProvider>
   );
