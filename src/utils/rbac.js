@@ -14,7 +14,9 @@ export const rolePermissions = {
     '/logs/override-history',
     '/logs/archive',
     '/term',
-    '/feedback'
+    '/feedback',
+    '/chats'
+    
   ],
   'Program Chair': [
     '/schedules',
@@ -27,13 +29,15 @@ export const rolePermissions = {
     '/logs/override-history',
     '/logs/archive',
     '/term',
-    '/feedback'
+    '/feedback',
+    '/chats'
   ],
  
   Faculty: [
     '/schedules',
     '/feedback',
-    '/profile'
+    '/profile',
+    '/chats'
   ]
 };
 
@@ -154,6 +158,12 @@ export const menuItems = [
     title: 'Send Feedback',
     href: '/feedback',
     icon: 'EnvelopeIcon',
+    roles: ['Administrator', 'Dean', 'Program Chair', 'Faculty']
+  },
+  {
+    title: 'Chats',
+    href: '/chats',
+    icon: 'ChatBubbleLeftRightIcon',
     roles: ['Administrator', 'Dean', 'Program Chair', 'Faculty']
   }
 ];
