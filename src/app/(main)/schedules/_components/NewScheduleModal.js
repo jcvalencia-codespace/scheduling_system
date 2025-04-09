@@ -7,6 +7,7 @@ import Swal from 'sweetalert2';
 import Select from 'react-select';
 import useAuthStore from '@/store/useAuthStore';
 import ScheduleModalSkeleton from './Skeleton';
+import { XCircleIcon } from '@heroicons/react/24/outline';
 
 
 
@@ -305,14 +306,18 @@ export default function NewScheduleModal({
         throw new Error('No active term found. Please contact an administrator.');
       }
 
-      // Validate required fields
+      // Basic form validation
       const requiredFields = ['section', 'faculty', 'subject', 'room', 'classLimit', 'studentType', 'days', 'timeFrom', 'timeTo'];
       const emptyFields = requiredFields.filter(field => !selectedValues[field]);
 
       if (emptyFields.length > 0) {
         throw new Error(`Please fill in all required fields: ${emptyFields.join(', ')}`);
       }
-
+      // Validate class limit
+      const classLimit = parseInt(selectedValues.classLimit, 10);
+      if (isNaN(classLimit) || classLimit <= 0) {
+        throw new Error('Class limit must be a positive number');
+      }
       // Format time values
       const formatTimeValue = (timeValue) => {
         const [time, period] = timeValue.split(' ');
@@ -363,6 +368,13 @@ export default function NewScheduleModal({
         throw new Error(response.error);
       }
 
+      // Handle conflicts
+      if (response.conflicts) {
+        // Set state to display conflicts
+        setConflicts(response.conflicts);
+        return; // Stop execution here to show conflicts
+      }
+
       await Swal.fire({
         title: editMode ? 'Updated!' : 'Created!',
         text: `Schedule has been ${editMode ? 'updated' : 'created'} successfully.`,
@@ -383,6 +395,10 @@ export default function NewScheduleModal({
     }
   };
 
+  // Add state for conflicts
+  const [conflicts, setConflicts] = useState(null);
+
+  // Add this to your clearForm function
   const clearForm = () => {
     setSelectedValues({
       term: '',
@@ -407,6 +423,7 @@ export default function NewScheduleModal({
       scheduleType: 'lecture'
     });
     setError(null);
+    setConflicts(null);
   };
 
   return (
@@ -486,6 +503,86 @@ export default function NewScheduleModal({
                         </label>
                       </div>
 
+
+                      {/* // Add this to your component, right before the form content */}
+                      {conflicts && (
+                        <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
+                          <div className="flex">
+                            {/* <div className="flex-shrink-0">
+                              <XCircleIcon className="h-5 w-5 text-red-400" aria-hidden="true" />
+                            </div> */}
+                            <div className="ml-3">
+                              <h3 className="text-sm font-bold text-red-800">
+                                Schedule Conflicts Detected
+                              </h3>
+                              <div className="mt-2 text-sm text-red-700">
+                                {conflicts.roomConflicts.length > 0 && (
+                                  <div className="mb-2">
+                                    <strong>Room Conflicts:</strong>
+                                    <ul className="list-disc pl-5 space-y-1 mt-1">
+                                      {conflicts.roomConflicts.map((conflict, idx) => (
+                                        <li key={`room-${idx}`}>
+                                          Room {conflict.room} is already booked on {conflict.day} from {conflict.timeFrom} to {conflict.timeTo}
+                                          {conflict.conflictingSchedules.map((schedule, i) => (
+                                            <div key={`room-schedule-${i}`} className="text-xs ml-2 pt-2">
+                                              • Conflicted Schedule: {schedule.section}: {schedule.timeFrom} - {schedule.timeTo} 
+                                            </div>
+                                          ))}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+
+                                {conflicts.facultyConflicts.length > 0 && (
+                                  <div className="mb-2">
+                                    <strong>Faculty Conflicts:</strong>
+                                    <ul className="list-disc pl-5 space-y-1 mt-1">
+                                      {conflicts.facultyConflicts.map((conflict, idx) => (
+                                        <li key={`faculty-${idx}`}>
+                                          {conflict.faculty} is already scheduled on {conflict.day} from {conflict.timeFrom} to {conflict.timeTo}
+                                          {conflict.conflictingSchedules.map((schedule, i) => (
+                                            <div key={`faculty-schedule-${i}`} className="text-xs ml-2">
+                                              • Section {schedule.section}: {schedule.timeFrom} - {schedule.timeTo}
+                                            </div>
+                                          ))}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+
+                                {conflicts.sectionConflicts.length > 0 && (
+                                  <div>
+                                    <strong>Section Conflicts:</strong>
+                                    <ul className="list-disc pl-5 space-y-1 mt-1">
+                                      {conflicts.sectionConflicts.map((conflict, idx) => (
+                                        <li key={`section-${idx}`}>
+                                          Section {conflict.section} already has classes on {conflict.day} from {conflict.timeFrom} to {conflict.timeTo}
+                                          {conflict.conflictingSchedules.map((schedule, i) => (
+                                            <div key={`section-schedule-${i}`} className="text-xs ml-2">
+                                              • {schedule.subject}: {schedule.timeFrom} - {schedule.timeTo}
+                                            </div>
+                                          ))}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="mt-3">
+                                <button
+                                  type="button"
+                                  onClick={() => setConflicts(null)}
+                                  className="text-sm font-medium text-red-600 hover:text-red-500"
+                                >
+                                  Dismiss
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       {/* Form Grid */}
                       <div className="grid grid-cols-2 gap-4 mb-6">
                         {/* Left Column */}

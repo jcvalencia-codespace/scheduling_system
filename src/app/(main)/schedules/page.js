@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { format } from "date-fns"
+// Replace the date-fns import with moment
+import moment from 'moment'        // Add this line
 import { useLoading } from "../../context/LoadingContext"
 import FullCalendar from "@fullcalendar/react"
 import timeGridPlugin from "@fullcalendar/timegrid"
@@ -94,11 +95,12 @@ export default function SchedulePage() {
     }
   };
 
+  // Replace the formatDate function
   const formatDate = (dateStr) => {
-    return format(new Date(dateStr), "MMMM d, yyyy")
+    return moment(dateStr).format('MMMM D, YYYY')
   }
 
-  // Convert our schedule data to FullCalendar event format
+  // Update the convertSchedulesToEvents function
   const convertSchedulesToEvents = (schedules) => {
     if (!selectedSection) return [];
     
@@ -106,12 +108,9 @@ export default function SchedulePage() {
       schedule.section?.sectionName === selectedSection
     );
 
-    // Map each schedule to FullCalendar events
     return filteredSchedules.flatMap((schedule) => {
-      // Create events for each slot in scheduleSlots
       return schedule.scheduleSlots.flatMap((slot) => {
         return slot.days.map((day) => {
-          // Map day names to day numbers (0 = Sunday, 1 = Monday, etc.)
           const dayMap = {
             Sunday: 0,
             Monday: 1,
@@ -122,31 +121,19 @@ export default function SchedulePage() {
             Saturday: 6,
           }
 
-          // Get the day number
           const dayNumber = dayMap[day]
+          
+          // Replace date manipulation with moment
+          const today = moment()
+          const thisWeek = moment(today)
+          thisWeek.day(dayNumber) // Set to the target day of this week
 
-          // Create a date for this week's occurrence of the day
-          const today = new Date()
-          const thisWeek = new Date(today)
-          thisWeek.setDate(today.getDate() - today.getDay() + dayNumber)
+          // Format the date
+          const dateStr = thisWeek.format('YYYY-MM-DD')
 
-          // Format the date as YYYY-MM-DD
-          const dateStr = thisWeek.toISOString().split("T")[0]
-
-          // Parse time strings (e.g., "7:00 AM" to "07:00:00")
+          // Parse time strings using moment
           const parseTimeStr = (timeStr) => {
-            const [time, period] = timeStr.toLowerCase().split(" ")
-            let [hours, minutes] = time.split(":").map(Number)
-
-            // Convert to 24-hour format
-            if (period === "pm" && hours !== 12) {
-              hours += 12
-            } else if (period === "am" && hours === 12) {
-              hours = 0
-            }
-
-            // Format as HH:MM:SS
-            return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:00`
+            return moment(timeStr, 'h:mm A').format('HH:mm:ss')
           }
 
           const startTime = parseTimeStr(slot.timeFrom)
@@ -427,48 +414,3 @@ function renderEventContent(eventInfo) {
 }
 
 
-// const handleDeleteSchedule = async (scheduleId) => {
-//   if (!user || !user._id) {
-//     Swal.fire({
-//       icon: 'error',
-//       title: 'Error',
-//       text: 'You must be logged in to perform this action',
-//       confirmButtonColor: '#323E8F'
-//     });
-//     return;
-//   }
-
-//   const result = await Swal.fire({
-//     title: 'Are you sure?',
-//     text: "You won't be able to revert this!",
-//     icon: 'warning',
-//     showCancelButton: true,
-//     confirmButtonColor: '#323E8F',
-//     cancelButtonColor: '#d33',
-//     confirmButtonText: 'Yes, delete it!'
-//   });
-
-//   if (result.isConfirmed) {
-//     try {
-//       const response = await deleteSchedule(scheduleId, user._id);
-//       if (response.error) {
-//         throw new Error(response.error);
-//       }
-//       fetchSchedules(); // Refresh the schedules
-//       Swal.fire({
-//         icon: 'success',
-//         title: 'Deleted!',
-//         text: 'Schedule has been deleted.',
-//         confirmButtonColor: '#323E8F'
-//       });
-//     } catch (error) {
-//       console.error('Error deleting schedule:', error);
-//       Swal.fire({
-//         icon: 'error',
-//         title: 'Error',
-//         text: 'Failed to delete schedule',
-//         confirmButtonColor: '#323E8F'
-//       });
-//     }
-//   }
-// };

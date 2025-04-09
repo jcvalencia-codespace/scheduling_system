@@ -10,6 +10,13 @@ import { usePathname, useRouter } from 'next/navigation';
 import useAuthStore from '@/store/useAuthStore';
 import { logout } from '../(login)/_actions';
 
+// Add to your imports
+import { useNotifications } from '../context/NotificationsContext';
+import moment from 'moment';
+
+// Add this import at the top with other imports
+import Swal from 'sweetalert2';
+
 export default function TopBar() {
   const { theme, setTheme } = useTheme();
   const { toggleSidebar } = useSidebar();
@@ -18,6 +25,10 @@ export default function TopBar() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const { user, logout: logoutStore } = useAuthStore();
+  // Update this line to include markAllAsRead
+  // Update the destructuring to include clearAll
+  const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotifications();
+
 
   // Function to get page title from pathname
   const getPageTitle = (path) => {
@@ -32,36 +43,6 @@ export default function TopBar() {
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
   };
-
-  const notifications = [
-    {
-      id: 1,
-      type: 'alert',
-      title: 'New Schedule Update',
-      message: 'Your class schedule for CSCI 101 has been updated',
-      time: '2 minutes ago',
-      icon: ExclamationCircleIcon,
-      color: 'text-yellow-500'
-    },
-    {
-      id: 2,
-      type: 'success',
-      title: 'Enrollment Confirmed',
-      message: 'Successfully enrolled in MATH 201 for Spring 2025',
-      time: '1 hour ago',
-      icon: CheckCircleIcon,
-      color: 'text-green-500'
-    },
-    {
-      id: 3,
-      type: 'message',
-      title: 'New Message from Dr. Smith',
-      message: 'Please review the updated course materials...',
-      time: '3 hours ago',
-      icon: ChatBubbleLeftIcon,
-      color: 'text-blue-500'
-    }
-  ];
 
   const handleLogout = async () => {
     try {
@@ -122,45 +103,86 @@ export default function TopBar() {
               className="relative rounded-full bg-gray-100 p-2 text-gray-500 hover:text-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
             >
               <BellIcon className="h-6 w-6" />
-              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-medium text-white">
-                {notifications.length}
-              </span>
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-medium text-white">
+                  {unreadCount}
+                </span>
+              )}
             </button>
 
             {/* Notifications Dropdown */}
             {showNotifications && (
               <div className="absolute right-0 mt-2 w-80 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-gray-800 overflow-hidden">
-                <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+                <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex justify-between items-center">
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Notifications</h3>
+                  {notifications.length > 0 && (
+                    <button
+                      onClick={() => markAllAsRead()}
+                      className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                    >
+                      Mark all as read
+                    </button>
+                  )}
                 </div>
                 <div className="max-h-96 overflow-y-auto">
-                  {notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer border-b border-gray-100 dark:border-gray-700/50"
-                    >
-                      <div className="flex items-start space-x-3">
-                        <notification.icon className={`h-5 w-5 ${notification.color} mt-1`} />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            {notification.title}
-                          </p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {notification.message}
-                          </p>
-                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                            {notification.time}
-                          </p>
+                  {notifications.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                      No notifications
+                    </div>
+                  ) : (
+                    notifications.map((notification) => (
+                      <div
+                        key={notification._id}
+                        onClick={() => markAsRead(notification._id)}
+                        className={`px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer border-b border-gray-100 dark:border-gray-700/50 ${
+                          !notification.isRead ? 'bg-blue-50 dark:bg-blue-900/10' : ''
+                        }`}
+                      >
+                        <div className="flex items-start space-x-3">
+                          {getNotificationIcon(notification.type)}
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                              {notification.title}
+                            </p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              {notification.message}
+                            </p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                              {moment(notification.createdAt).fromNow()}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
-                <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-2">
-                  <button className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium w-full text-center">
-                    View all notifications
-                  </button>
-                </div>
+                {/* // In the notifications dropdown, add this before the closing div of max-h-96 */}
+                {notifications.length > 0 && (
+                  <div className="sticky bottom-0 border-t border-gray-200 dark:border-gray-700 p-2 bg-white dark:bg-gray-800">
+                    <button
+                      onClick={async () => {
+                        clearAll();
+                        const Toast = Swal.mixin({
+                          toast: true,
+                          position: 'top-end',
+                          showConfirmButton: false,
+                          timer: 5000,
+                          timerProgressBar: true,
+                          background: '#10B981',
+                          color: '#ffffff'
+                        });
+                        
+                        Toast.fire({
+                          icon: 'success',
+                          title: 'Notifications cleared successfully'
+                        });
+                      }}
+                      className="w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                    >
+                      Clear All Notifications
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -210,4 +232,17 @@ export default function TopBar() {
       </div>
     </div>
   );
+}
+
+function getNotificationIcon(type) {
+  switch (type) {
+    case 'success':
+      return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
+    case 'warning':
+      return <ExclamationCircleIcon className="h-5 w-5 text-yellow-500" />;
+    case 'error':
+      return <ExclamationCircleIcon className="h-5 w-5 text-red-500" />;
+    default:
+      return <ChatBubbleLeftIcon className="h-5 w-5 text-blue-500" />;
+  }
 }
