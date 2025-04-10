@@ -5,28 +5,68 @@ import chatsModel from '@/app/models/Chats';
 
 export async function sendMessage({ content, senderId, conversationId }) {
   try {
+    if (!senderId || !conversationId) {
+      throw new Error('Invalid sender or conversation ID');
+    }
+
+    // Sort participants to ensure consistent lookup
+    const participants = [senderId, conversationId].sort();
+    
+    // Find or create chat with exact participant match
+    let chat = await chatsModel.findOrCreateChat(participants);
+    if (!chat) {
+      throw new Error('Failed to find or create chat');
+    }
+
     const messageData = {
       sender: senderId,
-      content
+      content,
+      createdAt: new Date(),
+      readBy: []
     };
 
-    const updatedChat = await chatsModel.addMessage(conversationId, messageData);
+    const updatedChat = await chatsModel.addMessage(chat._id, messageData);
 
-    // Trigger Pusher event for real-time updates
     if (updatedChat) {
       const newMessage = updatedChat.messages[updatedChat.messages.length - 1];
-      await pusherServer.trigger(
-        `chat-${conversationId}`,
-        'new-message',
-        newMessage
-      );
+      
+      // Trigger to both participants
+      await Promise.all([
+        pusherServer.trigger(
+          `user-${senderId}`,
+          'new-message',
+          { message: newMessage, chatId: chat._id }
+        ),
+        pusherServer.trigger(
+          `user-${conversationId}`,
+          'new-message',
+          { message: newMessage, chatId: chat._id }
+        )
+      ]);
 
-      return { message: newMessage, error: null };
+      return { message: newMessage, chatId: chat._id, error: null };
     }
     throw new Error('Failed to send message');
   } catch (error) {
     console.error('Error sending message:', error);
     return { message: null, error: error.message };
+  }
+}
+// Add this new server action for typing indicators
+export async function triggerTypingIndicator({ userId, conversationId }) {
+  try {
+    // Get the chat first to ensure we have the correct chat ID
+    const chat = await chatsModel.findOrCreateChat([userId, conversationId]);
+    
+    await pusherServer.trigger(
+      `chat-${chat._id}`,
+      'typing',
+      { userId }
+    );
+    return { success: true, error: null };
+  } catch (error) {
+    console.error('Error triggering typing indicator:', error);
+    return { success: false, error: error.message };
   }
 }
 

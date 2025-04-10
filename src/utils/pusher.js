@@ -11,4 +11,6 @@ export const pusherServer = new PusherServer({
 
 export const pusherClient = new PusherClient("0821587d632a1efdfaa7", {
   cluster: "ap1",
+  forceTLS: true,
+  enabledTransports: ['ws', 'wss']
 });

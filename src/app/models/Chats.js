@@ -47,15 +47,71 @@ class ChatsModel {
   async getChatById(chatId) {
     try {
       const Chat = await this.initModel();
-      const chat = await Chat.findById(chatId)
+      let chat;
+      
+      // Try to find by ID first
+      if (mongoose.Types.ObjectId.isValid(chatId)) {
+        chat = await Chat.findById(chatId)
+          .populate('participants', 'firstName lastName email')
+          .populate('messages.sender', 'firstName lastName email');
+      }
+      
+      // If not found, try to find by participants
+      if (!chat) {
+        chat = await Chat.findOne({
+          participants: { $all: [chatId] }
+        })
         .populate('participants', 'firstName lastName email')
         .populate('messages.sender', 'firstName lastName email');
+      }
+
       return chat ? JSON.parse(JSON.stringify(chat)) : null;
     } catch (error) {
       console.error('Error fetching chat:', error);
       throw error;
     }
   }
+  // Add this method after getChatById
+async findOrCreateChat(participants) {
+  try {
+    const Chat = await this.initModel();
+    
+    // Sort participants to ensure consistent order
+    const sortedParticipants = [...participants].sort();
+    
+    // First try to find an existing chat with these exact participants
+    let chat = await Chat.findOne({
+      $and: [
+        { participants: { $size: sortedParticipants.length } },
+        { participants: { $all: sortedParticipants } },
+        { participants: { $not: { $elemMatch: { $nin: sortedParticipants } } } }
+      ]
+    })
+    .populate('participants', 'firstName lastName email')
+    .populate('messages.sender', 'firstName lastName email');
+
+    // If no chat exists, create a new one
+    if (!chat) {
+      chat = await Chat.create({
+        participants: sortedParticipants,
+        messages: [],
+        lastMessage: null,
+        isGroup: false,
+        isActive: true
+      });
+      // Populate the newly created chat
+      chat = await chat.populate([
+        { path: 'participants', select: 'firstName lastName email' },
+        { path: 'messages.sender', select: 'firstName lastName email' }
+      ]);
+    }
+
+    return JSON.parse(JSON.stringify(chat));
+  } catch (error) {
+    console.error('Error in findOrCreateChat:', error);
+    throw error;
+  }
+}
 
   async addMessage(chatId, messageData) {
     try {

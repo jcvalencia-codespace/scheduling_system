@@ -1,33 +1,92 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useChat } from '@/app/context/ChatContext';
-import ChatModel from './_components/ChatModel';
+import ChatWindow from './_components/ChatWindow';
 import UserList from './_components/UserList';
 import useAuthStore from '@/store/useAuthStore';
+import { getUsers } from './_actions';
+import { useLoading } from '@/app/context/LoadingContext';
+import { pusherClient } from '@/utils/pusher';  // Add this import
 
 export default function ChatsPage() {
   const { user } = useAuthStore();
-  const { setActiveConversation } = useChat();
+  const { setActiveConversation, messages } = useChat();
   const [selectedUser, setSelectedUser] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [unreadCounts, setUnreadCounts] = useState({});
+  const { setIsLoading } = useLoading();
 
-  const handleUserSelect = (userId) => {
-    setSelectedUser(userId);
-    setActiveConversation(userId);
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setIsLoading(true);
+      try {
+        const { users: fetchedUsers, error } = await getUsers();
+        if (!error && fetchedUsers) {
+          // Filter out current user
+          const filteredUsers = fetchedUsers.filter(
+            u => u._id !== user?._id
+          );
+          setUsers(filteredUsers);
+        }
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchUsers();
+    }
+  }, [user, setIsLoading]);
+
+  // Update unread counts when messages change
+  useEffect(() => {
+    if (!user?._id) return;
+
+    const channel = pusherClient.subscribe(`user-${user._id}`);
+    
+    channel.bind('new-message', ({ message }) => {
+      if (message.sender._id !== user._id) {
+        setUnreadCounts(prev => ({
+          ...prev,
+          [message.sender._id]: (prev[message.sender._id] || 0) + 1
+        }));
+      }
+    });
+
+    return () => {
+      pusherClient.unsubscribe(`user-${user._id}`);
+    };
+  }, [user]);
+
+  const handleUserSelect = (selectedUser) => {
+    setSelectedUser(selectedUser);
+    setActiveConversation(selectedUser._id);
+    // Clear unread count for selected user
+    setUnreadCounts(prev => ({
+      ...prev,
+      [selectedUser._id]: 0
+    }));
   };
 
   return (
     <div className="container mx-auto p-4 h-[calc(100vh-4rem)]">
       <div className="flex h-full gap-4">
-        {/* Users List */}
         <div className="w-1/3 bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
-          <UserList onUserSelect={handleUserSelect} />
+          <UserList 
+            users={users} 
+            onUserSelect={handleUserSelect} 
+            activeUser={selectedUser?._id}
+            unreadCounts={unreadCounts}
+          />
         </div>
 
         {/* Chat Window */}
         <div className="flex-1">
           {selectedUser ? (
-            <ChatModel selectedUser={selectedUser} />
+            <ChatWindow selectedUser={selectedUser} />
           ) : (
             <div className="flex flex-col items-center justify-center h-full bg-white rounded-xl shadow-lg border border-gray-200 p-8">
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">

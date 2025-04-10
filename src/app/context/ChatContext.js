@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
 import { pusherClient } from '@/utils/pusher';
-import { getMessages, sendMessage, markMessageRead } from '../(main)/chats/_actions';
+import { getMessages, sendMessage, markMessageRead, triggerTypingIndicator } from '../(main)/chats/_actions';
 import useAuthStore from '@/store/useAuthStore';
 
 const ChatContext = createContext();
@@ -10,56 +10,90 @@ const ChatContext = createContext();
 export function ChatProvider({ children }) {
   const [messages, setMessages] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
+  const [activeChatId, setActiveChatId] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
   const { user } = useAuthStore();
 
+  // Single useEffect for user-specific channel
+  useEffect(() => {
+    if (!user?._id) return;
+
+    // Subscribe to user's personal channel for all their chats
+    const channel = pusherClient.subscribe(`user-${user._id}`);
+    
+    channel.bind('new-message', ({ message, chatId }) => {
+      // Update messages if it's the active conversation
+      setMessages(prev => {
+        // Check if message already exists to prevent duplicates
+        const messageExists = prev.some(m => m._id === message._id);
+        if (messageExists) return prev;
+        
+        // Sort messages by date
+        const newMessages = [...prev, message].sort((a, b) => 
+          new Date(a.createdAt) - new Date(b.createdAt)
+        );
+        return newMessages;
+      });
+    });
+  
+    return () => {
+      pusherClient.unsubscribe(`user-${user._id}`);
+    };
+  }, [user?._id]);
+
+  // Single useEffect for fetching messages and chat-specific channel
   useEffect(() => {
     if (!activeConversation) return;
 
-    // Fetch existing messages
     const fetchMessages = async () => {
       const { messages: conversationMessages, error } = await getMessages(activeConversation);
-      if (!error) {
-        setMessages(conversationMessages);
+      if (!error && conversationMessages) {
+        // Sort messages by date
+        const sortedMessages = conversationMessages.sort((a, b) => 
+          new Date(a.createdAt) - new Date(b.createdAt)
+        );
+        setMessages(sortedMessages);
       }
     };
 
     fetchMessages();
 
-    // Subscribe to Pusher channel
-    const channel = pusherClient.subscribe(`chat-${activeConversation}`);
-    
-    channel.bind('new-message', (newMessage) => {
-      setMessages(prev => [newMessage, ...prev]);
-    });
-
-    channel.bind('typing', ({ userId }) => {
-      if (userId !== user?._id) {
-        setIsTyping(true);
-        // Reset typing indicator after 2 seconds
-        setTimeout(() => setIsTyping(false), 2000);
-      }
+    // Subscribe to chat-specific channel
+    const chatChannel = pusherClient.subscribe(`chat-${activeChatId}`);
+    chatChannel.bind('new-message', ({ message }) => {
+      setMessages(prev => {
+        const messageExists = prev.some(m => m._id === message._id);
+        if (messageExists) return prev;
+        return [...prev, message];
+      });
     });
 
     return () => {
-      pusherClient.unsubscribe(`chat-${activeConversation}`);
+      if (activeChatId) {
+        pusherClient.unsubscribe(`chat-${activeChatId}`);
+      }
     };
-  }, [activeConversation, user?._id]);
+  }, [activeConversation, activeChatId]);
 
   const sendChatMessage = async (content) => {
     if (!user?._id || !activeConversation) return;
-
-    const { message, error } = await sendMessage({
-      content,
-      senderId: user._id,
-      conversationId: activeConversation
-    });
-
-    if (!error) {
-      setMessages(prev => [message, ...prev]);
+    
+    try {
+      const result = await sendMessage({
+        content,
+        senderId: user._id,
+        conversationId: activeConversation
+      });
+      
+      if (result.chatId) {
+        setActiveChatId(result.chatId);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Error sending message:', error);
+      return { error: error.message };
     }
-
-    return { error };
   };
 
   const markAsRead = async (messageId) => {
@@ -73,12 +107,19 @@ export function ChatProvider({ children }) {
     }
   };
 
-  const triggerTyping = () => {
-    if (!user?._id || !activeConversation) return;
 
-    pusherClient.trigger(`chat-${activeConversation}`, 'typing', {
-      userId: user._id
-    });
+
+  const triggerTyping = async () => {
+    if (!user?._id || !activeConversation) return;
+    
+    try {
+      await triggerTypingIndicator({
+        userId: user._id,
+        conversationId: activeChatId || activeConversation
+      });
+    } catch (error) {
+      console.error('Error triggering typing indicator:', error);
+    }
   };
 
   return (
