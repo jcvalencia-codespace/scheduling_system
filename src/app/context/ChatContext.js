@@ -12,6 +12,7 @@ export function ChatProvider({ children }) {
   const [activeConversation, setActiveConversation] = useState(null);
   const [activeChatId, setActiveChatId] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
+  const [lastMessages, setLastMessages] = useState({});
   const { user } = useAuthStore();
 
   // Single useEffect for user-specific channel
@@ -34,6 +35,12 @@ export function ChatProvider({ children }) {
         );
         return newMessages;
       });
+
+      // Update last message for the chat
+      setLastMessages(prev => ({
+        ...prev,
+        [chatId]: message
+      }));
     });
   
     return () => {
@@ -130,7 +137,8 @@ export function ChatProvider({ children }) {
       isTyping,
       sendMessage: sendChatMessage,
       markAsRead,
-      triggerTyping
+      triggerTyping,
+      lastMessages
     }}>
       {children}
     </ChatContext.Provider>

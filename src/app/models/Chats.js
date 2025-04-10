@@ -168,8 +168,58 @@ async findOrCreateChat(participants) {
 
   async getAllUsers() {
     try {
+      // First get all users
       const users = await usersModel.getAllUsers();
-      return users;
+      
+      // Then get all chats with only the last message
+      const Chat = await this.initModel();
+      const chats = await Chat.find({}, {
+        participants: 1,
+        'messages': { $slice: -1 }
+      })
+      .populate('messages.sender', 'firstName lastName email')
+      .sort({ 'messages.createdAt': -1 });
+
+      // Map users with their last messages
+      const usersWithLastMessage = users.map(user => {
+        // Find all chats where this user is a participant
+        const userChats = chats.filter(chat => 
+          chat.participants.some(participant => 
+            participant.toString() === user._id.toString()
+          )
+        );
+
+        // Get the most recent message from all user's chats
+        let lastMessage = null;
+        userChats.forEach(chat => {
+          const lastChatMessage = chat.messages[0]; // Since we're only fetching the last message
+          if (lastChatMessage && (!lastMessage || new Date(lastChatMessage.createdAt) > new Date(lastMessage.createdAt))) {
+            lastMessage = {
+              content: lastChatMessage.content,
+              createdAt: lastChatMessage.createdAt,
+              sender: {
+                _id: lastChatMessage.sender._id,
+                firstName: lastChatMessage.sender.firstName,
+                lastName: lastChatMessage.sender.lastName,
+                email: lastChatMessage.sender.email
+              }
+            };
+          }
+        });
+
+        // Return user with minimal necessary fields
+        return {
+          _id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          department: user.department,
+          role: user.role,
+          lastMessage
+        };
+      });
+
+      return JSON.parse(JSON.stringify(usersWithLastMessage));
     } catch (error) {
       console.error('Error fetching all users:', error);
       throw error;

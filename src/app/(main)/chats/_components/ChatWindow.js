@@ -98,7 +98,7 @@ export default function ChatWindow({ selectedUser }) {
                   className={`max-w-[70%] break-words rounded-lg px-4 py-2 ${
                     message.sender._id === user?._id
                       ? 'bg-blue-500 text-white'
-                      : 'bg-gray-100'
+                      : 'bg-gray-100 text-gray-800'
                   }`}
                 >
                   <p className="text-sm">{message.content}</p>

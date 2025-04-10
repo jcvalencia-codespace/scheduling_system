@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
-export default function UserList({ users, onUserSelect, activeUser, unreadCounts }) {
+export default function UserList({ users, onUserSelect, activeUser, unreadCounts, currentUserId }) {
   const [searchTerm, setSearchTerm] = useState('');
   
   const filteredUsers = users?.filter(user => 
@@ -41,22 +41,30 @@ export default function UserList({ users, onUserSelect, activeUser, unreadCounts
                 activeUser === user._id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
               }`}
             >
-              <div className="flex items-center">
-                <div className="flex-shrink-0 relative">
-                  <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center">
-                    {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
-                  </div>
-                  {unreadCounts?.[user._id] > 0 && (
-                    <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                      {unreadCounts[user._id]}
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center flex-grow">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center">
+                      {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
                     </div>
-                  )}
+                  </div>
+                  <div className="ml-3 min-w-0 flex-grow">
+                    <p className="text-sm font-medium text-gray-900">{user.firstName} {user.lastName}</p>
+                    <p className={`text-sm truncate ${unreadCounts?.[user._id] > 0 ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
+                      {user.lastMessage ? (
+                        <>
+                          {user.lastMessage.senderId === currentUserId ? 'You: ' : ''}
+                          {user.lastMessage.content}
+                        </>
+                      ) : 'No messages yet'}
+                    </p>
+                  </div>
                 </div>
-                <div className="ml-3 flex-grow">
-                  <p className="text-sm font-medium text-gray-900">{user.firstName} {user.lastName}</p>
-                  <p className="text-xs text-gray-500">{user.email}</p>
-                  <p className="text-xs text-gray-400">{user.role}</p>
-                </div>
+                {unreadCounts?.[user._id] > 0 && (
+                  <div className="ml-2 bg-blue-500 text-white text-xs rounded-full px-2 py-1 min-w-[1.25rem] text-center">
+                    {unreadCounts[user._id]}
+                  </div>
+                )}
               </div>
             </div>
           ))

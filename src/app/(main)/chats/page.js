@@ -7,26 +7,30 @@ import UserList from './_components/UserList';
 import useAuthStore from '@/store/useAuthStore';
 import { getUsers } from './_actions';
 import { useLoading } from '@/app/context/LoadingContext';
-import { pusherClient } from '@/utils/pusher';  // Add this import
+import { pusherClient } from '@/utils/pusher';
 
 export default function ChatsPage() {
   const { user } = useAuthStore();
-  const { setActiveConversation, messages } = useChat();
+  const { setActiveConversation, messages, lastMessages } = useChat();
   const [selectedUser, setSelectedUser] = useState(null);
   const [users, setUsers] = useState([]);
   const [unreadCounts, setUnreadCounts] = useState({});
   const { setIsLoading } = useLoading();
 
+  // Fetch users only when user changes
   useEffect(() => {
     const fetchUsers = async () => {
       setIsLoading(true);
       try {
         const { users: fetchedUsers, error } = await getUsers();
         if (!error && fetchedUsers) {
-          // Filter out current user
+          // Filter out current user and map with lastMessages
           const filteredUsers = fetchedUsers.filter(
             u => u._id !== user?._id
-          );
+          ).map(u => ({
+            ...u,
+            lastMessage: lastMessages[u._id] || u.lastMessage
+          }));
           setUsers(filteredUsers);
         }
       } catch (error) {
@@ -41,17 +45,29 @@ export default function ChatsPage() {
     }
   }, [user, setIsLoading]);
 
-  // Update unread counts when messages change
+  // Update users and unread counts when new messages arrive
   useEffect(() => {
     if (!user?._id) return;
 
     const channel = pusherClient.subscribe(`user-${user._id}`);
     
-    channel.bind('new-message', ({ message }) => {
+    channel.bind('new-message', ({ message, chatId }) => {
       if (message.sender._id !== user._id) {
+        // Update unread counts
         setUnreadCounts(prev => ({
           ...prev,
           [message.sender._id]: (prev[message.sender._id] || 0) + 1
+        }));
+
+        // Update users list with new last message
+        setUsers(prev => prev.map(u => {
+          if (u._id === message.sender._id ) {
+            return {
+              ...u,
+              lastMessage: message
+            };
+          }
+          return u;
         }));
       }
     });
