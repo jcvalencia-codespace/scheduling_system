@@ -13,6 +13,8 @@ export function ChatProvider({ children }) {
   const [activeChatId, setActiveChatId] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
   const [lastMessages, setLastMessages] = useState({});
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const { user } = useAuthStore();
 
   // Single useEffect for user-specific channel
@@ -53,13 +55,20 @@ export function ChatProvider({ children }) {
     if (!activeConversation) return;
 
     const fetchMessages = async () => {
-      const { messages: conversationMessages, error } = await getMessages(activeConversation);
-      if (!error && conversationMessages) {
-        // Sort messages by date
-        const sortedMessages = conversationMessages.sort((a, b) => 
-          new Date(a.createdAt) - new Date(b.createdAt)
-        );
-        setMessages(sortedMessages);
+      setIsLoadingMessages(true);
+      try {
+        const { messages: conversationMessages, error } = await getMessages(activeConversation);
+        if (!error && conversationMessages) {
+          // Sort messages by date
+          const sortedMessages = conversationMessages.sort((a, b) => 
+            new Date(a.createdAt) - new Date(b.createdAt)
+          );
+          setMessages(sortedMessages);
+        }
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+      } finally {
+        setIsLoadingMessages(false);
       }
     };
 
@@ -138,7 +147,10 @@ export function ChatProvider({ children }) {
       sendMessage: sendChatMessage,
       markAsRead,
       triggerTyping,
-      lastMessages
+      lastMessages,
+      isLoadingMessages,
+      isLoadingUsers,
+      setIsLoadingUsers
     }}>
       {children}
     </ChatContext.Provider>

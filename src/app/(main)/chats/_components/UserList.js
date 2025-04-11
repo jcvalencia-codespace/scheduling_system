@@ -1,12 +1,21 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
 export default function UserList({ users, onUserSelect, activeUser, unreadCounts, currentUserId }) {
   const [searchTerm, setSearchTerm] = useState('');
   
-  const filteredUsers = users?.filter(user => 
+  // Sort users by lastMessage timestamp
+  const sortedUsers = useMemo(() => {
+    return [...(users || [])].sort((a, b) => {
+      const timestampA = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt) : new Date(0);
+      const timestampB = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt) : new Date(0);
+      return timestampB - timestampA; // Sort in descending order (newest first)
+    });
+  }, [users]);
+
+  const filteredUsers = sortedUsers.filter(user => 
     user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -44,7 +53,7 @@ export default function UserList({ users, onUserSelect, activeUser, unreadCounts
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center flex-grow">
                   <div className="flex-shrink-0">
-                    <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center">
+                    <div className={`w-10 h-10 rounded-full ${getRandomColor(user._id)} text-white flex items-center justify-center`}>
                       {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
                     </div>
                   </div>
@@ -52,10 +61,11 @@ export default function UserList({ users, onUserSelect, activeUser, unreadCounts
                     <p className="text-sm font-medium text-gray-900">{user.firstName} {user.lastName}</p>
                     <p className={`text-sm truncate ${unreadCounts?.[user._id] > 0 ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
                       {user.lastMessage ? (
-                        <>
-                          {user.lastMessage.senderId === currentUserId ? 'You: ' : ''}
-                          {user.lastMessage.content}
-                        </>
+                        unreadCounts?.[user._id] > 0 ?
+                          'View New Message' :
+                          activeUser === user._id ?
+                            `Chatting with ${user.firstName}` :
+                            'View Conversation'
                       ) : 'No messages yet'}
                     </p>
                   </div>
@@ -75,3 +85,20 @@ export default function UserList({ users, onUserSelect, activeUser, unreadCounts
     </div>
   );
 }
+
+
+const getRandomColor = (userId) => {
+  const colors = [
+    'bg-blue-500',
+    'bg-green-500',
+    'bg-purple-500',
+    'bg-pink-500',
+    'bg-indigo-500',
+    'bg-red-500',
+    'bg-yellow-500',
+    'bg-teal-500'
+  ];
+  // Use userId to generate a consistent index
+  const index = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
+  return colors[index];
+};

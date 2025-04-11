@@ -194,16 +194,16 @@ export default function TopBar() {
               onClick={() => setShowDropdown(!showDropdown)}
             >
               <div className="relative h-10 w-10 overflow-hidden rounded-full">
-              <div className="w-10 h-10 rounded-full bg-[#35408E] text-white flex items-center justify-center">
-                    {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
-                  </div>
+                <div className="w-10 h-10 rounded-full bg-[#35408E] text-white flex items-center justify-center">
+                  {user?.firstName?.charAt(0) || ''}{user?.lastName?.charAt(0) || ''}
+                </div>
               </div>
               <div className="hidden md:block text-left">
                 <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  Good day, {user?.lastName}!
+                  {user ? `Good day, ${user.lastName}!` : 'Loading...'}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {user?.role}
+                  {user?.role || ''}
                 </p>
               </div>
               <ChevronDownIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />

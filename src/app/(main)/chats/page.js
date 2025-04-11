@@ -8,10 +8,11 @@ import useAuthStore from '@/store/useAuthStore';
 import { getUsers } from './_actions';
 import { useLoading } from '@/app/context/LoadingContext';
 import { pusherClient } from '@/utils/pusher';
+import { UserListSkeleton, ChatWindowSkeleton } from './_components/Skeleton';
 
 export default function ChatsPage() {
   const { user } = useAuthStore();
-  const { setActiveConversation, messages, lastMessages } = useChat();
+  const { setActiveConversation, messages, lastMessages, isLoadingMessages, setIsLoadingUsers } = useChat();
   const [selectedUser, setSelectedUser] = useState(null);
   const [users, setUsers] = useState([]);
   const [unreadCounts, setUnreadCounts] = useState({});
@@ -52,24 +53,27 @@ export default function ChatsPage() {
     const channel = pusherClient.subscribe(`user-${user._id}`);
     
     channel.bind('new-message', ({ message, chatId }) => {
+      // Update unread counts only for received messages
       if (message.sender._id !== user._id) {
-        // Update unread counts
         setUnreadCounts(prev => ({
           ...prev,
           [message.sender._id]: (prev[message.sender._id] || 0) + 1
         }));
-
-        // Update users list with new last message
-        setUsers(prev => prev.map(u => {
-          if (u._id === message.sender._id ) {
-            return {
-              ...u,
-              lastMessage: message
-            };
-          }
-          return u;
-        }));
       }
+
+      // Update users list with new last message for both sender and receiver
+      setUsers(prev => prev.map(u => {
+        // For sender: update recipient's last message
+        // For receiver: update sender's last message
+        if ((message.sender._id === user._id && u._id === chatId) ||
+            (message.sender._id !== user._id && u._id === message.sender._id)) {
+          return {
+            ...u,
+            lastMessage: message
+          };
+        }
+        return u;
+      }));
     });
 
     return () => {
@@ -91,18 +95,26 @@ export default function ChatsPage() {
     <div className="container mx-auto p-4 h-[calc(100vh-4rem)]">
       <div className="flex h-full gap-4">
         <div className="w-1/3 bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
-          <UserList 
-            users={users} 
-            onUserSelect={handleUserSelect} 
-            activeUser={selectedUser?._id}
-            unreadCounts={unreadCounts}
-          />
+          {users.length === 0 ? (
+            <UserListSkeleton />
+          ) : (
+            <UserList 
+              users={users} 
+              onUserSelect={handleUserSelect} 
+              activeUser={selectedUser?._id}
+              unreadCounts={unreadCounts}
+            />
+          )}
         </div>
 
         {/* Chat Window */}
         <div className="flex-1">
           {selectedUser ? (
-            <ChatWindow selectedUser={selectedUser} />
+            isLoadingMessages ? (
+              <ChatWindowSkeleton />
+            ) : (
+              <ChatWindow selectedUser={selectedUser} />
+            )
           ) : (
             <div className="flex flex-col items-center justify-center h-full bg-white rounded-xl shadow-lg border border-gray-200 p-8">
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">

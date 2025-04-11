@@ -67,11 +67,11 @@ export default function ChatWindow({ selectedUser }) {
     <div className="flex flex-col h-full bg-white rounded-lg shadow-lg overflow-hidden">
       {/* Chat Header remains the same */}
       {selectedUser && (
-        <div className="p-4 border-b bg-blue-50">
-          <h3 className="text-lg font-semibold text-gray-900">
+        <div className="p-4 border-b bg-[#35408E]">
+          <h3 className="text-lg font-semibold text-white">
             {selectedUser.firstName} {selectedUser.lastName}
           </h3>
-          <p className="text-sm text-gray-600">{selectedUser.email}</p>
+          <p className="text-sm text-gray-50">{selectedUser.email}</p>
         </div>
       )}
 
@@ -102,8 +102,13 @@ export default function ChatWindow({ selectedUser }) {
                   }`}
                 >
                   <p className="text-sm">{message.content}</p>
-                  <p className="text-xs mt-1 opacity-70">
-                    {moment(message.createdAt).format('HH:mm')}
+                  <p className="text-xs mt-1 opacity-70 flex items-center gap-1">
+                    Sent at {moment(message.createdAt).format('h:mm A')}
+                    {message.sender._id === user?._id && (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
                   </p>
                 </div>
               </div>
