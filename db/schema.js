@@ -528,6 +528,63 @@ const NotificationSchema = new Schema({
   collection: 'notifications'
 });
 
+const ChatSchema = new Schema({
+  participants: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Users',
+    required: true
+  }],
+  messages: [{
+    sender: {
+      type: Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
+    },
+    content: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    readBy: [{
+      user: {
+        type: Schema.Types.ObjectId,
+        ref: 'Users'
+      },
+      readAt: {
+        type: Date,
+        default: Date.now
+      }
+    }],
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  lastMessage: {
+    type: Date,
+    default: Date.now
+  },
+  isGroup: {
+    type: Boolean,
+    default: false
+  },
+  groupName: {
+    type: String,
+    trim: true
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  }
+}, {
+  timestamps: true,
+  collection: 'chats'
+});
+
+// Index for efficient querying
+ChatSchema.index({ participants: 1, lastMessage: -1 });
+ChatSchema.index({ 'messages.sender': 1, 'messages.createdAt': -1 });
+
 export {
   UserSchema,
   SubjectSchema,
@@ -539,5 +596,6 @@ export {
   FeedbackSchema,
   AssignSubjectsSchema,
   ScheduleSchema,
-  NotificationSchema
+  NotificationSchema,
+  ChatSchema
 };

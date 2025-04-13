@@ -194,19 +194,16 @@ export default function TopBar() {
               onClick={() => setShowDropdown(!showDropdown)}
             >
               <div className="relative h-10 w-10 overflow-hidden rounded-full">
-                <Image
-                  src="/nu-shield.png"
-                  alt="Profile"
-                  fill
-                  className="object-cover"
-                />
+                <div className="w-10 h-10 rounded-full bg-[#35408E] text-white flex items-center justify-center">
+                  {user?.firstName?.charAt(0) || ''}{user?.lastName?.charAt(0) || ''}
+                </div>
               </div>
               <div className="hidden md:block text-left">
                 <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  Good day, {user?.lastName}!
+                  {user ? `Good day, ${user.lastName}!` : 'Loading...'}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {user?.role}
+                  {user?.role || ''}
                 </p>
               </div>
               <ChevronDownIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
@@ -216,6 +213,7 @@ export default function TopBar() {
             {showDropdown && (
               <div className="absolute right-0 mt-2 w-48 rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-gray-800">
                 <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 border-b dark:border-gray-700">
+                  <p className="font-semibold">{user?.firstName} {user?.lastName}</p>
                   <p className="font-medium">{user?.email}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{user?.department}</p>
                 </div>
