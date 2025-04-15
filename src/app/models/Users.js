@@ -2,6 +2,7 @@ import { UserSchema } from '../../../db/schema';
 import connectDB from '../../../lib/mongo';
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
+import { Departments, Courses } from './index';
 
 class UsersModel {
   constructor() {
@@ -14,6 +15,28 @@ class UsersModel {
       this.MODEL = mongoose.models.Users || mongoose.model("Users", UserSchema);
     }
     return this.MODEL;
+  }
+
+  async getAllUsers() {
+    try {
+      const User = await this.initModel();
+      const users = await User.find({})
+        .select('-password')
+        .populate({
+          path: 'department',
+          model: Departments,
+          select: 'departmentCode departmentName'
+        })
+        .populate({
+          path: 'course',
+          model: Courses,
+          select: 'courseCode courseTitle'
+        });
+      return JSON.parse(JSON.stringify(users));
+    } catch (error) {
+      console.error('Error in getAllUsers:', error);
+      throw error;
+    }
   }
 
   async createUser(userData) {
@@ -35,11 +58,14 @@ class UsersModel {
     return user ? JSON.parse(JSON.stringify(user)) : null;
   }
 
-  async getAllUsers() {
-    const User = await this.initModel();
-    const users = await User.find({}).select('-password');
-    return JSON.parse(JSON.stringify(users));
-  }
+  // async getAllUsers() {
+  //   const User = await this.initModel();
+  //   const users = await User.find({})
+  //     .select('-password')
+  //     .populate('department', 'departmentCode departmentName')
+  //     .populate('course', 'courseCode courseTitle');
+  //   return JSON.parse(JSON.stringify(users));
+  // }
 
   async updateUser(userId, updateData) {
     const User = await this.initModel();
@@ -52,7 +78,10 @@ class UsersModel {
       userId,
       { $set: updateData },
       { new: true }
-    ).select('-password');
+    )
+    .select('-password')
+    .populate('department', 'departmentCode departmentName')
+    .populate('course', 'courseCode courseTitle');
 
     return updatedUser ? JSON.parse(JSON.stringify(updatedUser)) : null;
   }
@@ -120,6 +149,33 @@ class UsersModel {
       return JSON.parse(JSON.stringify(facultyData));
     } catch (error) {
       console.error('Error in getFacultyUsers:', error);
+      throw error;
+    }
+  }
+
+  async getDepartments() {
+    try {
+      const departments = await Departments.find({ isActive: true })
+        .select('departmentCode departmentName')
+        .sort({ departmentName: 1 });
+      return JSON.parse(JSON.stringify(departments));
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+      throw error;
+    }
+  }
+
+  async getCoursesByDepartment(departmentId) {
+    try {
+      const courses = await Courses.find({ 
+        department: departmentId,
+        isActive: true 
+      })
+        .select('courseCode courseTitle')
+        .sort({ courseTitle: 1 });
+      return JSON.parse(JSON.stringify(courses));
+    } catch (error) {
+      console.error('Error fetching courses:', error);
       throw error;
     }
   }

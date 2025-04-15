@@ -3,8 +3,10 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { addUser, editUser } from '../_actions';
+import { addUser, editUser, getDepartments, getCoursesByDepartment } from '../_actions';
 import Swal from 'sweetalert2';
+import Select from 'react-select';
+import { FullFormSkeleton, CourseDropdownSkeleton } from './Skeleton';
 
 const initialFormState = {
   firstName: '',
@@ -21,6 +23,27 @@ const initialFormState = {
 export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
   const [formData, setFormData] = useState(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [departments, setDepartments] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  // Add this state to track course loading
+  const [isLoadingCourses, setIsLoadingCourses] = useState(false);
+
+  useEffect(() => {
+    // Fetch departments when modal opens
+    if (show) {
+      fetchDepartments();
+    }
+  }, [show]);
+
+  useEffect(() => {
+    // Fetch courses when department changes
+    if (formData.department) {
+      fetchCourses(formData.department);
+    } else {
+      setCourses([]);
+    }
+  }, [formData.department]);
 
   useEffect(() => {
     if (user) {
@@ -29,26 +52,66 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
         lastName: user.lastName,
         middleName: user.middleName || '',
         email: user.email,
-        password: '', // Don't populate password
+        password: '',
         role: user.role,
-        department: user.department,
-        course: user.course,
+        // Use the actual IDs from the populated objects
+        department: user.department?._id || '',
+        course: user.course?._id || '',
         employmentType: user.employmentType
       });
+
+      // If there's a department, fetch its courses
+      if (user.department?._id) {
+        fetchCourses(user.department._id);
+      }
     } else {
       setFormData(initialFormState);
     }
   }, [user, show]);
 
+  const fetchDepartments = async () => {
+    const result = await getDepartments();
+    if (result.departments) {
+      setDepartments(result.departments);
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to fetch departments',
+        confirmButtonColor: '#323E8F'
+      });
+    }
+    setIsLoading(false);
+  };
+
+
+
+  // Update fetchCourses function
+  const fetchCourses = async (departmentId) => {
+    setIsLoadingCourses(true);
+    const result = await getCoursesByDepartment(departmentId);
+    if (result.courses) {
+      setCourses(result.courses);
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to fetch courses',
+        confirmButtonColor: '#323E8F'
+      });
+    }
+    setIsLoadingCourses(false);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (isSubmitting) return;
     setIsSubmitting(true);
 
     try {
       console.log('Submitting form data:', formData);
-      
+
       const form = new FormData();
       Object.keys(formData).forEach(key => {
         if (formData[key] !== '' || key === 'middleName') {
@@ -56,7 +119,7 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
         }
       });
 
-      const result = user 
+      const result = user
         ? await editUser(user._id, form)
         : await addUser(form);
 
@@ -91,6 +154,13 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
       setIsSubmitting(false);
     }
   };
+  // Modify handleChange to handle react-select changes
+  const handleSelectChange = (selectedOption, { name }) => {
+    setFormData(prev => ({
+      ...prev,
+      [name]: selectedOption ? selectedOption.value : ''
+    }));
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -106,7 +176,83 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
       onClose();
     }
   };
+  const formatDepartmentOptions = () => {
+    return departments.map(dept => ({
+      value: dept._id,
+      label: dept.departmentName
+    }));
+  };
 
+  const formatCourseOptions = () => {
+    return courses.map(course => ({
+      value: course._id,
+      label: course.courseTitle
+    }));
+  };
+
+  const roleOptions = [
+    { value: 'Administrator', label: 'Administrator' },
+    { value: 'Dean', label: 'Dean' },
+    { value: 'Program Chair', label: 'Program Chair' },
+    { value: 'Faculty', label: 'Faculty' }
+  ];
+
+  const employmentTypeOptions = [
+    { value: 'full-time', label: 'Full-Time' },
+    { value: 'part-time', label: 'Part-Time' }
+  ];
+
+  // Update the customStyles object
+  const customStyles = {
+    control: (base, state) => ({
+      ...base,
+      minHeight: '42px',
+      backgroundColor: 'white',
+      borderColor: state.isFocused ? '#323E8F' : '#E5E7EB',
+      borderRadius: '0.375rem', // rounded-md
+      boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)', // shadow-sm
+      '&:hover': {
+        borderColor: '#323E8F'
+      },
+      '&:focus': {
+        borderColor: '#323E8F',
+        boxShadow: '0 0 0 1px #323E8F'
+      }
+    }),
+    placeholder: (base) => ({
+      ...base,
+      color: '#6B7280',
+    }),
+    option: (base, state) => ({
+      ...base,
+      backgroundColor: state.isSelected ? '#323E8F' : state.isFocused ? '#EFF6FF' : 'white',
+      color: state.isSelected ? 'white' : 'black',
+      cursor: 'pointer',
+      padding: '8px 12px',
+    }),
+    menu: (base) => ({
+      ...base,
+      zIndex: 100,
+    }),
+    menuList: (base) => ({
+      ...base,
+      maxHeight: '200px', // Set maximum height
+      overflowY: 'auto', // Enable vertical scrolling
+      '&::-webkit-scrollbar': {
+        width: '8px'
+      },
+      '&::-webkit-scrollbar-track': {
+        background: '#f1f1f1'
+      },
+      '&::-webkit-scrollbar-thumb': {
+        background: '#888',
+        borderRadius: '4px'
+      },
+      '&::-webkit-scrollbar-thumb:hover': {
+        background: '#555'
+      }
+    })
+  };
   return (
     <Transition.Root show={show} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={handleClose}>
@@ -151,177 +297,205 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
                       {user ? 'Edit User' : 'Add New User'}
                     </Dialog.Title>
                     <div className="mt-4">
-                      <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-                          <div>
-                            <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
-                              First Name
-                            </label>
-                            <input
-                              type="text"
-                              name="firstName"
-                              id="firstName"
-                              required
-                              value={formData.firstName}
-                              onChange={handleChange}
-                              disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                            />
+                      {isLoading ? (
+                        <FullFormSkeleton />
+                      ) : (
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                          <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+                            <div>
+                              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
+                                First Name
+                              </label>
+                              <input
+                                type="text"
+                                name="firstName"
+                                id="firstName"
+                                required
+                                value={formData.firstName}
+                                onChange={handleChange}
+                                disabled={isSubmitting}
+                                className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                              />
+                            </div>
+
+                            <div>
+                              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
+                                Last Name
+                              </label>
+                              <input
+                                type="text"
+                                name="lastName"
+                                id="lastName"
+                                required
+                                value={formData.lastName}
+                                onChange={handleChange}
+                                disabled={isSubmitting}
+                                className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                              />
+                            </div>
+
+                            <div className="sm:col-span-2">
+                              <label htmlFor="middleName" className="block text-sm font-medium text-gray-700">
+                                Middle Name (Optional)
+                              </label>
+                              <input
+                                type="text"
+                                name="middleName"
+                                id="middleName"
+                                value={formData.middleName}
+                                onChange={handleChange}
+                                disabled={isSubmitting}
+                                className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                              />
+                            </div>
+
+                            <div className="sm:col-span-2">
+                              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                                Email
+                              </label>
+                              <input
+                                type="email"
+                                name="email"
+                                id="email"
+                                required
+                                value={formData.email}
+                                onChange={handleChange}
+                                disabled={isSubmitting}
+                                className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                              />
+                            </div>
+
+                            <div className="sm:col-span-2">
+                              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                                {user ? 'New Password (leave blank to keep current)' : 'Password'}
+                              </label>
+                              <input
+                                type="password"
+                                name="password"
+                                id="password"
+                                required={!user}
+                                value={formData.password}
+                                onChange={handleChange}
+                                disabled={isSubmitting}
+                                className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                              />
+                            </div>
+
+                            <div>
+                              <label htmlFor="role" className="block text-sm font-medium text-gray-700">
+                                Role
+                              </label>
+                              <Select
+                                id="role"
+                                name="role"
+                                options={roleOptions}
+                                value={roleOptions.find(option => option.value === formData.role)}
+                                onChange={(option) => handleSelectChange(option, { name: 'role' })}
+                                isDisabled={isSubmitting}
+                                className="mt-1 text-black"
+                                classNamePrefix="select"
+                                placeholder="Select Role"
+                                isClearable={true}
+                                styles={customStyles}
+                                maxMenuHeight={200}
+                                menuPlacement="top"
+                                isRequired
+                              />
+                            </div>
+
+                            <div>
+                              <label htmlFor="department" className="block text-sm font-medium text-gray-700">
+                                Department
+                              </label>
+                              <Select
+                                id="department"
+                                name="department"
+                                options={formatDepartmentOptions()}
+                                value={formatDepartmentOptions().find(option => option.value === formData.department) || null}
+                                onChange={(option) => handleSelectChange(option, { name: 'department' })}
+                                isDisabled={isSubmitting}
+                                className="mt-1 text-black"
+                                classNamePrefix="select"
+                                placeholder="Select Department"
+                                isClearable={true}
+                                styles={customStyles}
+                                maxMenuHeight={200}
+                                menuPlacement="top"
+                                isRequired
+                              />
+                            </div>
+
+
+                            <div>
+                              <label htmlFor="course" className="block text-sm font-medium text-gray-700">
+                                Course
+                              </label>
+                              {isLoadingCourses ? (
+                                <div className="mt-1">
+                                  <CourseDropdownSkeleton />
+                                </div>
+                              ) : (
+                                <Select
+                                  id="course"
+                                  name="course"
+                                  options={formatCourseOptions()}
+                                  value={formatCourseOptions().find(option => option.value === formData.course) || null}
+                                  onChange={(option) => handleSelectChange(option, { name: 'course' })}
+                                  isDisabled={isSubmitting || !formData.department}
+                                  className="mt-1 text-black"
+                                  classNamePrefix="select"
+                                  placeholder="Select Course"
+                                  isClearable={true}
+                                  styles={customStyles}
+                                  maxMenuHeight={200}
+                                  menuPlacement="top"
+                                  isRequired
+                                />
+                              )}
+                            </div>
+
+                            <div>
+                              <label htmlFor="employmentType" className="block text-sm font-medium text-gray-700">
+                                Employment Type
+                              </label>
+                              <Select
+                                id="employmentType"
+                                name="employmentType"
+                                options={employmentTypeOptions}
+                                value={employmentTypeOptions.find(option => option.value === formData.employmentType)}
+                                onChange={(option) => handleSelectChange(option, { name: 'employmentType' })}
+                                isDisabled={isSubmitting}
+                                className="mt-1 text-black"
+                                classNamePrefix="select"
+                                placeholder="Select Employment Type"
+                                isClearable={true}
+                                styles={customStyles}
+                                maxMenuHeight={200}
+                                menuPlacement="top"
+                                isRequired
+                              />
+                            </div>
                           </div>
 
-                          <div>
-                            <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
-                              Last Name
-                            </label>
-                            <input
-                              type="text"
-                              name="lastName"
-                              id="lastName"
-                              required
-                              value={formData.lastName}
-                              onChange={handleChange}
+                          <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                            <button
+                              type="submit"
                               disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                            />
-                          </div>
-
-                          <div className="sm:col-span-2">
-                            <label htmlFor="middleName" className="block text-sm font-medium text-gray-700">
-                              Middle Name (Optional)
-                            </label>
-                            <input
-                              type="text"
-                              name="middleName"
-                              id="middleName"
-                              value={formData.middleName}
-                              onChange={handleChange}
-                              disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                            />
-                          </div>
-
-                          <div className="sm:col-span-2">
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                              Email
-                            </label>
-                            <input
-                              type="email"
-                              name="email"
-                              id="email"
-                              required
-                              value={formData.email}
-                              onChange={handleChange}
-                              disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                            />
-                          </div>
-
-                          <div className="sm:col-span-2">
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                              {user ? 'New Password (leave blank to keep current)' : 'Password'}
-                            </label>
-                            <input
-                              type="password"
-                              name="password"
-                              id="password"
-                              required={!user}
-                              value={formData.password}
-                              onChange={handleChange}
-                              disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                            />
-                          </div>
-
-                          <div>
-                            <label htmlFor="role" className="block text-sm font-medium text-gray-700">
-                              Role
-                            </label>
-                            <select
-                              name="role"
-                              id="role"
-                              required
-                              value={formData.role}
-                              onChange={handleChange}
-                              disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                              className={`inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 sm:ml-3 sm:w-auto ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
-                              <option value="">Select Role</option>
-                              <option value="Administrator">Administrator</option>
-                              <option value="Dean">Dean</option>
-                              <option value="Program Chair">Program Chair</option>
-                              <option value="Faculty">Faculty</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label htmlFor="department" className="block text-sm font-medium text-gray-700">
-                              Department
-                            </label>
-                            <input
-                              type="text"
-                              name="department"
-                              id="department"
-                              required
-                              value={formData.department}
-                              onChange={handleChange}
+                              {isSubmitting ? 'Saving...' : (user ? 'Update User' : 'Add User')}
+                            </button>
+                            <button
+                              type="button"
+                              className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+                              onClick={handleClose}
                               disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                            />
-                          </div>
-
-                          <div>
-                            <label htmlFor="course" className="block text-sm font-medium text-gray-700">
-                              Course
-                            </label>
-                            <input
-                              type="text"
-                              name="course"
-                              id="course"
-                              required
-                              value={formData.course}
-                              onChange={handleChange}
-                              disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                            />
-                          </div>
-
-                          <div>
-                            <label htmlFor="employmentType" className="block text-sm font-medium text-gray-700">
-                              Employment Type
-                            </label>
-                            <select
-                              id="employmentType"
-                              name="employmentType"
-                              value={formData.employmentType}
-                              onChange={(e) => setFormData({ ...formData, employmentType: e.target.value })}
-                              required
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                             >
-                              <option value="" disabled>Select employment type</option>
-                              <option value="full-time">Full-Time</option>
-                              <option value="part-time">Part-Time</option>
-                            </select>
+                              Cancel
+                            </button>
                           </div>
-                        </div>
-
-                        <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                          <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className={`inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 sm:ml-3 sm:w-auto ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          >
-                            {isSubmitting ? 'Saving...' : (user ? 'Update User' : 'Add User')}
-                          </button>
-                          <button
-                            type="button"
-                            className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
-                            onClick={handleClose}
-                            disabled={isSubmitting}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </form>
+                        </form>
+                      )}
                     </div>
                   </div>
                 </div>

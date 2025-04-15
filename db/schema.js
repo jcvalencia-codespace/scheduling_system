@@ -34,14 +34,14 @@ const UserSchema = new Schema({
     enum: ['Administrator', 'Dean', 'Program Chair', 'Faculty']
   },
   department: {
-    type: String,
-    required: true,
-    trim: true
+    type: Schema.Types.ObjectId,
+    ref: 'departments',
+    required: true
   },
   course: {
-    type: String,
-    required: true,
-    trim: true
+    type: Schema.Types.ObjectId,
+    ref: 'courses',
+    required: true
   },
   employmentType: {
     type: String,

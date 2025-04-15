@@ -12,8 +12,8 @@ export async function addUser(formData) {
       email: formData.get('email'),
       password: formData.get('password'),
       role: formData.get('role'),
-      department: formData.get('department'),
-      course: formData.get('course'),
+      department: formData.get('department'), // This should be the department ObjectId
+      course: formData.get('course'), // This should be the course ObjectId
       employmentType: formData.get('employmentType')?.trim().toLowerCase() // Safe access and normalize
     };
 
@@ -96,5 +96,25 @@ export async function removeUser(userId) {
   } catch (error) {
     console.error('Error in removeUser:', error);
     return { error: error.message || 'Failed to delete user' };
+  }
+}
+
+export async function getDepartments() {
+  try {
+    const departments = await usersModel.getDepartments();
+    return { departments };
+  } catch (error) {
+    console.error('Error fetching departments:', error);
+    return { error: 'Failed to fetch departments' };
+  }
+}
+
+export async function getCoursesByDepartment(departmentId) {
+  try {
+    const courses = await usersModel.getCoursesByDepartment(departmentId);
+    return { courses };
+  } catch (error) {
+    console.error('Error fetching courses:', error);
+    return { error: 'Failed to fetch courses' };
   }
 }
