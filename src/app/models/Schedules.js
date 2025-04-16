@@ -78,21 +78,38 @@ export default class SchedulesModel {
   static async getFaculty() {
     try {
       const faculty = await Users.aggregate([
+        // Match non-administrator users
+        {
+          $match: {
+            role: { $ne: 'Administrator' }
+          }
+        },
+        // Lookup department info
+        {
+          $lookup: {
+            from: 'departments',
+            localField: 'department',
+            foreignField: '_id',
+            as: 'departmentInfo'
+          }
+        },
+        { $unwind: '$departmentInfo' },
+        // Project required fields
         {
           $project: {
             _id: 1,
             firstName: 1,
             lastName: 1,
-            department: 1,
             employmentType: 1,
             role: 1,
+            department: '$departmentInfo.departmentCode',
             fullName: {
               $concat: [
                 '$lastName',
                 ', ',
                 '$firstName',
                 ' (',
-                '$department',
+                '$departmentInfo.departmentCode',
                 ' - ',
                 '$role',
                 ')'
