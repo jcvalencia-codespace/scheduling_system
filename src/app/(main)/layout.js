@@ -6,6 +6,7 @@ import { useSidebar } from '../context/SidebarContext';
 import Loading from '../components/Loading';
 import { useState, useEffect } from 'react';
 import { LoadingProvider } from '../context/LoadingContext';
+import { ChatProvider } from '@/app/context/ChatContext';
 
 export default function MainLayout({ children }) {
   const { isSidebarOpen, isMobile } = useSidebar();
@@ -21,7 +22,7 @@ export default function MainLayout({ children }) {
 
   return (
     <LoadingProvider>
-      <>
+      <ChatProvider>
         {isLoading && <Loading />}
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
           <Sidebar />
@@ -36,8 +37,12 @@ export default function MainLayout({ children }) {
             </main>
           </div>
         </div>
+
         <div id="modal-root"></div>
       </>
+
+      </ChatProvider>
+
     </LoadingProvider>
   );
 }

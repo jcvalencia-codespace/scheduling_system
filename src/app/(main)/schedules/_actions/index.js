@@ -59,13 +59,25 @@ export async function createSchedule(scheduleData) {
 
     console.log('Creating schedule with data:', scheduleData);
     
-    const schedule = await schedulesModel.createSchedule(scheduleData);
+    const result = await schedulesModel.createSchedule(scheduleData);
     
-    if (!schedule) {
-      throw new Error('Failed to create schedule');
+    // Check if result exists
+    if (!result) {
+      throw new Error('Failed to create schedule: No result returned');
     }
     
-    return { schedule: JSON.parse(JSON.stringify(schedule)) };
+    // Check if there are conflicts
+    if (result.conflicts) {
+      console.log('Conflicts detected in server action:', result.conflicts);
+      return { conflicts: result.conflicts };
+    }
+    
+    // Check if schedule exists
+    if (!result.schedule) {
+      throw new Error('Failed to create schedule: No schedule in result');
+    }
+    
+    return { schedule: JSON.parse(JSON.stringify(result.schedule)) };
   } catch (error) {
     console.error('Error creating schedule:', error);
     return { error: error.message };
@@ -81,8 +93,14 @@ export async function updateSchedule(scheduleId, scheduleData) {
     // Convert userId to ObjectId
     scheduleData.userId = new mongoose.Types.ObjectId(scheduleData.userId);
     
-    const schedule = await schedulesModel.updateSchedule(scheduleId, scheduleData);
-    return { schedule: JSON.parse(JSON.stringify(schedule)) };
+    const result = await schedulesModel.updateSchedule(scheduleId, scheduleData);
+    
+    // Check if there are conflicts
+    if (result.conflicts) {
+      return { conflicts: result.conflicts };
+    }
+    
+    return { schedule: JSON.parse(JSON.stringify(result.schedule)) };
   } catch (error) {
     console.error('Error updating schedule:', error);
     return { error: error.message || 'Failed to update schedule' };

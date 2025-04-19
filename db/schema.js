@@ -34,14 +34,14 @@ const UserSchema = new Schema({
     enum: ['Administrator', 'Dean', 'Program Chair', 'Faculty']
   },
   department: {
-    type: String,
-    required: true,
-    trim: true
+    type: Schema.Types.ObjectId,
+    ref: 'departments',
+    required: true
   },
   course: {
-    type: String,
-    required: true,
-    trim: true
+    type: Schema.Types.ObjectId,
+    ref: 'courses',
+    required: true
   },
   employmentType: {
     type: String,
@@ -521,37 +521,102 @@ const ScheduleSchema = new Schema({
   timestamps: true,
   collection: 'schedules'
 });
-
-const ChatMessageSchema = new Schema({
-  sender: {
+// Add this to your existing schema.js file
+const NotificationSchema = new Schema({
+  userId: {
     type: Schema.Types.ObjectId,
     ref: 'Users',
-    required: true
+    required: true,
+    index: true
   },
-  receiver: {
-    type: Schema.Types.ObjectId,
-    ref: 'Users',
-    required: true
-  },
-  content: {  // Changed from message to content
+  title: {
     type: String,
     required: true
   },
-  read: {
+  message: {
+    type: String,
+    required: true
+  },
+  type: {
+    type: String,
+    enum: ['success', 'warning', 'error', 'info'],
+    default: 'info'
+  },
+  isRead: {
     type: Boolean,
     default: false
   },
+  relatedSchedule: {
+    type: Schema.Types.ObjectId,
+    ref: 'Schedules',
+    required: false
+  },
   createdAt: {
     type: Date,
-    default: Date.now
+    default: Date.now,
+    expires: 2592000 // 30 days
   }
 }, {
   timestamps: true,
-  collection: 'chatMessages'
+  collection: 'notifications'
 });
 
-// Add index for better query performance
-ChatMessageSchema.index({ sender: 1, receiver: 1, createdAt: -1 });
+const ChatSchema = new Schema({
+  participants: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Users',
+    required: true
+  }],
+  messages: [{
+    sender: {
+      type: Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
+    },
+    content: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    readBy: [{
+      user: {
+        type: Schema.Types.ObjectId,
+        ref: 'Users'
+      },
+      readAt: {
+        type: Date,
+        default: Date.now
+      }
+    }],
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  lastMessage: {
+    type: Date,
+    default: Date.now
+  },
+  isGroup: {
+    type: Boolean,
+    default: false
+  },
+  groupName: {
+    type: String,
+    trim: true
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  }
+}, {
+  timestamps: true,
+  collection: 'chats'
+});
+
+// Index for efficient querying
+ChatSchema.index({ participants: 1, lastMessage: -1 });
+ChatSchema.index({ 'messages.sender': 1, 'messages.createdAt': -1 });
 
 export {
   UserSchema,
@@ -564,5 +629,6 @@ export {
   FeedbackSchema,
   AssignSubjectsSchema,
   ScheduleSchema,
-  ChatMessageSchema
+  NotificationSchema,
+  ChatSchema
 };

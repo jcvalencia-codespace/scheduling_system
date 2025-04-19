@@ -17,7 +17,12 @@ import {
 import { deleteSchedule } from '../_actions';
 import NewScheduleModal  from './NewScheduleModal';
 
+// Add useAuthStore to imports
+import useAuthStore from '@/store/useAuthStore';
+
 export default function ViewScheduleModal({ isOpen, onClose, schedule, onScheduleDeleted }) {
+  // Add user from auth store
+  const { user } = useAuthStore();
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentSchedule, setCurrentSchedule] = useState(schedule);
 
@@ -46,7 +51,8 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule, onSchedul
 
     if (result.isConfirmed) {
       try {
-        const response = await deleteSchedule(schedule._id);
+        // Pass the user._id as second parameter
+        const response = await deleteSchedule(schedule._id, user._id);
         if (response.error) {
           throw new Error(response.error);
         }
@@ -54,7 +60,6 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule, onSchedul
           title: 'Deleted!',
           text: 'Schedule has been deleted.',
           icon: 'success',
-          
         });
         onClose();
         onScheduleDeleted();

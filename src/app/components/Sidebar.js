@@ -21,7 +21,8 @@ import {
   ListBulletIcon,
   BookOpenIcon,
   XMarkIcon,
-  ArrowLeftOnRectangleIcon
+  ArrowLeftOnRectangleIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
 
 // Define role-based menu items
@@ -63,6 +64,11 @@ const roleMenuItems = {
       title: 'Send Feedback',
       href: '/feedback',
       icon: EnvelopeIcon
+    },
+    {
+      title: 'Chat',
+      href: '/chats',
+      icon: ChatBubbleLeftRightIcon
     }
   ],
   'Program Chair': [
@@ -102,6 +108,11 @@ const roleMenuItems = {
       title: 'Send Feedback',
       href: '/feedback',
       icon: EnvelopeIcon
+    },
+    {
+      title: 'Chat',
+      href: '/chats',
+      icon: ChatBubbleLeftRightIcon
     }
   ],
   Administrator: [
@@ -159,6 +170,11 @@ const roleMenuItems = {
       title: 'Send Feedback',
       href: '/feedback',
       icon: EnvelopeIcon
+    },
+    {
+      title: 'Chat',
+      href: '/chats',
+      icon: ChatBubbleLeftRightIcon
     }
   ],
   Faculty: [
@@ -166,6 +182,11 @@ const roleMenuItems = {
       title: 'Schedules',
       href: '/schedules',
       icon: CalendarDaysIcon,
+    },
+    {
+      title: 'Chat',
+      href: '/chats',
+      icon: ChatBubbleLeftRightIcon
     },
     {
       title: 'Send Feedback',
