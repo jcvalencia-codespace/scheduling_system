@@ -39,7 +39,7 @@ export default function MainLayout({ children }) {
         </div>
 
         <div id="modal-root"></div>
-      </>
+    
 
       </ChatProvider>
 

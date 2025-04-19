@@ -153,35 +153,6 @@ class UsersModel {
     }
   }
 
-  async getAllUsersForChat() {
-    try {
-      const Users = await this.initModel();
-      const users = await Users.aggregate([
-        {
-          $sort: {
-            lastName: 1,
-            firstName: 1
-          }
-        },
-        {
-          $project: {
-            _id: 1,
-            lastName: 1,
-            firstName: 1,
-            middleName: 1,
-            email: 1,
-            role: 1,
-            department: 1,
-            course: 1,
-            employmentType: 1
-          }
-        }
-      ]);
-      
-      return JSON.parse(JSON.stringify(users));
-    } catch (error) {
-      console.error('Error in getAllUsersForChat:', error);
-
   async getDepartments() {
     try {
       const departments = await Departments.find({ isActive: true })
@@ -190,90 +161,9 @@ class UsersModel {
       return JSON.parse(JSON.stringify(departments));
     } catch (error) {
       console.error('Error fetching departments:', error);
-
       throw error;
     }
   }
-
-
-  async find() {
-    try {
-      const User = await this.initModel();
-      if (!User) {
-        console.error('Failed to initialize User model');
-        return [];
-      }
-
-      const users = await User.find(
-        { isActive: { $ne: false } }
-      ).lean().exec();
-
-      // Properly serialize ObjectIds
-      const serializedUsers = users.map(user => ({
-        ...user,
-        _id: user._id.toString()
-      }));
-
-      console.log('Users found in database:', serializedUsers?.length);
-      return serializedUsers;
-    } catch (error) {
-      console.error('Error in find:', error);
-      return [];
-    }
-  }
-
-  async findById(userId) {
-    try {
-      const User = await this.initModel();
-      const user = await User.findById(userId)
-        .select('-password')
-        .lean()
-        .exec();
-
-      if (!user) return null;
-
-      return {
-        ...user,
-        _id: user._id.toString()
-      };
-    } catch (error) {
-      console.error('Error in findById:', error);
-      return null;
-    }
-  }
-
-  async getAvailableUsersForChat(currentUserId) {
-    try {
-      const Users = await this.initModel();
-      const users = await Users.aggregate([
-        {
-          $match: {
-            _id: { $ne: new mongoose.Types.ObjectId(currentUserId) }
-          }
-        },
-        {
-          $sort: {
-            lastName: 1,
-            firstName: 1
-          }
-        },
-        {
-          $project: {
-            _id: 1,
-            lastName: 1,
-            firstName: 1,
-            email: 1,
-            role: 1,
-            department: 1,
-            profileImage: 1,
-            status: { $literal: "offline" } // You can update this with real status later
-          }
-        }
-      ]);
-      
-      return JSON.parse(JSON.stringify(users));
-    } catch (error) {
-      console.error('Error in getAvailableUsersForChat:', error);
 
   async getCoursesByDepartment(departmentId) {
     try {
@@ -286,7 +176,6 @@ class UsersModel {
       return JSON.parse(JSON.stringify(courses));
     } catch (error) {
       console.error('Error fetching courses:', error);
-
       throw error;
     }
   }
