@@ -204,6 +204,12 @@ export default class SchedulesModel {
         return moment(timeStr, 'h:mm A').format('h:mm A');
       };
 
+      // Get the term details to access academicYear
+      const term = await mongoose.model('Terms').findById(scheduleData.term);
+      if (!term) {
+        throw new Error('Term not found');
+      }
+
       // Prepare schedule slots
       const scheduleSlots = [{
         days: scheduleData.days,
@@ -224,7 +230,7 @@ export default class SchedulesModel {
         });
       }
 
-      // Create schedule document with update history
+      // Create schedule document with update history including academicYear
       const schedule = await Schedules.create({
         term: scheduleData.term,
         section: scheduleData.section,
@@ -237,9 +243,10 @@ export default class SchedulesModel {
         scheduleSlots,
         isActive: true,
         updateHistory: [{
-          updatedBy: scheduleData.userId, // Make sure to pass userId in scheduleData
+          updatedBy: scheduleData.userId,
           updatedAt: new Date(),
-          action: 'created'
+          action: 'created',
+          academicYear: term.academicYear // Add the academicYear from the term
         }]
       });
 

@@ -1,4 +1,4 @@
-import { SectionSchema, DepartmentSchema, CourseSchema } from '../../../db/schema';
+import { SectionSchema, DepartmentSchema, CourseSchema, TermSchema } from '../../../db/schema';
 import connectDB from '../../../lib/mongo';
 import mongoose from 'mongoose';
 
@@ -22,9 +22,30 @@ class SectionsModel {
     return this.MODEL;
   }
 
+  async validateSectionData(sectionData) {
+    // Get active term
+    const Term = mongoose.models.Term || mongoose.model('Term', TermSchema);
+    const activeTerm = await Term.findOne({ status: 'Active' });
+    if (!activeTerm) {
+      throw new Error('No active term found');
+    }
+    sectionData.academicYear = activeTerm.academicYear;
+
+    // Continue with existing validation
+  }
+
   async createSection(sectionData) {
     try {
       const Section = await this.initModel();
+      const section = new Section({
+        ...sectionData,
+        updateHistory: [{
+          updatedBy: sectionData.userId,
+          updatedAt: new Date(),
+          action: 'created',
+          academicYear: sectionData.academicYear
+        }]
+      });
       
       // Start a session for transaction
       const session = await mongoose.startSession();
@@ -40,7 +61,6 @@ class SectionsModel {
           );
           
           // Create new section
-          const section = new Section(sectionData);
           await section.save({ session });
           
           // Populate the section after saving
@@ -94,7 +114,8 @@ class SectionsModel {
         .populate({
           path: 'department',
           select: 'departmentCode departmentName'
-        });
+        })
+        .populate('updateHistory.updatedBy', 'firstName lastName'); // Add this line
       return JSON.parse(JSON.stringify(sections));
     } catch (error) {
       console.error('Error in getAllSectionsWithDepartment:', error);
@@ -109,26 +130,38 @@ class SectionsModel {
   }
 
   async getSectionByName(sectionName) {
-    // Update existing method to get any section regardless of status
     const Section = await this.initModel();
-    const section = await Section.findOne({ sectionName });
+    const section = await Section.findOne({ sectionName })
+      .populate({
+        path: 'course',
+        select: 'courseCode courseTitle department',
+        populate: {
+          path: 'department',
+          select: 'departmentCode departmentName'
+        }
+      })
+      .populate({
+        path: 'department',
+        select: 'departmentCode departmentName'
+      })
+      .populate('updateHistory.updatedBy', 'firstName lastName'); // Add this line
     return section ? JSON.parse(JSON.stringify(section)) : null;
   }
 
-  async updateSection(sectionName, updateData) {
+  async updateSection(id, updateData) {
     const Section = await this.initModel();
-    // Add update history entry
+    const { $push, ...otherUpdateData } = updateData;
+
+    // Convert string ID to ObjectId if needed
+    const _id = typeof id === 'string' && mongoose.Types.ObjectId.isValid(id) 
+      ? new mongoose.Types.ObjectId(id) 
+      : id;
+
     const updatedSection = await Section.findOneAndUpdate(
-      { sectionName },
+      { _id, isActive: true },
       { 
-        $set: updateData,
-        $push: { 
-          updateHistory: {
-            updatedBy: updateData.updatedBy,
-            updatedAt: new Date(),
-            action: 'updated'
-          }
-        }
+        $set: otherUpdateData,
+        $push: updateData.$push // updateData.$push already contains academicYear
       },
       { new: true, runValidators: true }
     ).populate({
@@ -145,25 +178,15 @@ class SectionsModel {
     return updatedSection ? JSON.parse(JSON.stringify(updatedSection)) : null;
   }
 
-  async deleteSection(sectionName, updateData) {
+  async deleteSection(id, updateData) {
     const Section = await this.initModel();
-    
-    // First get the section to ensure it exists
-    const existingSection = await Section.findOne({ sectionName, isActive: true });
-    if (!existingSection) return null;
+    const { $push, ...otherUpdateData } = updateData;
 
-    // Then update it with the deactivation and history
     const section = await Section.findOneAndUpdate(
-      { _id: existingSection._id },
+      { _id: id, isActive: true },
       { 
-        $set: { isActive: false },
-        $push: { 
-          updateHistory: {
-            updatedBy: updateData.updatedBy,
-            updatedAt: new Date(),
-            action: 'deleted'
-          }
-        }
+        $set: { ...otherUpdateData, isActive: false },
+        $push: updateData.$push // updateData.$push already contains academicYear
       },
       { new: true }
     );
@@ -188,7 +211,42 @@ class SectionsModel {
     return existingSection ? JSON.parse(JSON.stringify(existingSection)) : null;
   }
 
+  async reactivateSection(id, userId) {
+    // Get active term
+    const Term = mongoose.models.Term || mongoose.model('Term', TermSchema);
+    const activeTerm = await Term.findOne({ status: 'Active' });
+    if (!activeTerm) {
+      throw new Error('No active term found');
+    }
+
+    const Section = await this.initModel();
+    const section = await Section.findOneAndUpdate(
+      { _id: id, isActive: false },
+      { 
+        isActive: true,
+        $push: {
+          updateHistory: {
+            updatedBy: userId,
+            updatedAt: new Date(),
+            action: 'reactivated',
+            academicYear: activeTerm.academicYear
+          }
+        }
+      },
+      { new: true }
+    ).populate('department', 'departmentCode departmentName');
+    
+    return section ? JSON.parse(JSON.stringify(section)) : null;
+  }
+
   async processSectionCreation(formData) {
+    // Get active term first
+    const Term = mongoose.models.Term || mongoose.model('Term', TermSchema);
+    const activeTerm = await Term.findOne({ status: 'Active' });
+    if (!activeTerm) {
+      throw new Error('No active term found');
+    }
+
     const sectionName = formData.get('sectionName');
     const courseId = formData.get('courseCode');
     const yearLevel = formData.get('yearLevel');
@@ -220,30 +278,28 @@ class SectionsModel {
           updateHistory: {
             updatedBy: new mongoose.Types.ObjectId(userId),
             updatedAt: new Date(),
-            action: 'reactivated'
+            action: 'reactivated',
+            academicYear: activeTerm.academicYear // Add academicYear here
           }
         }
       };
 
-      const reactivatedSection = await this.updateSection(sectionName, updateData);
+      const reactivatedSection = await this.updateSection(existingSection._id, updateData);
       if (!reactivatedSection) {
         throw new Error('Failed to reactivate section');
       }
       return { section: reactivatedSection, reactivated: true };
     }
 
-    // Create new section
+    // Create new section with academicYear
     const sectionData = {
       sectionName,
       course: courseId,
       department: course.department,
       yearLevel,
       isActive: true,
-      updateHistory: [{
-        updatedBy: new mongoose.Types.ObjectId(userId),
-        updatedAt: new Date(),
-        action: 'created'
-      }]
+      userId,
+      academicYear: activeTerm.academicYear // Add academicYear here
     };
 
     const newSection = await this.createSection(sectionData);
@@ -254,58 +310,67 @@ class SectionsModel {
     return { section: newSection };
   }
 
-  async processSectionUpdate(sectionName, formData) {
-    const courseId = formData.get('courseCode');
-    const newYearLevel = formData.get('yearLevel');
+  async processSectionUpdate(sectionId, formData) {
     const userId = formData.get('userId');
-    const newSectionName = formData.get('sectionName');
+    const section = await this.getSectionByName(sectionId);
+    if (!section) {
+      throw new Error('Section not found');
+    }
+
+    // Get active term
+    const Term = mongoose.models.Term || mongoose.model('Term', TermSchema);
+    const activeTerm = await Term.findOne({ status: 'Active' });
+    if (!activeTerm) {
+      throw new Error('No active term found');
+    }
 
     // Get course with department
-    const course = await this.COURSE_MODEL.findById(courseId).populate('department');
+    const course = await this.COURSE_MODEL.findById(formData.get('courseCode')).populate('department');
     if (!course) {
       throw new Error('Course not found');
     }
 
-    if (!course.department || !course.department._id) {
-      throw new Error('Department information is missing from the course');
-    }
-
     const updateData = {
-      sectionName: newSectionName,
-      course: new mongoose.Types.ObjectId(courseId),
-      department: new mongoose.Types.ObjectId(course.department._id),
-      yearLevel: newYearLevel,
+      sectionName: formData.get('sectionName'),
+      course: formData.get('courseCode'),
+      department: course.department._id,
+      yearLevel: formData.get('yearLevel'),
       updatedBy: new mongoose.Types.ObjectId(userId),
       $push: {
         updateHistory: {
           updatedBy: new mongoose.Types.ObjectId(userId),
           updatedAt: new Date(),
-          action: 'updated'
+          action: 'updated',
+          academicYear: activeTerm.academicYear
         }
       }
     };
 
-    const updatedSection = await this.updateSection(sectionName, updateData);
-    if (!updatedSection) {
-      throw new Error('Section not found');
-    }
-
+    const updatedSection = await this.updateSection(section._id, updateData);
     return { section: updatedSection };
   }
 
-  async processSectionDeletion(sectionName, userId) {
+  async processSectionDeletion(sectionId, userId) {
+    // Get active term
+    const Term = mongoose.models.Term || mongoose.model('Term', TermSchema);
+    const activeTerm = await Term.findOne({ status: 'Active' });
+    if (!activeTerm) {
+      throw new Error('No active term found');
+    }
+
     const updateData = {
       updatedBy: new mongoose.Types.ObjectId(userId),
       $push: {
         updateHistory: {
           updatedBy: new mongoose.Types.ObjectId(userId),
           updatedAt: new Date(),
-          action: 'deleted'
+          action: 'deleted',
+          academicYear: activeTerm.academicYear
         }
       }
     };
 
-    const deletedSection = await this.deleteSection(sectionName, updateData);
+    const deletedSection = await this.deleteSection(sectionId, updateData);
     if (!deletedSection) {
       throw new Error('Section not found or already inactive');
     }

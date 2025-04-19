@@ -8,7 +8,7 @@ import {
   CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 import AddEditTermModal from './_components/AddEditTermModal';
-import { getTerms, activateTerm, deactivateTerm, removeTerm } from './_actions';
+import { getTerms, activateTerm, deactivateTerm, removeTerm, endAllTerms } from './_actions';
 import Swal from 'sweetalert2';
 import { useLoading } from '../../context/LoadingContext';
 
@@ -31,6 +31,17 @@ export default function TermPage() {
       if (response.error) {
         throw new Error(response.error);
       }
+
+      // If there are no visible terms, show a message
+      if (!response.terms || response.terms.length === 0) {
+        Swal.fire({
+          icon: 'info',
+          title: 'No Active Terms',
+          text: 'There are no visible terms in the system.',
+          confirmButtonColor: '#323E8F'
+        });
+      }
+
       setTerms(response.terms || []);
     } catch (error) {
       console.error('Error fetching terms:', error);
@@ -157,15 +168,62 @@ export default function TermPage() {
     }
   };
 
-  // Filtering function
+  const handleEndAllTerms = async () => {
+    const result = await Swal.fire({
+      title: 'End All Terms?',
+      text: 'Are you sure you want to end all active terms? This will set all terms to inactive.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#323E8F',
+      confirmButtonText: 'Yes, end all terms'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const response = await endAllTerms();
+        if (response.error) {
+          throw new Error(response.error);
+        }
+        await fetchTerms();
+        Swal.fire({
+          icon: 'success',
+          title: 'All Terms Ended',
+          text: 'All active terms have been set to inactive.',
+          confirmButtonColor: '#323E8F'
+        });
+      } catch (error) {
+        console.error('Error ending all terms:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: error.message || 'Failed to end all terms',
+          confirmButtonColor: '#323E8F'
+        });
+      }
+    }
+  };
+
+  // Filtering and sorting function
   const filteredTerms = useMemo(() => {
-    return terms.filter((term) =>
-      Object.values(term).some(
-        (value) =>
-          value &&
-          value.toString().toLowerCase().includes(searchQuery.toLowerCase())
+    const termOrder = { 'Term 1': 1, 'Term 2': 2, 'Term 3': 3 };
+    
+    return terms
+      .filter((term) =>
+        Object.values(term).some(
+          (value) =>
+            value &&
+            value.toString().toLowerCase().includes(searchQuery.toLowerCase())
+        )
       )
-    );
+      .sort((a, b) => {
+        // First sort by academic year
+        if (a.academicYear !== b.academicYear) {
+          return a.academicYear.localeCompare(b.academicYear);
+        }
+        // Then sort by term sequence
+        return termOrder[a.term] - termOrder[b.term];
+      });
   }, [terms, searchQuery]);
 
   const formatDate = (dateString) => {
@@ -183,17 +241,25 @@ export default function TermPage() {
               Manage academic terms and their schedules.
             </p>
           </div>
-          <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+          <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-row sm:items-center sm:space-x-2">
+          <button
+              type="button"
+              onClick={handleEndAllTerms}
+              className="inline-flex items-center rounded-lg bg-red-600 px-5 py-2 text-sm font-semibold text-white shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600 transition-all"
+            >
+              <span className="mr-2">✖</span> End All Terms
+            </button>
             <button
               type="button"
               onClick={() => {
                 setSelectedTerm(null);
                 setIsAddModalOpen(true);
               }}
-              className="block rounded-md bg-[#323E8F] px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-[#35408E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#323E8F]"
+              className="inline-flex items-center rounded-lg bg-[#323E8F] px-5 py-2 text-sm font-semibold text-white shadow-md hover:bg-[#2A347A] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#323E8F] transition-all"
             >
-              Add Term
+              <span className="mr-2">+</span> Add Term
             </button>
+            
           </div>
         </div>
 
@@ -274,30 +340,30 @@ export default function TermPage() {
                               {formatDate(term.endDate)}
                             </td>
                             <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                              <div className="flex justify-end items-center space-x-3">
+                              <div className="flex justify-end items-center gap-2">
                                 <button
-                                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-[#323E8F] hover:text-[#35408E] hover:bg-[#323E8F]/5 transition-colors duration-200"
+                                  className="inline-flex items-center justify-center w-24 px-3 py-2 text-sm font-medium rounded-lg text-[#323E8F] bg-gray-100 hover:text-[#2A347A] hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#323E8F]"
                                   onClick={() => {
                                     setSelectedTerm(term);
                                     setIsAddModalOpen(true);
                                   }}
                                 >
-                                  <PencilSquareIcon className="h-4 w-4 mr-1.5" />
-                                  <span>Edit</span>
+                                  <PencilSquareIcon className="h-4 w-4 mr-2" />
+                                  Edit
                                 </button>
                                 <button
-                                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors duration-200"
+                                  className="inline-flex items-center justify-center w-24 px-3 py-2 text-sm font-medium rounded-lg text-red-600 bg-gray-100 hover:text-red-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600"
                                   onClick={() => handleDelete(term.id)}
                                 >
-                                  <TrashIcon className="h-4 w-4 mr-1.5" />
-                                  <span>Delete</span>
+                                  <TrashIcon className="h-4 w-4 mr-2" />
+                                  Delete
                                 </button>
                                 <button
-                                  className={`inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-200 ${
+                                  className={`inline-flex items-center justify-center w-24 px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
                                     term.status === 'Active'
-                                      ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
-                                      : 'text-gray-600 hover:text-gray-700 hover:bg-gray-50'
-                                  }`}
+                                      ? 'text-green-600 bg-gray-100 hover:text-green-700 hover:bg-gray-200 focus:ring-green-600'
+                                      : 'text-gray-600 bg-gray-100 hover:text-gray-700 hover:bg-gray-200 focus:ring-gray-600'
+                                  } focus:outline-none focus:ring-2 focus:ring-offset-2`}
                                   onClick={() =>
                                     handleActivate(term.id, term.status, {
                                       term: term.term,
@@ -305,8 +371,8 @@ export default function TermPage() {
                                     })
                                   }
                                 >
-                                  <CheckCircleIcon className="h-4 w-4 mr-1.5" />
-                                  <span>{term.status === 'Active' ? 'Active' : 'Activate'}</span>
+                                  <CheckCircleIcon className="h-4 w-4 mr-2" />
+                                  {term.status === 'Active' ? 'Active' : 'Activate'}
                                 </button>
                               </div>
                             </td>

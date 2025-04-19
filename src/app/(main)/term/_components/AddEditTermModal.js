@@ -15,6 +15,19 @@ export default function AddEditTermModal({ open, setOpen, title, selectedTerm, o
   });
   const [error, setError] = useState('');
 
+  // Add state to track existing terms
+  const [existingTerms, setExistingTerms] = useState([]);
+
+  // Update useEffect to track existing terms, excluding the currently selected term
+  useEffect(() => {
+    if (terms) {
+      const existingTermNumbers = terms
+        .filter(term => !selectedTerm || term.id !== selectedTerm.id)
+        .map(term => term.term);
+      setExistingTerms(existingTermNumbers);
+    }
+  }, [terms, selectedTerm]);
+
   // Reset form when modal opens/closes or when selectedTerm changes
   useEffect(() => {
     // Reset form data and error
@@ -183,6 +196,13 @@ export default function AddEditTermModal({ open, setOpen, title, selectedTerm, o
     academicYears.push(`${year}-${year + 1}`);
   }
 
+  // Generate available terms for dropdown
+  const availableTerms = ['Term 1', 'Term 2', 'Term 3'].map(term => ({
+    value: term,
+    label: term,
+    disabled: !selectedTerm && existingTerms.includes(term)
+  }));
+
   return (
     <Transition.Root show={open} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={setOpen}>
@@ -263,58 +283,55 @@ export default function AddEditTermModal({ open, setOpen, title, selectedTerm, o
                           htmlFor="term"
                           className="block text-sm font-medium text-gray-700"
                         >
-                          Term
+                          Select Term
                         </label>
                         <select
                           id="term"
                           name="term"
                           value={formData.term}
                           onChange={handleChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black"
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black disabled:bg-gray-100 disabled:text-gray-500"
                           required
+                          disabled={!!selectedTerm}
                         >
                           <option value="">Select Term</option>
-                          <option value="Term 1">Term 1</option>
-                          <option value="Term 2">Term 2</option>
-                          <option value="Term 3">Term 3</option>
+                          {availableTerms.map((term) => (
+                            <option 
+                              key={term.value} 
+                              value={term.value}
+                              disabled={term.disabled}
+                            >
+                              {term.label} {term.disabled ? '(Already Added)' : ''}
+                            </option>
+                          ))}
                         </select>
                       </div>
 
-                      <div>
-                        <label
-                          htmlFor="startDate"
-                          className="block text-sm font-medium text-gray-700"
-                        >
-                          Start Date
-                        </label>
-                        <input
-                          type="date"
-                          id="startDate"
-                          name="startDate"
-                          value={formData.startDate}
-                          onChange={handleChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label
-                          htmlFor="endDate"
-                          className="block text-sm font-medium text-gray-700"
-                        >
-                          End Date
-                        </label>
-                        <input
-                          type="date"
-                          id="endDate"
-                          name="endDate"
-                          value={formData.endDate}
-                          onChange={handleChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black"
-                          required
-                        />
-                      </div>
+                      {formData.term && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            {formData.term} Dates
+                          </label>
+                          <div className="mt-2">
+                            <input
+                              type="date"
+                              name="startDate"
+                              value={formData.startDate}
+                              onChange={handleChange}
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black"
+                              required
+                            />
+                            <input
+                              type="date"
+                              name="endDate"
+                              value={formData.endDate}
+                              onChange={handleChange}
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black"
+                              required
+                            />
+                          </div>
+                        </div>
+                      )}
 
                       <div className="mt-5 sm:mt-6 sm:grid sm:grid-flow-row-dense sm:grid-cols-2 sm:gap-3">
                         <button

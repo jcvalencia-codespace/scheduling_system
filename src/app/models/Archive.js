@@ -40,33 +40,44 @@ class ArchiveModel {
     }
   }
 
-  async getUpdateHistory() {
+  async getUpdateHistory(startDate, endDate, academicYear) {
     try {
       await this.initializeModels();
+      console.log('Fetching history for academic year:', academicYear); // Debug log
 
-      const assignments = await this.models.AssignSubjects.find({})
-      .populate({
-        path: 'classId',
-        model: this.models.Section,
-        select: 'sectionName course yearLevel',
-        populate: {
-          path: 'course',
-          model: this.models.Course,
-          select: 'courseCode'
-        }
-      })
-      .populate({
-        path: 'updateHistory.updatedBy',
-        model: this.models.Users,
-        select: 'firstName lastName email role course'  // Added role and course
-      })
-      .select('yearLevel classId updateHistory')
-      .lean();
+      // Remove the academicYear filter from the initial query
+      const assignments = await this.models.AssignSubjects.find()
+        .populate({
+          path: 'classId',
+          model: this.models.Section,
+          select: 'sectionName course yearLevel',
+          populate: {
+            path: 'course',
+            model: this.models.Course,
+            select: 'courseCode'
+          }
+        })
+        .populate({
+          path: 'updateHistory.updatedBy',
+          model: this.models.Users,
+          select: 'firstName lastName email role course'  // Added role and course
+        })
+        .select('yearLevel classId updateHistory')
+        .lean();
 
       const history = assignments.reduce((acc, assignment) => {
         if (!assignment?.updateHistory) return acc;
 
         const historyEntries = assignment.updateHistory
+          .filter(entry => {
+            if (!entry) return false;
+            // Skip academicYear check if no academicYear is provided
+            if (!academicYear) return true;
+            // Include all entries (including null/undefined academicYear) when academicYear is provided
+            const entryYear = entry.academicYear?.toString();
+            const targetYear = academicYear?.toString();
+            return targetYear === entryYear || !entryYear;
+          })
           .map(entry => ({
             _id: entry._id?.toString() || '',
             action: entry.action || 'unknown',
@@ -82,7 +93,8 @@ class ArchiveModel {
               section: assignment.classId?.sectionName || 'N/A',
               course: assignment.classId?.course?.courseCode || 'N/A',
               yearLevel: assignment.yearLevel || 'N/A'
-            }
+            },
+            academicYear: entry.academicYear || 'N/A' // Add this to track academicYear
           }));
 
         return [...acc, ...historyEntries];
@@ -95,27 +107,41 @@ class ArchiveModel {
     }
   }
 
-  async getSubjectHistory() {
+  async getSubjectHistory(startDate, endDate, academicYear) {
     try {
       await this.initializeModels();
       
-      const subjects = await mongoose.models.Subjects.find({})
-      .populate({
-        path: 'department',
-        select: 'departmentCode departmentName'
-      })
-      .populate({
-        path: 'updateHistory.updatedBy',
-        model: this.models.Users,
-        select: 'firstName lastName email role course'
-      })
-      .select('subjectCode subjectName department updateHistory')
-      .lean();
+      // Add debug logging
+      console.log('Searching for academicYear:', academicYear);
+
+      // Remove the academicYear filter from the initial query
+      const subjects = await mongoose.models.Subjects.find()
+        .populate({
+          path: 'department',
+          select: 'departmentCode departmentName'
+        })
+        .populate({
+          path: 'updateHistory.updatedBy',
+          model: this.models.Users,
+          select: 'firstName lastName email role course'
+        })
+        .select('subjectCode subjectName department updateHistory')
+        .lean();
 
       const history = subjects.reduce((acc, subject) => {
         if (!subject?.updateHistory) return acc;
 
         const historyEntries = subject.updateHistory
+          .filter(entry => {
+            // Add null check and debug logging
+            if (!entry) return false;
+            // Skip academicYear check if no academicYear is provided
+            if (!academicYear) return true;
+            // Include all entries (including null/undefined academicYear) when academicYear is provided
+            const entryYear = entry.academicYear?.toString();
+            const targetYear = academicYear?.toString();
+            return targetYear === entryYear || !entryYear;
+          })
           .map(entry => ({
             _id: entry._id?.toString() || '',
             action: entry.action || 'unknown',
@@ -129,11 +155,15 @@ class ArchiveModel {
             } : { name: 'System', email: 'N/A', role: 'System', course: 'N/A' },
             subjectCode: subject.subjectCode,
             subjectName: subject.subjectName,
-            departmentCode: subject.department?.departmentCode || 'N/A'
+            departmentCode: subject.department?.departmentCode || 'N/A',
+            academicYear: entry.academicYear || 'N/A' // Add academicYear to output
           }));
 
         return [...acc, ...historyEntries];
       }, []);
+
+      // Add debug logging for results
+      console.log('Found history entries:', history.length);
 
       return history.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
     } catch (error) {
@@ -142,31 +172,41 @@ class ArchiveModel {
     }
   }
 
-  async getSectionHistory() {
+  async getSectionHistory(startDate, endDate, academicYear) {
     try {
       await this.initializeModels();
 
-      const sections = await mongoose.models.Sections.find({})
-      .populate({
-        path: 'course',
-        select: 'courseCode courseTitle',
-        populate: {
-          path: 'department',
-          select: 'departmentCode departmentName'
-        }
-      })
-      .populate({
-        path: 'updateHistory.updatedBy',
-        model: this.models.Users,
-        select: 'firstName lastName email role course'
-      })
-      .select('sectionName yearLevel course updateHistory')
-      .lean();
+      // Remove the academicYear filter from the initial query
+      const sections = await mongoose.models.Sections.find()
+        .populate({
+          path: 'course',
+          select: 'courseCode courseTitle',
+          populate: {
+            path: 'department',
+            select: 'departmentCode departmentName'
+          }
+        })
+        .populate({
+          path: 'updateHistory.updatedBy',
+          model: this.models.Users,
+          select: 'firstName lastName email role course'
+        })
+        .select('sectionName yearLevel course updateHistory')
+        .lean();
 
       const history = sections.reduce((acc, section) => {
         if (!section?.updateHistory) return acc;
 
         const historyEntries = section.updateHistory
+          .filter(entry => {
+            if (!entry) return false;
+            // Skip academicYear check if no academicYear is provided
+            if (!academicYear) return true;
+            // Include all entries (including null/undefined academicYear) when academicYear is provided
+            const entryYear = entry.academicYear?.toString();
+            const targetYear = academicYear?.toString();
+            return targetYear === entryYear || !entryYear;
+          })
           .map(entry => ({
             _id: entry._id?.toString() || '',
             action: entry.action || 'unknown',
@@ -183,7 +223,8 @@ class ArchiveModel {
               yearLevel: section.yearLevel || 'N/A',
               course: section.course?.courseCode || 'N/A',
               department: section.course?.department?.departmentName || 'N/A'
-            }
+            },
+            academicYear: entry.academicYear || 'N/A' // Add this to track academicYear
           }));
 
         return [...acc, ...historyEntries];
@@ -196,27 +237,37 @@ class ArchiveModel {
     }
   }
 
-  async getRoomHistory() {
+  async getRoomHistory(startDate, endDate, academicYear) {
     try {
       await this.initializeModels();
 
-      const rooms = await this.models.Rooms.find({})
-      .populate({
-        path: 'department',
-        select: 'departmentCode departmentName'
-      })
-      .populate({
-        path: 'updateHistory.updatedBy',
-        model: this.models.Users,
-        select: 'firstName lastName email role course'
-      })
-      .select('roomCode roomName capacity isActive department updateHistory')
-      .lean();
+      // Remove the academicYear filter from the initial query
+      const rooms = await this.models.Rooms.find()
+        .populate({
+          path: 'department',
+          select: 'departmentCode departmentName'
+        })
+        .populate({
+          path: 'updateHistory.updatedBy',
+          model: this.models.Users,
+          select: 'firstName lastName email role course'
+        })
+        .select('roomCode roomName capacity isActive department updateHistory')
+        .lean();
 
       const history = rooms.reduce((acc, room) => {
         if (!room?.updateHistory) return acc;
 
         const historyEntries = room.updateHistory
+          .filter(entry => {
+            if (!entry) return false;
+            // Skip academicYear check if no academicYear is provided
+            if (!academicYear) return true;
+            // Include all entries (including null/undefined academicYear) when academicYear is provided
+            const entryYear = entry.academicYear?.toString();
+            const targetYear = academicYear?.toString();
+            return targetYear === entryYear || !entryYear;
+          })
           .map(entry => ({
             _id: entry._id?.toString() || '',
             action: entry.action || 'unknown',
@@ -234,7 +285,8 @@ class ArchiveModel {
               capacity: room.capacity || 'N/A',
               status: room.isActive ? 'Active' : 'Inactive',
               department: room.department?.departmentName || 'N/A'
-            }
+            },
+            academicYear: entry.academicYear || 'N/A' // Add this to track academicYear
           }));
 
         return [...acc, ...historyEntries];

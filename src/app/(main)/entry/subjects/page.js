@@ -33,9 +33,7 @@ export default function SubjectsPage() {
   const itemsPerPage = 10;
   const [filters, setFilters] = useState({
     department: '',
-    course: ''
   });
-  const [courses, setCourses] = useState([]);
 
   const fetchSubjects = async () => {
     setIsLoading(true);
@@ -46,7 +44,6 @@ export default function SubjectsPage() {
       }
       setSubjects(response.subjects || []);
       setDepartments(response.departments || []);
-      setCourses(response.courses || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       Swal.fire({
@@ -105,9 +102,8 @@ export default function SubjectsPage() {
         departmentName.toLowerCase().includes(searchString);
 
       const matchesDepartment = !filters.department || subject.department?.departmentCode === filters.department;
-      const matchesCourse = !filters.course || subject.course?.courseCode === filters.course;
 
-      return matchesSearch && matchesDepartment && matchesCourse;
+      return matchesSearch && matchesDepartment;
     });
   }, [sortedSubjects, searchTerm, filters]);
 
@@ -278,7 +274,6 @@ export default function SubjectsPage() {
             filters={filters}
             handleFilterChange={handleFilterChange}
             departments={departments}
-            courses={courses}
           />
 
           {/* Desktop Table */}
@@ -312,13 +307,6 @@ export default function SubjectsPage() {
                         <th
                           scope="col"
                           className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
-                          onClick={() => handleSort('course')}
-                        >
-                          Course {getSortIcon('course')}
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
                           onClick={() => handleSort('department')}
                         >
                           Department {getSortIcon('department')}
@@ -342,11 +330,6 @@ export default function SubjectsPage() {
                           </td>
                           <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                             {subject.lectureHours} / {subject.labHours}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                            {subject.course?.courseCode && subject.course?.courseTitle 
-                              ? `${subject.course.courseCode} - ${subject.course.courseTitle}` 
-                              : 'N/A'}
                           </td>
                           <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                             {subject.department?.departmentCode && subject.department?.departmentName 
@@ -408,12 +391,6 @@ export default function SubjectsPage() {
                   <div className="text-sm text-gray-500">
                     <p><span className="font-medium">Name:</span> {subject.subjectName}</p>
                     <p><span className="font-medium">Hours:</span> {subject.lectureHours} / {subject.labHours}</p>
-                    <p>
-                      <span className="font-medium">Course:</span>{' '}
-                      {subject.course?.courseCode && subject.course?.courseTitle 
-                        ? `${subject.course.courseCode} - ${subject.course.courseTitle}` 
-                        : 'N/A'}
-                    </p>
                     <p>
                       <span className="font-medium">Department:</span>{' '}
                       {subject.department?.departmentCode && subject.department?.departmentName 

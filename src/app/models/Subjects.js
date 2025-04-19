@@ -1,4 +1,4 @@
-import { SubjectSchema, CourseSchema, DepartmentSchema } from '../../../db/schema';
+import { SubjectSchema, CourseSchema, DepartmentSchema, UserSchema } from '../../../db/schema';
 import connectDB from '../../../lib/mongo';
 import mongoose from 'mongoose';
 
@@ -7,6 +7,7 @@ class SubjectsModel {
     this.MODEL = null;
     this.CourseModel = null;
     this.DepartmentModel = null;
+    this.UserModel = null;
   }
 
   async initModel() {
@@ -33,24 +34,35 @@ class SubjectsModel {
     return this.DepartmentModel;
   }
 
+  async initUserModel() {
+    if (!this.UserModel) {
+      await connectDB();
+      this.UserModel = mongoose.models.Users || mongoose.model('Users', UserSchema);
+    }
+    return this.UserModel;
+  }
+
   async validateSubjectData(subjectData) {
-    const requiredFields = ['subjectCode', 'subjectName', 'lectureHours', 'labHours', 'course', 'department'];
+    const requiredFields = ['subjectCode', 'subjectName', 'lectureHours', 'labHours', 'department'];
     for (const field of requiredFields) {
       if (!subjectData[field] && subjectData[field] !== 0) {
         throw new Error(`${field} is required`);
       }
     }
 
-    // Validate if course exists
-    const Course = await this.initCourseModel();
-    const course = await Course.findById(subjectData.course).populate('department');
-    if (!course) {
-      throw new Error('Invalid course');
+    // Get active term
+    const Term = mongoose.models.Term || mongoose.model('Term', require('../../../db/schema').TermSchema);
+    const activeTerm = await Term.findOne({ status: 'Active' });
+    if (!activeTerm) {
+      throw new Error('No active term found');
     }
+    subjectData.academicYear = activeTerm.academicYear;
 
-    // Validate if department matches course's department
-    if (subjectData.department.toString() !== course.department._id.toString()) {
-      throw new Error('Department must match course department');
+    // Validate if department exists
+    const Department = await this.initDepartmentModel();
+    const department = await Department.findById(subjectData.department);
+    if (!department) {
+      throw new Error('Invalid department');
     }
   }
 
@@ -80,13 +92,12 @@ class SubjectsModel {
       },
       { new: true }
     ).populate('department', 'departmentCode departmentName');
-    
     return subject ? JSON.parse(JSON.stringify(subject)) : null;
   }
 
   async processSubjectCreation(subjectData) {
     await this.validateSubjectData(subjectData);
-    
+
     // Check for existing active subject
     const existingActive = await this.getActiveSubjectByCode(subjectData.subjectCode);
     if (existingActive) {
@@ -136,7 +147,6 @@ class SubjectsModel {
         }
       }
     };
-
     const deletedSubject = await this.deleteSubject(subjectCode, updateData);
     if (!deletedSubject) {
       throw new Error('Failed to delete subject');
@@ -151,19 +161,12 @@ class SubjectsModel {
       updateHistory: [{
         updatedBy: subjectData.userId,
         updatedAt: new Date(),
-        action: 'created'
+        action: 'created',
+        academicYear: subjectData.academicYear
       }]
     });
     const savedSubject = await subject.save();
     await savedSubject.populate([
-      {
-        path: 'course',
-        select: 'courseCode courseTitle',
-        populate: {
-          path: 'department',
-          select: 'departmentCode departmentName'
-        }
-      },
       {
         path: 'department',
         select: 'departmentCode departmentName'
@@ -174,27 +177,27 @@ class SubjectsModel {
 
   async getAllSubjects() {
     const Subject = await this.initModel();
-    await this.initCourseModel();
     await this.initDepartmentModel();
+    await this.initUserModel();
     
     const subjects = await Subject.find({ isActive: true })
+      .populate('department', 'departmentCode departmentName')
       .populate({
-        path: 'course',
-        select: 'courseCode courseTitle',
-        populate: {
-          path: 'department',
-          select: 'departmentCode departmentName'
-        }
-      })
-      .populate('department', 'departmentCode departmentName');
+        path: 'updateHistory.updatedBy',
+        select: 'firstName lastName'
+      });
 
     return JSON.parse(JSON.stringify(subjects));
   }
 
   async getSubjectByCode(subjectCode) {
     const Subject = await this.initModel();
+    await this.initUserModel();
+    
     const subject = await Subject.findOne({ subjectCode, isActive: true })
-      .populate('department', 'departmentCode departmentName');
+      .populate('department', 'departmentCode departmentName')
+      .populate('updateHistory.updatedBy', 'firstName lastName');
+    
     return subject ? JSON.parse(JSON.stringify(subject)) : null;
   }
 
@@ -219,24 +222,33 @@ class SubjectsModel {
 
   async updateSubject(subjectCode, updateData) {
     const Subject = await this.initModel();
+    
+    // Get active term
+    const Term = mongoose.models.Term || mongoose.model('Term', require('../../../db/schema').TermSchema);
+    const activeTerm = await Term.findOne({ status: 'Active' });
+    if (!activeTerm) {
+      throw new Error('No active term found');
+    }
+
     const { $push, ...otherUpdateData } = updateData;
     
+    // Include academicYear in the update history
+    const updatedPush = {
+      ...updateData.$push,
+      updateHistory: {
+        ...updateData.$push.updateHistory,
+        academicYear: activeTerm.academicYear
+      }
+    };
+
     const subject = await Subject.findOneAndUpdate(
       { subjectCode, isActive: true },
       { 
         $set: otherUpdateData,
-        $push: updateData.$push
+        $push: updatedPush
       },
       { new: true, runValidators: true }
     ).populate([
-      {
-        path: 'course',
-        select: 'courseCode courseTitle',
-        populate: {
-          path: 'department',
-          select: 'departmentCode departmentName'
-        }
-      },
       {
         path: 'department',
         select: 'departmentCode departmentName'
@@ -249,13 +261,25 @@ class SubjectsModel {
   async deleteSubject(subjectCode, updateData) {
     const Subject = await this.initModel();
     try {
+      // Get active term
+      const Term = mongoose.models.Term || mongoose.model('Term', require('../../../db/schema').TermSchema);
+      const activeTerm = await Term.findOne({ status: 'Active' });
+      if (!activeTerm) {
+        throw new Error('No active term found');
+      }
+
       const { $push, ...otherUpdateData } = updateData;
       
       const subject = await Subject.findOneAndUpdate(
         { subjectCode: subjectCode, isActive: true },
         { 
           $set: { ...otherUpdateData, isActive: false },
-          $push: updateData.$push
+          $push: {
+            updateHistory: {
+              ...updateData.$push.updateHistory,
+              academicYear: activeTerm.academicYear
+            }
+          }
         },
         { new: true }
       ).populate('department', 'departmentCode departmentName');
@@ -263,7 +287,7 @@ class SubjectsModel {
       if (!subject) {
         throw new Error('Subject not found or already deleted');
       }
-
+      
       return JSON.parse(JSON.stringify(subject));
     } catch (error) {
       console.error('Error in deleteSubject:', error);

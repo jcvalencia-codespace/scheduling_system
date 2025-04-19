@@ -28,7 +28,8 @@ export async function getUpdateHistory() {
     
     const history = await archiveModel.getUpdateHistory(
       activeTerm.startDate,
-      activeTerm.endDate
+      activeTerm.endDate,
+      activeTerm.academicYear
     );
     
     if (!Array.isArray(history)) {
@@ -51,7 +52,8 @@ export async function getSubjectHistory() {
     
     const history = await archiveModel.getSubjectHistory(
       activeTerm.startDate,
-      activeTerm.endDate
+      activeTerm.endDate,
+      activeTerm.academicYear
     );
     
     if (!Array.isArray(history)) {
@@ -73,7 +75,8 @@ export async function getSectionHistory() {
     
     const history = await archiveModel.getSectionHistory(
       activeTerm.startDate,
-      activeTerm.endDate
+      activeTerm.endDate,
+      activeTerm.academicYear
     );
     
     if (!Array.isArray(history)) {
@@ -95,7 +98,8 @@ export async function getRoomHistory() {
     
     const history = await archiveModel.getRoomHistory(
       activeTerm.startDate,
-      activeTerm.endDate
+      activeTerm.endDate,
+      activeTerm.academicYear
     );
     
     if (!Array.isArray(history)) {

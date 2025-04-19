@@ -16,7 +16,6 @@ export async function addSubject(formData) {
       subjectName: formData.get('subjectName')?.trim(),
       lectureHours: parseFloat(formData.get('lectureHours')),
       labHours: parseFloat(formData.get('labHours')),
-      course: formData.get('course'),
       department: formData.get('department'),
       userId: new mongoose.Types.ObjectId(userId)
     };
@@ -46,7 +45,6 @@ export async function editSubject(subjectCode, formData) {
       subjectName: formData.get('subjectName')?.trim(),
       lectureHours: parseFloat(formData.get('lectureHours')),
       labHours: parseFloat(formData.get('labHours')),
-      course: formData.get('course'),
       department: formData.get('department'),
       updatedBy: new mongoose.Types.ObjectId(userId),
       $push: {
@@ -90,12 +88,10 @@ export async function getSubjects() {
   try {
     const subjects = await subjectsModel.getAllSubjects();
     const departments = await subjectsModel.getAllDepartments();
-    const courses = await subjectsModel.getAllCourses();
 
     return {
       subjects,
       departments,
-      courses,
       error: null
     };
   } catch (error) {
@@ -103,7 +99,6 @@ export async function getSubjects() {
     return {
       subjects: [],
       departments: [],
-      courses: [],
       error: error.message
     };
   }

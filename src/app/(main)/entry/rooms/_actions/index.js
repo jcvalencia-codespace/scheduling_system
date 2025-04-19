@@ -2,10 +2,16 @@
 
 import roomsModel from '../../../../models/Rooms';
 import departmentsModel from '../../../../models/Departments';
+import mongoose from 'mongoose';
 import { revalidatePath } from 'next/cache';
 
 export async function addRoom(formData) {
   try {
+    const userId = formData.get('userId');
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return { error: 'Invalid user ID' };
+    }
+
     // Get department first to get its _id
     const department = await departmentsModel.getDepartmentByCode(
       formData.get('departmentCode')?.trim()
@@ -21,7 +27,7 @@ export async function addRoom(formData) {
       floor: formData.get('floor')?.trim(),
       department: department._id, // Use department ObjectId instead of code
       capacity: parseInt(formData.get('capacity') || '0', 10),
-      updatedBy: formData.get('userId'), // Use updatedBy for consistency with schema
+      updatedBy: userId // Changed from formData.get('userId') to already validated userId
     };
 
     // Validate required fields
@@ -74,6 +80,11 @@ export async function getDepartments() {
 
 export async function editRoom(roomCode, formData) {
   try {
+    const userId = formData.get('userId');
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return { error: 'Invalid user ID' };
+    }
+
     // Get department first to get its _id
     const department = await departmentsModel.getDepartmentByCode(
       formData.get('departmentCode')?.trim()
@@ -86,9 +97,9 @@ export async function editRoom(roomCode, formData) {
       roomName: formData.get('roomName')?.trim(),
       type: formData.get('type')?.trim(),
       floor: formData.get('floor')?.trim(),
-      department: department._id, // Use department ObjectId instead of code
+      department: department._id,
       capacity: parseInt(formData.get('capacity') || '0', 10),
-      updatedBy: formData.get('userId'), // Use updatedBy for consistency with schema
+      updatedBy: userId
     };
 
     // Validate required fields
@@ -105,10 +116,6 @@ export async function editRoom(roomCode, formData) {
     }
 
     const updatedRoom = await roomsModel.processRoomUpdate(roomCode, updateData);
-    if (!updatedRoom) {
-      throw new Error('Room not found');
-    }
-
     revalidatePath('/entry/rooms');
     return { success: true, room: updatedRoom };
   } catch (error) {
@@ -117,14 +124,13 @@ export async function editRoom(roomCode, formData) {
   }
 }
 
-export async function removeRoom(roomCode, formData) {
+export async function removeRoom(roomCode, userId) {
   try {
-    const userId = formData.get('userId');
-    const deletedRoom = await roomsModel.processRoomDeletion(roomCode, userId);
-    if (!deletedRoom) {
-      throw new Error('Room not found');
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return { error: 'Invalid user ID' };
     }
 
+    const deletedRoom = await roomsModel.processRoomDeletion(roomCode, userId);
     revalidatePath('/entry/rooms');
     return { success: true };
   } catch (error) {

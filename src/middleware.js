@@ -7,6 +7,16 @@ import { hasPermission } from '@/utils/rbac'
 const publicPaths = ['/login', '/forgot-password', '/unauthorized']
 
 export async function middleware(request) {
+  // Allow WebSocket connections without authentication
+  if (request.headers.get('upgrade') === 'websocket') {
+    return NextResponse.next();
+  }
+
+  // Allow socket.io polling without authentication
+  if (request.nextUrl.pathname.startsWith('/api/socket')) {
+    return NextResponse.next();
+  }
+
   const { pathname } = request.nextUrl
 
   // Get session cookie
@@ -63,5 +73,8 @@ export async function middleware(request) {
 
 // Configure paths that should be checked by middleware
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|.*\\.png$|.*\\.jpg$|favicon.ico).*)"],
+  matcher: [
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/api/:path*'
+  ]
 };

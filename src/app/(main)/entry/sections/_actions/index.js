@@ -35,14 +35,14 @@ export async function addSection(formData) {
   }
 }
 
-export async function editSection(sectionName, formData) {
+export async function editSection(sectionId, formData) {
   try {
     const userId = formData.get('userId');
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return { error: 'Invalid user ID' };
     }
 
-    const result = await sectionsModel.processSectionUpdate(sectionName, formData);
+    const result = await sectionsModel.processSectionUpdate(sectionId, formData);
     revalidatePath('/entry/sections');
     return { success: true, ...result };
   } catch (error) {
@@ -51,13 +51,13 @@ export async function editSection(sectionName, formData) {
   }
 }
 
-export async function removeSection(sectionName, userId) {
+export async function removeSection(sectionId, userId) {
   try {
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return { error: 'Invalid user ID' };
     }
 
-    const result = await sectionsModel.processSectionDeletion(sectionName, userId);
+    const result = await sectionsModel.processSectionDeletion(sectionId, userId);
     revalidatePath('/entry/sections');
     return { success: true, ...result };
   } catch (error) {
