@@ -9,8 +9,6 @@ import useAuthStore from '@/store/useAuthStore';
 import ScheduleModalSkeleton from './Skeleton';
 import { XCircleIcon } from '@heroicons/react/24/outline';
 
-
-
 export default function NewScheduleModal({
   isOpen,
   onClose,
@@ -191,7 +189,7 @@ export default function NewScheduleModal({
         <span>{termInfo?.term || 'Loading...'}</span>
       </div>
     </div>
-  </div>
+  </div>;
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -247,7 +245,9 @@ export default function NewScheduleModal({
   const handleSelectChange = (selectedOption, { name }) => {
     setSelectedValues(prev => ({
       ...prev,
-      [name]: selectedOption ? selectedOption.value : ''
+      [name]: name === 'section' && selectedValues.isMultipleSections 
+        ? (Array.isArray(selectedOption) ? selectedOption.map(opt => opt.value) : [])
+        : (selectedOption ? selectedOption.value : '')
     }));
   };
   const handlePairedScheduleChange = (selectedOption, { name }) => {
@@ -591,17 +591,18 @@ export default function NewScheduleModal({
                             <label className="block text-sm font-medium text-black mb-1">Section</label>
                             <Select
                               name="section"
-                              value={sectionOptions.find(option => option.value === selectedValues.section)}
+                              value={selectedValues.isMultipleSections 
+                                ? sectionOptions.filter(option => selectedValues.section?.includes(option.value))
+                                : sectionOptions.find(option => option.value === selectedValues.section)
+                              }
                               onChange={(option) => handleSelectChange(option, { name: 'section' })}
-                              isSearchable={true}
-                              maxMenuHeight={200}
-                              // menuPlacement="auto"
-                              // menuPosition="fixed"
                               options={sectionOptions}
                               styles={customStyles}
                               className="text-black"
                               placeholder="Select a Section"
                               isClearable
+                              isMulti={selectedValues.isMultipleSections}
+                              isSearchable={true}
                             />
                           </div>
 

@@ -459,11 +459,11 @@ const ScheduleSchema = new Schema({
     ref: 'Terms',
     required: true
   },
-  section: {
+  section: [{
     type: Schema.Types.ObjectId,
     ref: 'Sections',
     required: true
-  },
+  }],
   faculty: {
     type: Schema.Types.ObjectId,
     ref: 'Users',

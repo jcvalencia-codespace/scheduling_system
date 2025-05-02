@@ -233,7 +233,7 @@ export default class SchedulesModel {
       // Create schedule document with update history including academicYear
       const schedule = await Schedules.create({
         term: scheduleData.term,
-        section: scheduleData.section,
+        section: scheduleData.isMultipleSections ? scheduleData.section : [scheduleData.section],
         faculty: scheduleData.faculty,
         subject: scheduleData.subject,
         classLimit: scheduleData.classLimit,
@@ -717,58 +717,64 @@ export default class SchedulesModel {
             });
           }
 
-          // 3. Check for section conflicts
-          const sectionConflicts = await Schedules.aggregate([
-            {
-              $match: {
-                ...baseQuery,
-                section: new mongoose.Types.ObjectId(scheduleData.section)
-              }
-            },
-            { $unwind: '$scheduleSlots' },
-            {
-              $match: {
-                'scheduleSlots.days': day
-              }
-            },
-            {
-              $lookup: {
-                from: 'sections',
-                localField: 'section',
-                foreignField: '_id',
-                as: 'sectionInfo'
-              }
-            },
-            { $unwind: '$sectionInfo' },
-            {
-              $lookup: {
-                from: 'subjects',
-                localField: 'subject',
-                foreignField: '_id',
-                as: 'subjectInfo'
-              }
-            },
-            { $unwind: '$subjectInfo' }
-          ]);
+          // 3. Check for section conflicts - Modified for multiple sections
+          const sections = Array.isArray(scheduleData.section) 
+            ? scheduleData.section 
+            : [scheduleData.section];
 
-          // Filter section conflicts by time overlap
-          const filteredSectionConflicts = sectionConflicts.filter(conflict => 
-            isTimeOverlap(slot, conflict.scheduleSlots)
-          );
+          for (const sectionId of sections) {
+            const sectionConflicts = await Schedules.aggregate([
+              {
+                $match: {
+                  ...baseQuery,
+                  section: new mongoose.Types.ObjectId(sectionId)
+                }
+              },
+              { $unwind: '$scheduleSlots' },
+              {
+                $match: {
+                  'scheduleSlots.days': day
+                }
+              },
+              {
+                $lookup: {
+                  from: 'sections',
+                  localField: 'section',
+                  foreignField: '_id',
+                  as: 'sectionInfo'
+                }
+              },
+              { $unwind: '$sectionInfo' },
+              {
+                $lookup: {
+                  from: 'subjects',
+                  localField: 'subject',
+                  foreignField: '_id',
+                  as: 'subjectInfo'
+                }
+              },
+              { $unwind: '$subjectInfo' }
+            ]);
 
-          if (filteredSectionConflicts.length > 0) {
-            conflicts.hasConflicts = true;
-            conflicts.sectionConflicts.push({
-              day,
-              section: filteredSectionConflicts[0].sectionInfo.sectionName,
-              timeFrom: slot.timeFrom,
-              timeTo: slot.timeTo,
-              conflictingSchedules: filteredSectionConflicts.map(c => ({
-                subject: c.subjectInfo.subjectCode,
-                timeFrom: c.scheduleSlots.timeFrom,
-                timeTo: c.scheduleSlots.timeTo
-              }))
-            });
+            // Filter section conflicts by time overlap
+            const filteredSectionConflicts = sectionConflicts.filter(conflict => 
+              isTimeOverlap(slot, conflict.scheduleSlots)
+            );
+
+            if (filteredSectionConflicts.length > 0) {
+              conflicts.hasConflicts = true;
+              conflicts.sectionConflicts.push({
+                day,
+                section: filteredSectionConflicts[0].sectionInfo.sectionName,
+                timeFrom: slot.timeFrom,
+                timeTo: slot.timeTo,
+                conflictingSchedules: filteredSectionConflicts.map(c => ({
+                  subject: c.subjectInfo.subjectCode,
+                  timeFrom: c.scheduleSlots.timeFrom,
+                  timeTo: c.scheduleSlots.timeTo
+                }))
+              });
+            }
           }
         }
       }
