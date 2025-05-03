@@ -5,6 +5,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import Swal from 'sweetalert2';
 import { addCourse, editCourse, getDepartments } from '../_actions';
+import Select from 'react-select';
 
 const initialFormState = {
   courseCode: '',
@@ -16,6 +17,57 @@ export default function AddEditCourseModal({ show, onClose, course, onSuccess })
   const [formData, setFormData] = useState(initialFormState);
   const [departments, setDepartments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const customStyles = {
+    control: (base, state) => ({
+      ...base,
+      minHeight: '38px',
+      backgroundColor: 'white',
+      borderColor: state.isFocused ? '#323E8F' : '#E5E7EB',
+      borderRadius: '0.375rem',
+      boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+      '&:hover': {
+        borderColor: '#323E8F'
+      },
+      '&:focus': {
+        borderColor: '#323E8F',
+        boxShadow: '0 0 0 1px #323E8F'
+      }
+    }),
+    placeholder: (base) => ({
+      ...base,
+      color: '#6B7280',
+    }),
+    option: (base, state) => ({
+      ...base,
+      backgroundColor: state.isSelected ? '#323E8F' : state.isFocused ? '#EFF6FF' : 'white',
+      color: state.isSelected ? 'white' : 'black',
+      cursor: 'pointer',
+      padding: '8px 12px',
+    }),
+    menu: (base) => ({
+      ...base,
+      zIndex: 100,
+    }),
+    menuList: (base) => ({
+      ...base,
+      maxHeight: '150px',
+      overflowY: 'auto',
+      '&::-webkit-scrollbar': {
+        width: '8px'
+      },
+      '&::-webkit-scrollbar-track': {
+        background: '#f1f1f1'
+      },
+      '&::-webkit-scrollbar-thumb': {
+        background: '#888',
+        borderRadius: '4px'
+      },
+      '&::-webkit-scrollbar-thumb:hover': {
+        background: '#555'
+      }
+    })
+  };
 
   useEffect(() => {
     loadDepartments();
@@ -94,6 +146,20 @@ export default function AddEditCourseModal({ show, onClose, course, onSuccess })
     setFormData(initialFormState);
     onClose();
   };
+
+  const handleChange = (selectedOption, actionMeta) => {
+    const { name } = actionMeta;
+    const value = selectedOption ? selectedOption.value : '';
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const departmentOptions = departments.map(dept => ({
+    value: dept.departmentCode,
+    label: `${dept.departmentCode} - ${dept.departmentName}`
+  }));
 
   if (isLoading) {
     return null; // Don't render modal while loading departments
@@ -177,21 +243,21 @@ export default function AddEditCourseModal({ show, onClose, course, onSuccess })
                         <label htmlFor="departmentCode" className="block text-sm font-medium text-gray-700">
                           Department
                         </label>
-                        <select
+                        <Select
                           id="departmentCode"
                           name="departmentCode"
-                          value={formData.departmentCode}
-                          onChange={(e) => setFormData({ ...formData, departmentCode: e.target.value })}
-                          className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
+                          value={departmentOptions.find(option => option.value === formData.departmentCode)}
+                          onChange={(option, action) => handleChange(option, { ...action, name: 'departmentCode' })}
+                          options={departmentOptions}
+                          styles={customStyles}
+                          className="mt-1"
+                          classNamePrefix="select"
+                          placeholder="Select a department"
+                          isClearable
+                          isSearchable
+                          menuPlacement="top"                           
                           required
-                        >
-                          <option value="">Select a department</option>
-                          {departments.map((dept) => (
-                            <option key={dept.departmentCode} value={dept.departmentCode}>
-                              {dept.departmentCode} - {dept.departmentName}
-                            </option>
-                          ))}
-                        </select>
+                        />
                       </div>
 
                       <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">

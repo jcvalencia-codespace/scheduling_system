@@ -6,9 +6,17 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 import { addRoom, editRoom } from '../_actions';
 import Swal from 'sweetalert2';
 import useAuthStore from '../../../../../store/useAuthStore';
+import Select from 'react-select';
 
-const FLOOR_OPTIONS = ['1st Floor', '2nd Floor', '3rd Floor', '4th Floor'];
-const ROOM_TYPES = ['Lecture Room', 'Laboratory', 'Office', 'Conference Room'];
+const FLOOR_OPTIONS = ['1st Floor', '2nd Floor', '3rd Floor', '4th Floor'].map(floor => ({
+  value: floor,
+  label: floor
+}));
+
+const ROOM_TYPES = ['Lecture Room', 'Laboratory', 'Office', 'Conference Room'].map(type => ({
+  value: type,
+  label: type
+}));
 
 const initialFormState = {
   roomCode: '',
@@ -24,6 +32,62 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
   const [formData, setFormData] = useState(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const customStyles = {
+    control: (base, state) => ({
+      ...base,
+      minHeight: '38px',
+      backgroundColor: 'white',
+      borderColor: state.isFocused ? '#323E8F' : '#E5E7EB',
+      borderRadius: '0.375rem',
+      boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+      '&:hover': {
+        borderColor: '#323E8F'
+      },
+      '&:focus': {
+        borderColor: '#323E8F',
+        boxShadow: '0 0 0 1px #323E8F'
+      }
+    }),
+    placeholder: (base) => ({
+      ...base,
+      color: '#6B7280',
+    }),
+    option: (base, state) => ({
+      ...base,
+      backgroundColor: state.isSelected ? '#323E8F' : state.isFocused ? '#EFF6FF' : 'white',
+      color: state.isSelected ? 'white' : 'black',
+      cursor: 'pointer',
+      padding: '8px 12px',
+    }),
+    menu: (base) => ({
+      ...base,
+      zIndex: 100,
+    }),
+    menuList: (base) => ({
+      ...base,
+      maxHeight: '120px',
+      overflowY: 'auto',
+      '&::-webkit-scrollbar': {
+        width: '8px'
+      },
+      '&::-webkit-scrollbar-track': {
+        background: '#f1f1f1'
+      },
+      '&::-webkit-scrollbar-thumb': {
+        background: '#888',
+        borderRadius: '4px'
+      },
+      '&::-webkit-scrollbar-thumb:hover': {
+        background: '#555'
+      }
+    })
+  };
+
+  const departmentOptions = departments.map(dept => ({
+    value: dept.departmentCode,
+    label: `${dept.departmentCode} - ${dept.departmentName}`
+  }));
+
   useEffect(() => {
     if (room) {
       setFormData({
@@ -31,7 +95,7 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
         roomName: room.roomName || '',
         type: room.type || '',
         floor: room.floor || '',
-        departmentCode: room.departmentCode || '',
+        departmentCode: room.department?.departmentCode || room.departmentCode || '',
         capacity: room.capacity || '',
       });
     } else {
@@ -39,7 +103,16 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
     }
   }, [room, show]);
 
-  const handleChange = (e) => {
+  const handleChange = (selectedOption, actionMeta) => {
+    const { name } = actionMeta;
+    const value = selectedOption ? selectedOption.value : '';
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -55,12 +128,23 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
 
     try {
       const form = new FormData();
+      
+      // Handle basic fields
       Object.keys(formData).forEach(key => {
         form.append(key, formData[key]);
       });
       
       // Add user ID to form data
       form.append('userId', user?._id);
+
+      // Add updateHistory for edit operations
+      if (room) {
+        form.append('$push[updateHistory]', JSON.stringify({
+          updatedBy: user?._id,
+          updatedAt: new Date(),
+          action: 'updated'
+        }));
+      }
 
       const result = room
         ? await editRoom(room.roomCode, form)
@@ -154,7 +238,7 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                               name="roomCode"
                               id="roomCode"
                               value={formData.roomCode}
-                              onChange={handleChange}
+                              onChange={handleInputChange}
                               disabled={!!room || isSubmitting}
                               className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                               required
@@ -170,7 +254,7 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                               name="roomName"
                               id="roomName"
                               value={formData.roomName}
-                              onChange={handleChange}
+                              onChange={handleInputChange}
                               disabled={isSubmitting}
                               className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                               required
@@ -181,66 +265,64 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                             <label htmlFor="type" className="block text-sm font-medium text-gray-700">
                               Room Type
                             </label>
-                            <select
-                              name="type"
+                            <Select
                               id="type"
-                              value={formData.type}
-                              onChange={handleChange}
-                              disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                              name="type"
+                              value={ROOM_TYPES.find(option => option.value === formData.type)}
+                              onChange={(option, action) => handleChange(option, { ...action, name: 'type' })}
+                              options={ROOM_TYPES}
+                              styles={customStyles}
+                              className="mt-1"
+                              classNamePrefix="select"
+                              placeholder="Select Room Type"
+                              isClearable
+                              isSearchable
                               required
-                            >
-                              <option value="">Select Room Type</option>
-                              {ROOM_TYPES.map((type) => (
-                                <option key={type} value={type}>
-                                  {type}
-                                </option>
-                              ))}
-                            </select>
+                              isDisabled={isSubmitting}
+                            />
                           </div>
 
                           <div>
                             <label htmlFor="floor" className="block text-sm font-medium text-gray-700">
                               Floor
                             </label>
-                            <select
-                              name="floor"
+                            <Select
                               id="floor"
-                              value={formData.floor}
-                              onChange={handleChange}
-                              disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                              name="floor"
+                              value={FLOOR_OPTIONS.find(option => option.value === formData.floor)}
+                              onChange={(option, action) => handleChange(option, { ...action, name: 'floor' })}
+                              options={FLOOR_OPTIONS}
+                              styles={customStyles}
+                              className="mt-1"
+                              classNamePrefix="select"
+                              placeholder="Select Floor"
+                              isClearable
+                              isSearchable
                               required
-                            >
-                              <option value="">Select Floor</option>
-                              {FLOOR_OPTIONS.map((floor) => (
-                                <option key={floor} value={floor}>
-                                  {floor}
-                                </option>
-                              ))}
-                            </select>
+                              isDisabled={isSubmitting}
+                            />
                           </div>
 
                           <div>
                             <label htmlFor="departmentCode" className="block text-sm font-medium text-gray-700">
                               Department
                             </label>
-                            <select
-                              name="departmentCode"
+                            <Select
                               id="departmentCode"
-                              value={formData.departmentCode}
-                              onChange={handleChange}
-                              disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                              name="departmentCode"
+                              value={departmentOptions.find(option => option.value === formData.departmentCode)}
+                              onChange={(option, action) => handleChange(option, { ...action, name: 'departmentCode' })}
+                              options={departmentOptions}
+                              styles={customStyles}
+                              className="mt-1"
+                              classNamePrefix="select"
+                              placeholder="Select Department"
+                              isClearable
+                              isSearchable
+                              menuPlacement="top" 
                               required
-                            >
-                              <option value="">Select Department</option>
-                              {departments.map((dept) => (
-                                <option key={dept.departmentCode} value={dept.departmentCode}>
-                                  {dept.departmentCode} - {dept.departmentName}
-                                </option>
-                              ))}
-                            </select>
+                              isDisabled={isSubmitting}
+                            />
                           </div>
 
                           <div>
@@ -252,7 +334,7 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                               name="capacity"
                               id="capacity"
                               value={formData.capacity}
-                              onChange={handleChange}
+                              onChange={handleInputChange}
                               disabled={isSubmitting}
                               className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                               min="0"

@@ -6,7 +6,8 @@ import {
   PencilSquareIcon,
   TrashIcon,
   CheckCircleIcon,
-} from '@heroicons/react/24/outline';
+  XMarkIcon,
+} from '@heroicons/react/24/solid';
 import AddEditTermModal from './_components/AddEditTermModal';
 import { getTerms, activateTerm, deactivateTerm, removeTerm, endAllTerms } from './_actions';
 import Swal from 'sweetalert2';
@@ -272,7 +273,7 @@ export default function TermPage() {
                 <select
                   value={entriesPerPage}
                   onChange={(e) => setEntriesPerPage(Number(e.target.value))}
-                  className="rounded-md border-gray-300 py-1.5 text-sm focus:border-[#323E8F] focus:ring-[#323E8F]"
+                  className="rounded-md border-gray-300 py-1.5 text-sm focus:border-[#323E8F] focus:ring-[#323E8F] text-black"
                 >
                   <option value={10}>10</option>
                   <option value={25}>25</option>
@@ -282,14 +283,22 @@ export default function TermPage() {
                 <span className="text-sm text-gray-700">entries</span>
               </div>
 
-              <div className="mt-2 sm:mt-0">
+              <div className="mt-2 sm:mt-0 relative">
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search..."
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black pr-8"
                 />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <XMarkIcon className="h-5 w-5" />
+                  </button>
+                )}
               </div>
             </div>
 

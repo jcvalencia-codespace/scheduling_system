@@ -7,6 +7,7 @@ import {
   PencilSquareIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline';
+import { XMarkIcon } from '@heroicons/react/24/solid';
 import AddEditCourseModal from './_components/AddEditCourseModal';
 import { getCourses, removeCourse } from './_actions';
 import Swal from 'sweetalert2';
@@ -160,9 +161,8 @@ export default function CoursesPage() {
     if (sortConfig.key === key) {
       return (
         <ChevronUpDownIcon
-          className={`h-4 w-4 inline-block ml-1 ${
-            sortConfig.direction === 'asc' ? 'transform rotate-180' : ''
-          }`}
+          className={`h-4 w-4 inline-block ml-1 ${sortConfig.direction === 'asc' ? 'transform rotate-180' : ''
+            }`}
         />
       );
     }
@@ -217,9 +217,20 @@ export default function CoursesPage() {
                   id="search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="block w-full rounded-md border-0 py-1.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
-                  placeholder="Search courses..."
+                  className="block w-full rounded-md border-0 py-1.5 pl-10 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
+                  placeholder="Search departments..."
                 />
+                {searchQuery && (
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="text-gray-400 hover:text-gray-500 focus:outline-none"
+                    >
+                      <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
