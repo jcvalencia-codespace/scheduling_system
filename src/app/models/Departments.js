@@ -34,6 +34,12 @@ class DepartmentsModel {
     return department ? JSON.parse(JSON.stringify(department)) : null;
   }
 
+  async getDepartmentById(id) {
+    const Department = await this.initModel();
+    const department = await Department.findOne({ _id: id, isActive: true });
+    return department ? JSON.parse(JSON.stringify(department)) : null;
+  }
+
   async updateDepartment(departmentCode, updateData) {
     const Department = await this.initModel();
     const department = await Department.findOneAndUpdate(

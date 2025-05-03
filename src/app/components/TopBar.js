@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { MagnifyingGlassIcon, BellIcon, ChevronDownIcon, Bars3Icon } from '@heroicons/react/24/outline';
 import { SunIcon, MoonIcon, CheckCircleIcon, ExclamationCircleIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/solid';
@@ -9,13 +9,10 @@ import { useSidebar } from '../context/SidebarContext';
 import { usePathname, useRouter } from 'next/navigation';
 import useAuthStore from '@/store/useAuthStore';
 import { logout } from '../(login)/_actions';
-
-// Add to your imports
 import { useNotifications } from '../context/NotificationsContext';
 import moment from 'moment';
-
-// Add this import at the top with other imports
 import Swal from 'sweetalert2';
+import { getDepartmentById } from '../(main)/maintenance/departments/_actions';
 
 export default function TopBar() {
   const { theme, setTheme } = useTheme();
@@ -25,18 +22,28 @@ export default function TopBar() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const { user, logout: logoutStore } = useAuthStore();
-  // Update this line to include markAllAsRead
-  // Update the destructuring to include clearAll
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotifications();
+  const [departmentDetails, setDepartmentDetails] = useState(null);
 
+  useEffect(() => {
+    const fetchDepartmentDetails = async () => {
+      if (user?.department) {
+        const result = await getDepartmentById(user.department);
+        if (result.success) {
+          setDepartmentDetails(result.department);
+        }
+      }
+    };
+
+    if (user) {
+      fetchDepartmentDetails();
+    }
+  }, [user]);
 
   // Function to get page title from pathname
   const getPageTitle = (path) => {
-    // Remove leading slash and split path
     const segments = path.split('/').filter(Boolean);
     if (segments.length === 0) return 'Dashboard';
-    
-    // Get the last segment and format it
     const lastSegment = segments[segments.length - 1];
     return lastSegment
       .split('-')
@@ -156,7 +163,6 @@ export default function TopBar() {
                     ))
                   )}
                 </div>
-                {/* // In the notifications dropdown, add this before the closing div of max-h-96 */}
                 {notifications.length > 0 && (
                   <div className="sticky bottom-0 border-t border-gray-200 dark:border-gray-700 p-2 bg-white dark:bg-gray-800">
                     <button
@@ -215,7 +221,9 @@ export default function TopBar() {
                 <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 border-b dark:border-gray-700">
                   <p className="font-semibold">{user?.firstName} {user?.lastName}</p>
                   <p className="font-medium">{user?.email}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{user?.department}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {departmentDetails?.departmentCode || 'Loading...'}
+                  </p>
                 </div>
                 <button
                   onClick={handleLogout}

@@ -92,3 +92,16 @@ export async function getCoursesByDepartment(departmentCode) {
     return { error: error.message || 'Failed to fetch courses' };
   }
 }
+
+export async function getDepartmentById(departmentId) {
+  try {
+    const department = await departmentsModel.getDepartmentById(departmentId);
+    if (!department) {
+      throw new Error('Department not found');
+    }
+    return { success: true, department };
+  } catch (error) {
+    console.error('Error in getDepartmentById:', error);
+    return { error: error.message || 'Failed to fetch department' };
+  }
+}
