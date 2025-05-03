@@ -1,198 +1,376 @@
-'use client';
+"use client"
 
-export default function ConflictAlert({ 
-  conflicts, 
-  onDismiss, 
-  onOverride, 
+import { useState } from "react"
+
+export default function ConflictAlert({
+  conflicts,
+  onDismiss,
+  onOverride,
   overrideEnabled,
   setOverrideEnabled,
   hasShortDuration,
-  currentScheduleDuration 
+  currentScheduleDuration,
 }) {
+  // Track only the currently open accordion (or null if none are open)
+  const [openAccordion, setOpenAccordion] = useState(null)
+
   const formatDuration = (minutes) => {
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    return `${hours}h ${remainingMinutes}m`;
-  };
+    const hours = Math.floor(minutes / 60)
+    const remainingMinutes = minutes % 60
+    return `${hours}h ${remainingMinutes}m`
+  }
 
-  const getWarningMessage = (type, conflict) => {
-    switch(type) {
-      case 'room':
-        return 'Room allocation conflicts may disrupt ongoing classes and create logistical issues.';
-      case 'faculty':
-        return 'Faculty scheduling conflicts may affect teaching quality and cause unnecessary stress.';
-      case 'section':
-        return 'Section conflicts may prevent students from attending all their required classes.';
+  const getWarningMessage = (type) => {
+    switch (type) {
+      case "room":
+        return "Room allocation conflicts may disrupt ongoing classes and create logistical issues."
+      case "faculty":
+        return "Faculty scheduling conflicts may affect teaching quality and cause unnecessary stress."
+      case "section":
+        return "Section conflicts may prevent students from attending all their required classes."
+      case "duration":
+        return "Schedule duration conflicts may affect required lecture hours and learning effectiveness."
       default:
-        return '';
+        return ""
     }
-  };
+  }
 
-  return (
-    <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-      <div className="flex">
-        <div className="ml-3 w-full">
-          <h3 className="text-sm font-bold text-red-800">
-            Schedule Conflicts Detected
-          </h3>
-          <div className="mt-2 text-sm text-red-700 space-y-4">
-            {conflicts.durationConflicts && conflicts.durationConflicts.length > 0 && (
-              <div className="mb-2">
-                <strong>Duration Conflicts:</strong>
-                <div className="bg-red-100 p-2 rounded mt-1 text-xs">
-                  <p className="font-semibold">⚠️ Warning:</p>
-                  <p>Schedule duration conflicts detected:</p>
-                  <ul className="mt-1 pl-4 list-disc">
+  // Toggle accordion - if clicking the same one, close it; otherwise open the new one
+  const toggleAccordion = (type) => {
+    setOpenAccordion(openAccordion === type ? null : type)
+  }
+
+  const totalConflicts =
+    (conflicts.roomConflicts?.length || 0) +
+    (conflicts.facultyConflicts?.length || 0) +
+    (conflicts.sectionConflicts?.length || 0) +
+    (conflicts.durationConflicts && conflicts.durationConflicts.length > 0 ? 1 : 0)
+
+  // Track which conflicts have been viewed
+  const [viewedConflicts, setViewedConflicts] = useState({})
+
+  // When an accordion opens, mark it as viewed
+  const handleAccordionOpen = (type) => {
+    if (type && !viewedConflicts[type]) {
+      setViewedConflicts((prev) => ({
+        ...prev,
+        [type]: true,
+      }))
+    }
+  }
+
+  // Check if all conflicts have been viewed
+  const allConflictsViewed = () => {
+    const conflictTypes = []
+    if (conflicts.roomConflicts?.length > 0) conflictTypes.push("room")
+    if (conflicts.facultyConflicts?.length > 0) conflictTypes.push("faculty")
+    if (conflicts.sectionConflicts?.length > 0) conflictTypes.push("section")
+    if (conflicts.durationConflicts?.length > 0) conflictTypes.push("duration")
+
+    return conflictTypes.every((type) => viewedConflicts[type])
+  }
+
+  // Get appropriate description for each conflict type
+  const getConflictDescription = (type) => {
+    switch (type) {
+      case "room":
+        return "Room is already booked for another class at this time"
+      case "faculty":
+        return "Faculty member is already scheduled at this time"
+      case "section":
+        return "Section already has classes scheduled at this time"
+      case "duration":
+        return "Schedule duration does not meet requirements"
+      default:
+        return ""
+    }
+  }
+
+  const renderConflictCard = (type, title, conflictItems, color = "bg-red-50", textColor = "text-red-800") => {
+    if (!conflictItems || conflictItems.length === 0) return null
+
+    // When this accordion opens, mark it as viewed
+    if (openAccordion === type) {
+      handleAccordionOpen(type)
+    }
+
+    // All warning icons are now red
+    const iconColor = "text-red-500"
+
+    // Get the appropriate description
+    const description = getConflictDescription(type)
+
+    // Determine description text color
+    const descriptionColor = "text-red-700"
+
+    return (
+      <div className={`mb-3 border rounded-lg overflow-hidden ${color}`}>
+        <div className="p-4">
+          <div className="flex items-start">
+            {/* Heroicon - Exclamation Triangle */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              className={`${iconColor} mr-3 h-5 w-5 flex-shrink-0`}
+            >
+              <path
+                fillRule="evenodd"
+                d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <div className="flex-grow">
+              <h3 className={`font-medium ${textColor}`}>{title}</h3>
+              <p className={`text-sm ${descriptionColor}`}>{description}</p>
+            </div>
+            <button onClick={() => toggleAccordion(type)} className="text-gray-500 hover:text-gray-700">
+              {openAccordion === type ? (
+                // Heroicon - Chevron Up
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+                  <path
+                    fillRule="evenodd"
+                    d="M11.47 7.72a.75.75 0 011.06 0l7.5 7.5a.75.75 0 11-1.06 1.06L12 9.31l-6.97 6.97a.75.75 0 01-1.06-1.06l7.5-7.5z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              ) : (
+                // Heroicon - Chevron Down
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+                  <path
+                    fillRule="evenodd"
+                    d="M12.53 16.28a.75.75 0 01-1.06 0l-7.5-7.5a.75.75 0 011.06-1.06L12 14.69l6.97-6.97a.75.75 0 111.06 1.06l-7.5 7.5z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {openAccordion === type && (
+          <div className="px-4 pb-4 pt-0">
+            <div className="mt-1 p-3 bg-white/60 rounded-md text-sm">
+              {type === "duration" ? (
+                <div>
+                  <p className="mb-2 text-gray-800">
+                    Current Schedule Duration:{" "}
+                    <span className="font-medium">{formatDuration(currentScheduleDuration)}</span>
+                  </p>
+                  <p className="mb-2 text-gray-800">
+                    Minimum Required Duration: <span className="font-medium">{formatDuration(120)}</span>
+                  </p>
+                  {currentScheduleDuration < 120 && (
+                    <div className="text-amber-700 mt-2 text-xs">
+                      <p className="font-medium">⚠️ Warning: Insufficient Duration</p>
+                      <ul className="list-disc ml-4 mt-1">
+                        <li>May not meet required lecture hours</li>
+                        <li>Could affect subject coverage</li>
+                        <li>May impact learning effectiveness</li>
+                      </ul>
+                    </div>
+                  )}
+                  <ul className="mt-2 space-y-2">
                     {conflicts.durationConflicts.map((conflict, idx) => (
-                      <li key={`duration-${idx}`} className="mb-2">
-                        <div className="font-medium">
+                      <li key={`duration-${idx}`} className="p-2 bg-white rounded-md shadow-sm">
+                        <div className="font-medium text-sm text-gray-800">
                           Schedule from {conflict.timeFrom} to {conflict.timeTo}
                         </div>
-                        <div className="text-red-700 ml-2">
-                          {conflict.type === 'exceeded' ? (
+                        <div className="text-amber-700 text-xs mt-1">
+                          {conflict.type === "exceeded" ? (
                             <span>• Exceeds maximum 4-hour limit</span>
                           ) : (
                             <span>• Below minimum 2-hour requirement</span>
                           )}
-                          <div className="mt-1 text-xs">
-                            Current duration: {Math.floor(conflict.duration/60)}h {conflict.duration%60}m
+                          <div className="mt-1">
+                            Current duration: {Math.floor(conflict.duration / 60)}h {conflict.duration % 60}m
                           </div>
                         </div>
                       </li>
                     ))}
                   </ul>
                 </div>
-              </div>
-            )}
-
-            {conflicts.roomConflicts.length > 0 && (
-              <div className="mb-2">
-                <strong>Room Conflicts:</strong>
-                <div className="bg-red-100 p-2 rounded mt-1 text-xs">
-                  <p className="font-semibold">⚠️ Warning:</p>
-                  <p>{getWarningMessage('room')}</p>
-                </div>
-                <ul className="list-disc pl-5 space-y-1 mt-1">
+              ) : type === "room" ? (
+                <ul className="space-y-2">
                   {conflicts.roomConflicts.map((conflict, idx) => (
-                    <li key={`room-${idx}`}>
-                      Room {conflict.room} is already booked on {conflict.day} from {conflict.timeFrom} to {conflict.timeTo}
+                    <li key={`room-${idx}`} className="p-2 bg-white rounded-md shadow-sm">
+                      <div className="font-medium text-sm text-gray-800">
+                        Room {conflict.room} is already booked on {conflict.day} from {conflict.timeFrom} to{" "}
+                        {conflict.timeTo}
+                      </div>
                       {conflict.conflictingSchedules.map((schedule, i) => (
-                        <div key={`room-schedule-${i}`} className="text-xs ml-2 pt-2">
-                          • Conflicted Schedule: {schedule.section}: {schedule.timeFrom} - {schedule.timeTo} 
+                        <div key={`room-schedule-${i}`} className="text-xs mt-1 text-red-700">
+                          • Conflicted Schedule: {schedule.section}: {schedule.timeFrom} - {schedule.timeTo}
                         </div>
                       ))}
                     </li>
                   ))}
                 </ul>
-              </div>
-            )}
-
-            {conflicts.facultyConflicts.length > 0 && (
-              <div className="mb-2">
-                <strong>Faculty Conflicts:</strong>
-                <div className="bg-red-100 p-2 rounded mt-1 text-xs">
-                  <p className="font-semibold">⚠️ Warning:</p>
-                  <p>{getWarningMessage('faculty')}</p>
-                </div>
-                <ul className="list-disc pl-5 space-y-1 mt-1">
+              ) : type === "faculty" ? (
+                <ul className="space-y-2">
                   {conflicts.facultyConflicts.map((conflict, idx) => (
-                    <li key={`faculty-${idx}`}>
-                      {conflict.faculty} is already scheduled on {conflict.day} from {conflict.timeFrom} to {conflict.timeTo}
+                    <li key={`faculty-${idx}`} className="p-2 bg-white rounded-md shadow-sm">
+                      <div className="font-medium text-sm text-gray-800">
+                        {conflict.faculty} is already scheduled on {conflict.day} from {conflict.timeFrom} to{" "}
+                        {conflict.timeTo}
+                      </div>
                       {conflict.conflictingSchedules.map((schedule, i) => (
-                        <div key={`faculty-schedule-${i}`} className="text-xs ml-2">
+                        <div key={`faculty-schedule-${i}`} className="text-xs mt-1 text-red-700">
                           • Section {schedule.section}: {schedule.timeFrom} - {schedule.timeTo}
                         </div>
                       ))}
                     </li>
                   ))}
                 </ul>
-              </div>
-            )}
-
-            {conflicts.sectionConflicts.length > 0 && (
-              <div>
-                <strong>Section Conflicts:</strong>
-                <div className="bg-red-100 p-2 rounded mt-1 text-xs">
-                  <p className="font-semibold">⚠️ Warning:</p>
-                  <p>{getWarningMessage('section')}</p>
-                </div>
-                <ul className="list-disc pl-5 space-y-1 mt-1">
+              ) : (
+                <ul className="space-y-2">
                   {conflicts.sectionConflicts.map((conflict, idx) => (
-                    <li key={`section-${idx}`}>
-                      Section {conflict.section} already has classes on {conflict.day} from {conflict.timeFrom} to {conflict.timeTo}
+                    <li key={`section-${idx}`} className="p-2 bg-white rounded-md shadow-sm">
+                      <div className="font-medium text-sm text-gray-800">
+                        Section {conflict.section} already has classes on {conflict.day} from {conflict.timeFrom} to{" "}
+                        {conflict.timeTo}
+                      </div>
                       {conflict.conflictingSchedules.map((schedule, i) => (
-                        <div key={`section-schedule-${i}`} className="text-xs ml-2">
+                        <div key={`section-schedule-${i}`} className="text-xs mt-1 text-red-700">
                           • {schedule.subject}: {schedule.timeFrom} - {schedule.timeTo}
                         </div>
                       ))}
                     </li>
                   ))}
                 </ul>
-              </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 overflow-hidden">
+        <div className="p-5">
+          <div className="flex items-center mb-4">
+            <div className="bg-red-100 p-2 rounded-full mr-3">
+              {/* Heroicon - Shield Check - Now Red */}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="h-6 w-6 text-red-600"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M12.516 2.17a.75.75 0 00-1.032 0 11.209 11.209 0 01-7.877 3.08.75.75 0 00-.722.515A12.74 12.74 0 002.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.75.75 0 00.674 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.39-.223-2.73-.635-3.985a.75.75 0 00-.722-.516l-.143.001c-2.996 0-5.717-1.17-7.734-3.08zm-.516 6.58a.75.75 0 011.5 0v5.5a.75.75 0 01-1.5 0v-5.5z"
+                  clipRule="evenodd"
+                />
+                <circle cx="12.5" cy="17.5" r="1" fill="white" />
+
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Schedule Conflicts Detected</h2>
+              <p className="text-gray-600 text-sm">
+                We've identified {totalConflicts} potential schedule {totalConflicts === 1 ? "conflict" : "conflicts"}{" "}
+                that require your attention
+              </p>
+            </div>
+            <button onClick={onDismiss} className="ml-auto text-gray-400 hover:text-gray-600" aria-label="Close">
+              {/* Heroicon - X Mark */}
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+                <path
+                  fillRule="evenodd"
+                  d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <div className="max-h-[60vh] overflow-y-auto pr-1">
+            {renderConflictCard("room", "Room Schedule Conflict", conflicts.roomConflicts, "bg-red-50", "text-red-800")}
+
+            {renderConflictCard(
+              "faculty",
+              "Faculty Schedule Conflict",
+              conflicts.facultyConflicts,
+              "bg-red-50",
+              "text-red-800",
+            )}
+
+            {renderConflictCard(
+              "section",
+              "Section Schedule Conflict",
+              conflicts.sectionConflicts,
+              "bg-red-50",
+              "text-red-800",
+            )}
+
+            {renderConflictCard(
+              "duration",
+              "Schedule Duration Conflict",
+              conflicts.durationConflicts,
+              "bg-red-50",
+              "text-red-800",
             )}
           </div>
 
-          <div className="mt-4 border-t border-red-200 pt-4">
-            <div className="text-sm text-red-800">
-              <h4 className="font-semibold mb-2">Schedule Duration Analysis:</h4>
-              <div className="bg-red-100 p-3 rounded">
-                <p className="mb-2">
-                  Current Schedule Duration: <span className="font-bold">{formatDuration(currentScheduleDuration)}</span>
-                </p>
-                <p className="mb-2">
-                  Minimum Required Duration: <span className="font-bold">{formatDuration(120)}</span>
-                </p>
-                {currentScheduleDuration < 120 && (
-                  <div className="text-red-700 mt-2">
-                    <p className="font-semibold">⚠️ Warning: Insufficient Duration</p>
-                    <ul className="list-disc ml-4 mt-1 text-sm">
-                      <li>May not meet required lecture hours</li>
-                      <li>Could affect subject coverage</li>
-                      <li>May impact learning effectiveness</li>
-                    </ul>
-                  </div>
-                )}
-              </div>
+          <div className="mt-5 pt-4 border-t border-gray-200">
+            <div className="flex items-center mb-4">
+              <input
+                type="checkbox"
+                id="enableOverride"
+                checked={overrideEnabled}
+                onChange={(e) => setOverrideEnabled(e.target.checked)}
+                className="w-4 h-4 text-[#35408E] border-gray-300 rounded focus:ring-[#35408E]"
+              />
+              <label htmlFor="enableOverride" className="ml-2 text-sm text-gray-700">
+                I have reviewed all conflicts and understand the scheduling issues
+              </label>
             </div>
-          </div>
 
-          <div className="mt-4 flex justify-between items-center">
-            <button
-              type="button"
-              onClick={onDismiss}
-              className="text-sm font-medium text-red-600 hover:text-red-500"
-            >
-              Dismiss
-            </button>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="enableOverride"
-                  checked={overrideEnabled}
-                  onChange={(e) => setOverrideEnabled(e.target.checked)}
-                  className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-                />
-                <label htmlFor="enableOverride" className="ml-2 text-sm text-red-600">
-                  I understand and accept the risks
-                </label>
-              </div>
+            {(!overrideEnabled || !allConflictsViewed()) && (
+              <p className="text-red-600 text-xs mb-4 flex items-center">
+                {/* Heroicon - Exclamation Triangle (mini) - Now Red */}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="h-3 w-3 mr-1"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Please review all conflicts by opening each accordion
+              </p>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={onDismiss}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
               <button
                 type="button"
                 onClick={onOverride}
-                disabled={!overrideEnabled}
-                className={`text-sm font-medium text-white px-3 py-2 rounded-md ${
-                  overrideEnabled 
-                    ? 'bg-red-600 hover:bg-red-700' 
-                    : 'bg-gray-400 cursor-not-allowed'
-                }`}
+                disabled={!overrideEnabled || !allConflictsViewed()}
+                className={`px-4 py-2 text-sm font-medium text-white rounded-md ${overrideEnabled && allConflictsViewed()
+                    ? "bg-[#35408E] hover:bg-[#2a3272]"
+                    : "bg-gray-400 cursor-not-allowed"
+                  }`}
               >
-                Override Conflicts
+                Acknowledge Conflicts
               </button>
             </div>
           </div>
         </div>
       </div>
     </div>
-  );
+  )
 }
