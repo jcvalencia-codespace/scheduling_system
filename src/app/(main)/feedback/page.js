@@ -5,12 +5,34 @@ import { EnvelopeIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outli
 import { submitFeedback, getUserFeedback } from './_actions';
 import { useRouter } from 'next/navigation';
 import Swal from 'sweetalert2';
+import dynamic from 'next/dynamic';
+
+// Dynamic import of React Select with SSR disabled
+const Select = dynamic(() => import('react-select'), {
+  ssr: false,
+});
 
 export default function FeedbackPage() {
   const router = useRouter();
   const [userFeedback, setUserFeedback] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedType, setSelectedType] = useState(null);
+  const [selectedPriority, setSelectedPriority] = useState(null);
+
+  const typeOptions = [
+    { value: 'suggestion', label: 'Enhancement Suggestion' },
+    { value: 'bug', label: 'Bug Report' },
+    { value: 'feature', label: 'Feature Request' },
+    { value: 'other', label: 'Other' }
+  ];
+
+  const priorityOptions = [
+    { value: 'low', label: 'Low Priority' },
+    { value: 'normal', label: 'Normal Priority' },
+    { value: 'high', label: 'High Priority' },
+    { value: 'urgent', label: 'Urgent Priority' }
+  ];
 
   useEffect(() => {
     loadUserFeedback();
@@ -26,9 +48,8 @@ export default function FeedbackPage() {
   const resetForm = () => {
     const form = document.querySelector('form');
     form.reset();
-    // Reset dropdowns to placeholder values
-    document.getElementById('type').value = '';
-    document.getElementById('priority').value = '';
+    setSelectedType(null);
+    setSelectedPriority(null);
     setError(null);
   };
 
@@ -39,6 +60,8 @@ export default function FeedbackPage() {
 
     try {
       const formData = new FormData(e.target);
+      formData.set('type', selectedType?.value || '');
+      formData.set('priority', selectedPriority?.value || '');
       const result = await submitFeedback(formData);
       
       if (result.error) {
@@ -50,7 +73,6 @@ export default function FeedbackPage() {
           confirmButtonColor: '#323E8F'
         });
       } else {
-        // Show success message
         Swal.fire({
           icon: 'success',
           title: 'Success!',
@@ -58,10 +80,7 @@ export default function FeedbackPage() {
           confirmButtonColor: '#323E8F'
         });
 
-        // Reset form and dropdowns
         resetForm();
-        
-        // Update feedback list if needed
         setUserFeedback([result.feedback, ...userFeedback]);
       }
     } catch (error) {
@@ -70,6 +89,57 @@ export default function FeedbackPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const customStyles = {
+    control: (base, state) => ({
+      ...base,
+      minHeight: '38px',
+      backgroundColor: 'white',
+      borderColor: state.isFocused ? '#323E8F' : '#E5E7EB',
+      borderRadius: '0.375rem', // rounded-md
+      boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)', // shadow-sm
+      '&:hover': {
+        borderColor: '#323E8F'
+      },
+      '&:focus': {
+        borderColor: '#323E8F',
+        boxShadow: '0 0 0 1px #323E8F'
+      }
+    }),
+    placeholder: (base) => ({
+      ...base,
+      color: '#6B7280',
+    }),
+    option: (base, state) => ({
+      ...base,
+      backgroundColor: state.isSelected ? '#323E8F' : state.isFocused ? '#EFF6FF' : 'white',
+      color: state.isSelected ? 'white' : 'black',
+      cursor: 'pointer',
+      padding: '8px 12px',
+    }),
+    menu: (base) => ({
+      ...base,
+      zIndex: 100,
+    }),
+    menuList: (base) => ({
+      ...base,
+      maxHeight: '200px', // Set maximum height
+      overflowY: 'auto', // Enable vertical scrolling
+      '&::-webkit-scrollbar': {
+        width: '8px'
+      },
+      '&::-webkit-scrollbar-track': {
+        background: '#f1f1f1'
+      },
+      '&::-webkit-scrollbar-thumb': {
+        background: '#888',
+        borderRadius: '4px'
+      },
+      '&::-webkit-scrollbar-thumb:hover': {
+        background: '#555'
+      }
+    })
   };
 
   return (
@@ -133,19 +203,19 @@ export default function FeedbackPage() {
                   >
                     Feedback Type
                   </label>
-                  <select
+                  <Select
+                    instanceId="type-select"
                     id="type"
                     name="type"
-                    required
-                    defaultValue=""
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black"
-                  >
-                    <option value="" disabled>Select feedback type</option>
-                    <option value="suggestion">Enhancement Suggestion</option>
-                    <option value="bug">Bug Report</option>
-                    <option value="feature">Feature Request</option>
-                    <option value="other">Other</option>
-                  </select>
+                    value={selectedType}
+                    onChange={setSelectedType}
+                    options={typeOptions}
+                    styles={customStyles}
+                    placeholder="Select feedback type"
+                    isClearable
+                    isSearchable
+                    className="mt-1"
+                  />
                 </div>
 
                 <div>
@@ -155,19 +225,19 @@ export default function FeedbackPage() {
                   >
                     Priority Level
                   </label>
-                  <select
+                  <Select
+                    instanceId="priority-select"
                     id="priority"
                     name="priority"
-                    required
-                    defaultValue=""
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black"
-                  >
-                    <option value="" disabled>Select priority level</option>
-                    <option value="low">Low Priority</option>
-                    <option value="normal">Normal Priority</option>
-                    <option value="high">High Priority</option>
-                    <option value="urgent">Urgent Priority</option>
-                  </select>
+                    value={selectedPriority}
+                    onChange={setSelectedPriority}
+                    options={priorityOptions}
+                    styles={customStyles}
+                    placeholder="Select priority level"
+                    isClearable
+                    isSearchable
+                    className="mt-1"
+                  />
                 </div>
 
                 <div className="sm:col-span-2">

@@ -7,10 +7,12 @@ import {
   PencilSquareIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline';
+import { XMarkIcon } from '@heroicons/react/24/solid';
 import AddEditCourseModal from './_components/AddEditCourseModal';
 import { getCourses, removeCourse } from './_actions';
 import Swal from 'sweetalert2';
 import { useLoading } from '../../../context/LoadingContext';
+import NoData from '@/app/components/NoData';
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState([]);
@@ -160,9 +162,8 @@ export default function CoursesPage() {
     if (sortConfig.key === key) {
       return (
         <ChevronUpDownIcon
-          className={`h-4 w-4 inline-block ml-1 ${
-            sortConfig.direction === 'asc' ? 'transform rotate-180' : ''
-          }`}
+          className={`h-4 w-4 inline-block ml-1 ${sortConfig.direction === 'asc' ? 'transform rotate-180' : ''
+            }`}
         />
       );
     }
@@ -217,9 +218,20 @@ export default function CoursesPage() {
                   id="search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="block w-full rounded-md border-0 py-1.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
-                  placeholder="Search courses..."
+                  className="block w-full rounded-md border-0 py-1.5 pl-10 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
+                  placeholder="Search departments..."
                 />
+                {searchQuery && (
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="text-gray-400 hover:text-gray-500 focus:outline-none"
+                    >
+                      <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -258,35 +270,49 @@ export default function CoursesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
-                {filteredCourses.map((course) => (
-                  <tr key={course.courseCode}>
-                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                      {course.courseCode}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {course.courseTitle}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {course.department?.departmentCode}
-                    </td>
-                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                      <button
-                        onClick={() => handleEdit(course)}
-                        className="text-[#323E8F] hover:text-[#35408E] mr-4"
-                      >
-                        <PencilSquareIcon className="h-5 w-5" />
-                        <span className="sr-only">Edit</span>
-                      </button>
-                      <button
-                        onClick={() => handleDelete(course.courseCode)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                        <span className="sr-only">Delete</span>
-                      </button>
+                {filteredCourses.length === 0 ? (
+                  <tr>
+                    <td colSpan="4">
+                      <NoData 
+                        message={searchQuery ? "No matching courses" : "No courses yet"} 
+                        description={searchQuery 
+                          ? "Try adjusting your search term" 
+                          : "Add a course to get started"
+                        }
+                      />
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredCourses.map((course) => (
+                    <tr key={course.courseCode}>
+                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                        {course.courseCode}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {course.courseTitle}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {course.department?.departmentCode}
+                      </td>
+                      <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                        <button
+                          onClick={() => handleEdit(course)}
+                          className="text-[#323E8F] hover:text-[#35408E] mr-4"
+                        >
+                          <PencilSquareIcon className="h-5 w-5" />
+                          <span className="sr-only">Edit</span>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(course.courseCode)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                          <span className="sr-only">Delete</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

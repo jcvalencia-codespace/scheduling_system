@@ -114,13 +114,37 @@ class RoomsModel {
 
   async updateRoom(roomCode, updateData) {
     const Room = await this.initModel();
-    const { $push, ...otherUpdateData } = updateData;
     
+    // Handle both FormData and regular objects
+    let updateHistory;
+    let plainUpdateData = {};
+
+    if (updateData instanceof FormData) {
+      // Handle FormData
+      if (updateData.get('$push[updateHistory]')) {
+        updateHistory = JSON.parse(updateData.get('$push[updateHistory]'));
+      }
+      
+      // Convert FormData to plain object
+      updateData.forEach((value, key) => {
+        if (key !== 'userId' && key !== '$push[updateHistory]') {
+          plainUpdateData[key] = value;
+        }
+      });
+    } else {
+      // Handle regular object
+      if (updateData.$push?.updateHistory) {
+        updateHistory = updateData.$push.updateHistory;
+        delete updateData.$push;
+      }
+      plainUpdateData = { ...updateData };
+    }
+
     const room = await Room.findOneAndUpdate(
       { roomCode, isActive: true },
-      { 
-        $set: otherUpdateData,
-        $push: updateData.$push // Remove nesting since it's already structured correctly
+      {
+        $set: plainUpdateData,
+        ...(updateHistory && { $push: { updateHistory } })
       },
       { new: true, runValidators: true }
     ).populate('department', 'departmentCode departmentName');

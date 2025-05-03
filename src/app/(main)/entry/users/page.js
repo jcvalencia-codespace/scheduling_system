@@ -10,10 +10,12 @@ import {
   ChevronRightIcon,
   ChevronUpDownIcon,
 } from '@heroicons/react/24/outline';
+import {XMarkIcon} from '@heroicons/react/20/solid';
 import { getUsers, removeUser } from './_actions';
 import AddEditUserModal from './_components/AddEditUserModal';
 import Swal from 'sweetalert2';
 import { useLoading } from '../../../context/LoadingContext';
+import NoData from '@/app/components/NoData';
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
@@ -188,18 +190,29 @@ export default function UsersPage() {
       <div className="mt-4 flex items-center justify-between">
         <div className="flex-1 max-w-sm">
           <div className="relative mt-1 rounded-md shadow-sm">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+              <MagnifyingGlassIcon
+                className="h-5 w-5 text-gray-400"
+                aria-hidden="true"
+              />
             </div>
             <input
               type="text"
-              name="search"
-              id="search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full rounded-md border-gray-300 pl-10 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              className="block w-full rounded-md border-0 py-2 pl-10 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
               placeholder="Search users..."
             />
+            {searchTerm && (
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -271,32 +284,46 @@ export default function UsersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
-                  {paginatedUsers.map((user) => (
-                    <tr key={user._id}>
-                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                        {user.firstName} {user.middleName} {user.lastName}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{user.email}</td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{user.role}</td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{user.department?.departmentCode || '-'}</td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{user.course?.courseCode || '-'}</td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{formatEmploymentType(user.employmentType)}</td>
-                      <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                        <button
-                          onClick={() => handleEdit(user)}
-                          className="inline-flex text-indigo-600 hover:text-indigo-900"
-                        >
-                          <PencilSquareIcon className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(user._id)}
-                          className="inline-flex ml-4 text-red-600 hover:text-red-900"
-                        >
-                          <TrashIcon className="h-5 w-5" />
-                        </button>
+                  {filteredUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan="7">
+                        <NoData 
+                          message={searchTerm ? "No matching users" : "No users yet"} 
+                          description={searchTerm 
+                            ? "Try adjusting your search term" 
+                            : "Add a user to get started"
+                          }
+                        />
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    paginatedUsers.map((user) => (
+                      <tr key={user._id}>
+                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                          {user.firstName} {user.middleName} {user.lastName}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{user.email}</td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{user.role}</td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{user.department?.departmentCode || '-'}</td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{user.course?.courseCode || '-'}</td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{formatEmploymentType(user.employmentType)}</td>
+                        <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                          <button
+                            onClick={() => handleEdit(user)}
+                            className="inline-flex text-indigo-600 hover:text-indigo-900"
+                          >
+                            <PencilSquareIcon className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(user._id)}
+                            className="inline-flex ml-4 text-red-600 hover:text-red-900"
+                          >
+                            <TrashIcon className="h-5 w-5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
