@@ -7,10 +7,12 @@ import {
   PencilSquareIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline';
+import { XMarkIcon } from '@heroicons/react/24/solid';
 import AddEditRoomModal from './_components/AddEditRoomModal';
 import { getRooms, getDepartments, removeRoom } from './_actions';
 import Swal from 'sweetalert2';
 import { useLoading } from '../../../context/LoadingContext';
+import NoData from '@/app/components/NoData';
 
 export default function RoomsPage() {
   const [rooms, setRooms] = useState([]);
@@ -220,24 +222,32 @@ export default function RoomsPage() {
                 Search
               </label>
               <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <MagnifyingGlassIcon
-                    className="h-5 w-5 text-gray-400"
-                    aria-hidden="true"
-                  />
-                </div>
-                <input
-                  type="text"
-                  name="search"
-                  id="search"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="block w-full rounded-md border-0 py-1.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
-                  placeholder="Search rooms..."
-                />
-              </div>
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+              <MagnifyingGlassIcon
+                className="h-5 w-5 text-gray-400"
+                aria-hidden="true"
+              />
             </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="block w-full rounded-md border-0 py-2 pl-10 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
+              placeholder="Search subjects..."
+            />
+            {searchQuery && (
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </div>
+            )}
           </div>
+        </div>
+      </div>
 
           <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
             <table className="min-w-full divide-y divide-gray-300">
@@ -293,44 +303,58 @@ export default function RoomsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
-                {filteredRooms.map((room) => (
-                  <tr key={room.roomCode}>
-                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                      {room.roomCode}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {room.roomName}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {room.type}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {room.floor}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {getDepartmentName(room.department)}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {room.capacity}
-                    </td>
-                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                      <button
-                        onClick={() => handleEdit(room)}
-                        className="text-[#323E8F] hover:text-[#35408E] mr-4"
-                      >
-                        <PencilSquareIcon className="h-5 w-5" />
-                        <span className="sr-only">Edit</span>
-                      </button>
-                      <button
-                        onClick={() => handleDelete(room.roomCode)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                        <span className="sr-only">Delete</span>
-                      </button>
+                {filteredRooms.length === 0 ? (
+                  <tr>
+                    <td colSpan="7">
+                      <NoData 
+                        message={searchQuery ? "No matching rooms" : "No rooms yet"} 
+                        description={searchQuery 
+                          ? "Try adjusting your search term" 
+                          : "Add a room to get started"
+                        }
+                      />
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredRooms.map((room) => (
+                    <tr key={room.roomCode}>
+                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                        {room.roomCode}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {room.roomName}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {room.type}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {room.floor}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {getDepartmentName(room.department)}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {room.capacity}
+                      </td>
+                      <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                        <button
+                          onClick={() => handleEdit(room)}
+                          className="text-[#323E8F] hover:text-[#35408E] mr-4"
+                        >
+                          <PencilSquareIcon className="h-5 w-5" />
+                          <span className="sr-only">Edit</span>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(room.roomCode)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                          <span className="sr-only">Delete</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

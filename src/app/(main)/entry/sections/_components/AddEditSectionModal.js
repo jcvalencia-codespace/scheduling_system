@@ -3,11 +3,66 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import Select from 'react-select';
 import { addSection, editSection } from '../_actions';
-import useAuthStore from '@/store/useAuthStore'; // Fixed import path
+import useAuthStore from '@/store/useAuthStore';
 import Swal from 'sweetalert2';
 
-const YEAR_LEVELS = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
+const YEAR_LEVELS = ['1st Year', '2nd Year', '3rd Year', '4th Year'].map(year => ({
+  value: year,
+  label: year
+}));
+
+const customStyles = {
+  control: (base, state) => ({
+    ...base,
+    minHeight: '38px',
+    backgroundColor: 'white',
+    borderColor: state.isFocused ? '#323E8F' : '#E5E7EB',
+    borderRadius: '0.375rem',
+    boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+    '&:hover': {
+      borderColor: '#323E8F'
+    },
+    '&:focus': {
+      borderColor: '#323E8F',
+      boxShadow: '0 0 0 1px #323E8F'
+    }
+  }),
+  placeholder: (base) => ({
+    ...base,
+    color: '#6B7280',
+  }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected ? '#323E8F' : state.isFocused ? '#EFF6FF' : 'white',
+    color: state.isSelected ? 'white' : 'black',
+    cursor: 'pointer',
+    padding: '8px 12px',
+  }),
+  menu: (base) => ({
+    ...base,
+    zIndex: 100,
+  }),
+  menuList: (base) => ({
+    ...base,
+    maxHeight: '130px',
+    overflowY: 'auto',
+    '&::-webkit-scrollbar': {
+      width: '8px'
+    },
+    '&::-webkit-scrollbar-track': {
+      background: '#f1f1f1'
+    },
+    '&::-webkit-scrollbar-thumb': {
+      background: '#888',
+      borderRadius: '4px'
+    },
+    '&::-webkit-scrollbar-thumb:hover': {
+      background: '#555'
+    }
+  })
+};
 
 const initialFormState = {
   sectionName: '',
@@ -24,16 +79,22 @@ export default function AddEditSectionModal({ show, onClose, section, courses, o
     if (section) {
       setFormData({
         sectionName: section.sectionName || '',
-        courseCode: section.course?._id || '',
-        yearLevel: section.yearLevel || '',
+        courseCode: {
+          value: section.course?._id || '',
+          label: `${section.course?.courseCode} - ${section.course?.courseTitle} (${section.course?.department?.departmentCode || 'N/A'})`
+        },
+        yearLevel: {
+          value: section.yearLevel || '',
+          label: section.yearLevel || ''
+        },
       });
     } else {
       setFormData(initialFormState);
     }
   }, [section, show]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  const handleChange = (name) => (event) => {
+    const value = event?.target?.value ?? event; // Handle both input and Select changes
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -52,9 +113,9 @@ export default function AddEditSectionModal({ show, onClose, section, courses, o
       }
 
       const form = new FormData();
-      Object.keys(formData).forEach(key => {
-        form.append(key, formData[key]);
-      });
+      form.append('sectionName', formData.sectionName);
+      form.append('courseCode', formData.courseCode.value);
+      form.append('yearLevel', formData.yearLevel.value);
       form.append('userId', user._id);
 
       const result = section
@@ -149,8 +210,8 @@ export default function AddEditSectionModal({ show, onClose, section, courses, o
                               name="sectionName"
                               id="sectionName"
                               value={formData.sectionName}
-                              onChange={handleChange}
-                              disabled={isSubmitting}  // Removed !!section condition
+                              onChange={handleChange('sectionName')}
+                              disabled={isSubmitting}
                               className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                               required
                             />
@@ -160,44 +221,42 @@ export default function AddEditSectionModal({ show, onClose, section, courses, o
                             <label htmlFor="courseCode" className="block text-sm font-medium text-gray-700">
                               Course
                             </label>
-                            <select
-                              name="courseCode"
+                            <Select
                               id="courseCode"
+                              name="courseCode"
                               value={formData.courseCode}
-                              onChange={handleChange}
-                              disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                              required
-                            >
-                              <option value="">Select Course</option>
-                              {courses.map((course) => (
-                                <option key={course._id} value={course._id}>
-                                  {course.courseCode} - {course.courseTitle} ({course.department?.departmentCode || 'N/A'})
-                                </option>
-                              ))}
-                            </select>
+                              onChange={handleChange('courseCode')}
+                              options={courses.map(course => ({
+                                value: course._id,
+                                label: `${course.courseCode} - ${course.courseTitle} (${course.department?.departmentCode || 'N/A'})`
+                              }))}
+                              isDisabled={isSubmitting}
+                              styles={customStyles}
+                              placeholder="Select Course"
+                              className="mt-1"
+                              isSearchable={true}
+                              isClearable={true}
+                            />
                           </div>
 
                           <div className="sm:col-span-2">
                             <label htmlFor="yearLevel" className="block text-sm font-medium text-gray-700">
                               Year Level
                             </label>
-                            <select
-                              name="yearLevel"
+                            <Select
                               id="yearLevel"
+                              name="yearLevel"
                               value={formData.yearLevel}
-                              onChange={handleChange}
-                              disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                              required
-                            >
-                              <option value="">Select Year Level</option>
-                              {YEAR_LEVELS.map((year) => (
-                                <option key={year} value={year}>
-                                  {year}
-                                </option>
-                              ))}
-                            </select>
+                              onChange={handleChange('yearLevel')}
+                              options={YEAR_LEVELS}
+                              isDisabled={isSubmitting}
+                              styles={customStyles}
+                              placeholder="Select Year Level"
+                              className="mt-1"
+                              menuPlacement='top'
+                              isSearchable={true}
+                              isClearable={true}
+                            />
                           </div>
                         </div>
 

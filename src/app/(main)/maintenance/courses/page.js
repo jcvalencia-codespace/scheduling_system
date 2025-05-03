@@ -12,6 +12,7 @@ import AddEditCourseModal from './_components/AddEditCourseModal';
 import { getCourses, removeCourse } from './_actions';
 import Swal from 'sweetalert2';
 import { useLoading } from '../../../context/LoadingContext';
+import NoData from '@/app/components/NoData';
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState([]);
@@ -269,35 +270,49 @@ export default function CoursesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
-                {filteredCourses.map((course) => (
-                  <tr key={course.courseCode}>
-                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                      {course.courseCode}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {course.courseTitle}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {course.department?.departmentCode}
-                    </td>
-                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                      <button
-                        onClick={() => handleEdit(course)}
-                        className="text-[#323E8F] hover:text-[#35408E] mr-4"
-                      >
-                        <PencilSquareIcon className="h-5 w-5" />
-                        <span className="sr-only">Edit</span>
-                      </button>
-                      <button
-                        onClick={() => handleDelete(course.courseCode)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                        <span className="sr-only">Delete</span>
-                      </button>
+                {filteredCourses.length === 0 ? (
+                  <tr>
+                    <td colSpan="4">
+                      <NoData 
+                        message={searchQuery ? "No matching courses" : "No courses yet"} 
+                        description={searchQuery 
+                          ? "Try adjusting your search term" 
+                          : "Add a course to get started"
+                        }
+                      />
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredCourses.map((course) => (
+                    <tr key={course.courseCode}>
+                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                        {course.courseCode}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {course.courseTitle}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {course.department?.departmentCode}
+                      </td>
+                      <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                        <button
+                          onClick={() => handleEdit(course)}
+                          className="text-[#323E8F] hover:text-[#35408E] mr-4"
+                        >
+                          <PencilSquareIcon className="h-5 w-5" />
+                          <span className="sr-only">Edit</span>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(course.courseCode)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                          <span className="sr-only">Delete</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

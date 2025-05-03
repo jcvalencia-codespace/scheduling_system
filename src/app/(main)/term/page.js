@@ -12,6 +12,7 @@ import AddEditTermModal from './_components/AddEditTermModal';
 import { getTerms, activateTerm, deactivateTerm, removeTerm, endAllTerms } from './_actions';
 import Swal from 'sweetalert2';
 import { useLoading } from '../../context/LoadingContext';
+import NoData from '@/app/components/NoData';
 
 export default function TermPage() {
   const [terms, setTerms] = useState([]);
@@ -331,62 +332,76 @@ export default function TermPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200 bg-white">
-                        {filteredTerms.map((term, index) => (
-                          <tr key={term.id}>
-                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                              {index + 1}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
-                              {term.academicYear}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                              {term.term}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                              {formatDate(term.startDate)}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                              {formatDate(term.endDate)}
-                            </td>
-                            <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                              <div className="flex justify-end items-center gap-2">
-                                <button
-                                  className="inline-flex items-center justify-center w-24 px-3 py-2 text-sm font-medium rounded-lg text-[#323E8F] bg-gray-100 hover:text-[#2A347A] hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#323E8F]"
-                                  onClick={() => {
-                                    setSelectedTerm(term);
-                                    setIsAddModalOpen(true);
-                                  }}
-                                >
-                                  <PencilSquareIcon className="h-4 w-4 mr-2" />
-                                  Edit
-                                </button>
-                                <button
-                                  className="inline-flex items-center justify-center w-24 px-3 py-2 text-sm font-medium rounded-lg text-red-600 bg-gray-100 hover:text-red-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600"
-                                  onClick={() => handleDelete(term.id)}
-                                >
-                                  <TrashIcon className="h-4 w-4 mr-2" />
-                                  Delete
-                                </button>
-                                <button
-                                  className={`inline-flex items-center justify-center w-24 px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                                    term.status === 'Active'
-                                      ? 'text-green-600 bg-gray-100 hover:text-green-700 hover:bg-gray-200 focus:ring-green-600'
-                                      : 'text-gray-600 bg-gray-100 hover:text-gray-700 hover:bg-gray-200 focus:ring-gray-600'
-                                  } focus:outline-none focus:ring-2 focus:ring-offset-2`}
-                                  onClick={() =>
-                                    handleActivate(term.id, term.status, {
-                                      term: term.term,
-                                      academicYear: term.academicYear,
-                                    })
-                                  }
-                                >
-                                  <CheckCircleIcon className="h-4 w-4 mr-2" />
-                                  {term.status === 'Active' ? 'Active' : 'Activate'}
-                                </button>
-                              </div>
+                        {filteredTerms.length === 0 ? (
+                          <tr>
+                            <td colSpan="6">
+                              <NoData 
+                                message={searchQuery ? "No matching terms" : "No terms yet"} 
+                                description={searchQuery 
+                                  ? "Try adjusting your search term" 
+                                  : "Add a term to get started"
+                                }
+                              />
                             </td>
                           </tr>
-                        ))}
+                        ) : (
+                          filteredTerms.map((term, index) => (
+                            <tr key={term.id}>
+                              <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                {index + 1}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
+                                {term.academicYear}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                {term.term}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                {formatDate(term.startDate)}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                {formatDate(term.endDate)}
+                              </td>
+                              <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                                <div className="flex justify-end items-center gap-2">
+                                  <button
+                                    className="inline-flex items-center justify-center w-24 px-3 py-2 text-sm font-medium rounded-lg text-[#323E8F] bg-gray-100 hover:text-[#2A347A] hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#323E8F]"
+                                    onClick={() => {
+                                      setSelectedTerm(term);
+                                      setIsAddModalOpen(true);
+                                    }}
+                                  >
+                                    <PencilSquareIcon className="h-4 w-4 mr-2" />
+                                    Edit
+                                  </button>
+                                  <button
+                                    className="inline-flex items-center justify-center w-24 px-3 py-2 text-sm font-medium rounded-lg text-red-600 bg-gray-100 hover:text-red-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600"
+                                    onClick={() => handleDelete(term.id)}
+                                  >
+                                    <TrashIcon className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </button>
+                                  <button
+                                    className={`inline-flex items-center justify-center w-24 px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
+                                      term.status === 'Active'
+                                        ? 'text-green-600 bg-gray-100 hover:text-green-700 hover:bg-gray-200 focus:ring-green-600'
+                                        : 'text-gray-600 bg-gray-100 hover:text-gray-700 hover:bg-gray-200 focus:ring-gray-600'
+                                    } focus:outline-none focus:ring-2 focus:ring-offset-2`}
+                                    onClick={() =>
+                                      handleActivate(term.id, term.status, {
+                                        term: term.term,
+                                        academicYear: term.academicYear,
+                                      })
+                                    }
+                                  >
+                                    <CheckCircleIcon className="h-4 w-4 mr-2" />
+                                    {term.status === 'Active' ? 'Active' : 'Activate'}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>

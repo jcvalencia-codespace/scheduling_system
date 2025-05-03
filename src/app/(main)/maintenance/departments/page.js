@@ -14,6 +14,7 @@ import ViewCourses from './_components/ViewCourses';
 import { getDepartments, removeDepartment, getCoursesByDepartment } from './_actions';
 import Swal from 'sweetalert2';
 import { useLoading } from '../../../context/LoadingContext';
+import NoData from '@/app/components/NoData';
 
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState([]);
@@ -315,42 +316,56 @@ export default function DepartmentsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
-                {filteredDepartments.map((department) => (
-                  <tr key={department.departmentCode}>
-                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                      {department.departmentCode}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      {department.departmentName}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      <div className="flex justify-center">
-                        <button
-                          onClick={() => handleViewCourses(department)}
-                          className="text-[#323E8F] hover:text-[#35408E]"
-                        >
-                          <EyeIcon className="h-5 w-5" />
-                        </button>
-                      </div>
-                    </td>
-                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                      <button
-                        onClick={() => handleEdit(department)}
-                        className="text-[#323E8F] hover:text-[#35408E] mr-4"
-                      >
-                        <PencilSquareIcon className="h-5 w-5" />
-                        <span className="sr-only">Edit</span>
-                      </button>
-                      <button
-                        onClick={() => handleDelete(department.departmentCode)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                        <span className="sr-only">Delete</span>
-                      </button>
+                {filteredDepartments.length === 0 ? (
+                  <tr>
+                    <td colSpan="4">
+                      <NoData 
+                        message={searchQuery ? "No matching departments" : "No departments yet"} 
+                        description={searchQuery 
+                          ? "Try adjusting your search term" 
+                          : "Add a department to get started"
+                        }
+                      />
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredDepartments.map((department) => (
+                    <tr key={department.departmentCode}>
+                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                        {department.departmentCode}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {department.departmentName}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        <div className="flex justify-center">
+                          <button
+                            onClick={() => handleViewCourses(department)}
+                            className="text-[#323E8F] hover:text-[#35408E]"
+                          >
+                            <EyeIcon className="h-5 w-5" />
+                          </button>
+                        </div>
+                      </td>
+                      <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                        <button
+                          onClick={() => handleEdit(department)}
+                          className="text-[#323E8F] hover:text-[#35408E] mr-4"
+                        >
+                          <PencilSquareIcon className="h-5 w-5" />
+                          <span className="sr-only">Edit</span>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(department.departmentCode)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                          <span className="sr-only">Delete</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

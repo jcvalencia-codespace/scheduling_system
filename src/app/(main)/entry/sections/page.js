@@ -7,12 +7,14 @@ import {
   PencilSquareIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline';
+import { XMarkIcon } from '@heroicons/react/24/solid';
 import { getSections, removeSection, getCourses } from './_actions';
 import AddEditSectionModal from './_components/AddEditSectionModal';
 import Swal from 'sweetalert2';
 import Loading from '../../../components/Loading';
 import { useLoading } from '../../../context/LoadingContext';
 import useAuthStore from '@/store/useAuthStore';
+import NoData from '@/app/components/NoData';
 
 export default function SectionsPage() {
   const user = useAuthStore((state) => state.user);
@@ -211,9 +213,19 @@ export default function SectionsPage() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full rounded-md border-0 py-2 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
+              className="block w-full rounded-md border-0 py-2 pl-10 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
               placeholder="Search sections..."
             />
+            {searchTerm && (
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -270,38 +282,52 @@ export default function SectionsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
-                    {filteredSections.map((section) => (
-                      <tr key={section.sectionName}>
-                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                          {section.sectionName}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {section.course ? `${section.course.courseCode} - ${section.course.courseTitle}` : 'N/A'}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {section.department?.departmentCode || 'N/A'}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {section.yearLevel}
-                        </td>
-                        <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                          <button
-                            onClick={() => handleEdit(section)}
-                            className="text-[#323E8F] hover:text-[#35408E] mr-4"
-                          >
-                            <PencilSquareIcon className="h-5 w-5" />
-                            <span className="sr-only">Edit</span>
-                          </button>
-                          <button
-                            onClick={() => handleDelete(section.sectionName)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            <TrashIcon className="h-5 w-5" />
-                            <span className="sr-only">Delete</span>
-                          </button>
+                    {filteredSections.length === 0 ? (
+                      <tr>
+                        <td colSpan="6">
+                          <NoData 
+                            message={searchTerm ? "No matching sections" : "No sections yet"} 
+                            description={searchTerm 
+                              ? "Try adjusting your search term" 
+                              : "Add a section to get started"
+                            }
+                          />
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredSections.map((section) => (
+                        <tr key={section.sectionName}>
+                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                            {section.sectionName}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {section.course ? `${section.course.courseCode} - ${section.course.courseTitle}` : 'N/A'}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {section.department?.departmentCode || 'N/A'}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {section.yearLevel}
+                          </td>
+                          <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                            <button
+                              onClick={() => handleEdit(section)}
+                              className="text-[#323E8F] hover:text-[#35408E] mr-4"
+                            >
+                              <PencilSquareIcon className="h-5 w-5" />
+                              <span className="sr-only">Edit</span>
+                            </button>
+                            <button
+                              onClick={() => handleDelete(section.sectionName)}
+                              className="text-red-600 hover:text-red-900"
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                              <span className="sr-only">Delete</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
