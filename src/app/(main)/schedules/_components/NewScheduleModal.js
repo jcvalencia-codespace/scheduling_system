@@ -8,6 +8,7 @@ import Select from 'react-select';
 import useAuthStore from '@/store/useAuthStore';
 import ScheduleModalSkeleton from './Skeleton';
 import { XCircleIcon } from '@heroicons/react/24/outline';
+import ConflictAlert from './ConflictAlert';
 
 export default function NewScheduleModal({
   isOpen,
@@ -16,7 +17,7 @@ export default function NewScheduleModal({
   editMode = false,
   scheduleData = null
 }) {
-  const { user } = useAuthStore(); // Add this line
+  const { user } = useAuthStore();
   const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   const studentTypes = [
@@ -33,15 +34,15 @@ export default function NewScheduleModal({
     room: '',
     scheduleType: 'lecture'
   });
-  // Update the customStyles object
+  const [overrideEnabled, setOverrideEnabled] = useState(false);
   const customStyles = {
     control: (base, state) => ({
       ...base,
       minHeight: '42px',
       backgroundColor: 'white',
       borderColor: state.isFocused ? '#323E8F' : '#E5E7EB',
-      borderRadius: '0.375rem', // rounded-md
-      boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)', // shadow-sm
+      borderRadius: '0.375rem',
+      boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
       '&:hover': {
         borderColor: '#323E8F'
       },
@@ -67,8 +68,8 @@ export default function NewScheduleModal({
     }),
     menuList: (base) => ({
       ...base,
-      maxHeight: '200px', // Set maximum height
-      overflowY: 'auto', // Enable vertical scrolling
+      maxHeight: '200px',
+      overflowY: 'auto',
       '&::-webkit-scrollbar': {
         width: '8px'
       },
@@ -92,12 +93,12 @@ export default function NewScheduleModal({
 
     for (let hour = startHour; hour <= endHour; hour++) {
       for (let minutes = 0; minutes < 60; minutes += 20) {
-        const hour12 = hour % 12 || 12; // Convert to 12-hour format
+        const hour12 = hour % 12 || 12;
         const period = hour >= 12 ? 'PM' : 'AM';
         const formattedMinutes = minutes.toString().padStart(2, '0');
 
         slots.push({
-          value: `${hour12}:${formattedMinutes} ${period}`, // Use 12-hour format in value
+          value: `${hour12}:${formattedMinutes} ${period}`,
           label: `${hour12}:${formattedMinutes} ${period}`
         });
       }
@@ -132,11 +133,15 @@ export default function NewScheduleModal({
     timeTo: '',
     isPaired: false,
     isMultipleSections: false,
-
   });
 
-  // Update useEffect to fetch both form data and term info
-  // Update useEffect to properly handle the term data
+  const formatTimeValue = (timeValue) => {
+    const [time, period] = timeValue.split(' ');
+    const [hours, minutes] = time.split(':');
+    const formattedHours = hours.padStart(2, '0');
+    return `${formattedHours}:${minutes} ${period}`;
+  };
+
   useEffect(() => {
     async function fetchData() {
       try {
@@ -150,17 +155,15 @@ export default function NewScheduleModal({
           throw new Error(formResponse.error);
         }
 
-        // Log term response for debugging
         console.log('Term Response:', termResponse);
 
-        // Check if term exists and has required properties
         if (!termResponse.term || !termResponse.term.id) {
           throw new Error('No active term found');
         }
 
         setFormData(formResponse);
         setTermInfo({
-          _id: termResponse.term.id, // Use the id from the response
+          _id: termResponse.term.id,
           academicYear: termResponse.term.academicYear,
           term: termResponse.term.term
         });
@@ -176,20 +179,6 @@ export default function NewScheduleModal({
       fetchData();
     }
   }, [isOpen]);
-
-  // Update the Academic Year and Term Info section
-  <div className="bg-blue-50 p-4 rounded-lg mb-6">
-    <div className="space-y-1 text-black">
-      <div className="flex gap-2">
-        <span className="font-medium">Academic Year:</span>
-        <span>{termInfo?.academicYear || schoolYear}</span>
-      </div>
-      <div className="flex gap-2">
-        <span className="font-medium">Term:</span>
-        <span>{termInfo?.term || 'Loading...'}</span>
-      </div>
-    </div>
-  </div>;
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -215,7 +204,6 @@ export default function NewScheduleModal({
     label: subject.displayName
   }));
 
-  // Update the roomOptions mapping
   const roomOptions = formData.rooms.map(room => ({
     value: room._id,
     label: `${room.roomCode} - ${room.roomName || room.name} (${room.capacity} capacity)`
@@ -241,7 +229,6 @@ export default function NewScheduleModal({
     label: slot.label
   }));
 
-  // Add this handler for react-select changes
   const handleSelectChange = (selectedOption, { name }) => {
     setSelectedValues(prev => ({
       ...prev,
@@ -266,9 +253,7 @@ export default function NewScheduleModal({
         return `${hour12}:${minutes} ${period}`;
       };
 
-      // Main schedule is always the first slot
       const mainSlot = scheduleData.scheduleSlots[0];
-      // Paired schedule is the second slot if it exists
       const pairedSlot = scheduleData.scheduleSlots[1];
 
       setSelectedValues({
@@ -277,7 +262,7 @@ export default function NewScheduleModal({
         section: scheduleData.section?._id || '',
         faculty: scheduleData.faculty?._id || '',
         subject: scheduleData.subject?._id || '',
-        room: mainSlot?.room?._id || '', // Update this line
+        room: mainSlot?.room?._id || '',
         classLimit: scheduleData.classLimit?.toString() || '',
         studentType: scheduleData.studentType || '',
         days: mainSlot?.days?.[0] || '',
@@ -293,7 +278,7 @@ export default function NewScheduleModal({
           days: pairedSlot.days[0] || '',
           timeFrom: formatTimeForEdit(pairedSlot.timeFrom),
           timeTo: formatTimeForEdit(pairedSlot.timeTo),
-          room: pairedSlot.room?._id || '', // Update this line
+          room: pairedSlot.room?._id || '',
           scheduleType: pairedSlot.scheduleType || 'lecture'
         });
       }
@@ -306,27 +291,18 @@ export default function NewScheduleModal({
         throw new Error('No active term found. Please contact an administrator.');
       }
 
-      // Basic form validation
-      const requiredFields = ['section', 'faculty', 'subject', 'room', 'classLimit', 'studentType', 'days', 'timeFrom', 'timeTo'];
+      const requiredFields = ['section', 'subject', 'room', 'classLimit', 'studentType', 'days', 'timeFrom', 'timeTo'];
       const emptyFields = requiredFields.filter(field => !selectedValues[field]);
 
       if (emptyFields.length > 0) {
         throw new Error(`Please fill in all required fields: ${emptyFields.join(', ')}`);
       }
-      // Validate class limit
+
       const classLimit = parseInt(selectedValues.classLimit, 10);
       if (isNaN(classLimit) || classLimit <= 0) {
         throw new Error('Class limit must be a positive number');
       }
-      // Format time values
-      const formatTimeValue = (timeValue) => {
-        const [time, period] = timeValue.split(' ');
-        const [hours, minutes] = time.split(':');
-        const formattedHours = hours.padStart(2, '0');
-        return `${formattedHours}:${minutes} ${period}`;
-      };
 
-      // Validate paired schedule if enabled
       if (selectedValues.isPaired) {
         if (selectedValues.days === pairedSchedule.days) {
           throw new Error('Paired schedule cannot be on the same day as the main schedule');
@@ -348,7 +324,7 @@ export default function NewScheduleModal({
         timeFrom: formatTimeValue(selectedValues.timeFrom),
         timeTo: formatTimeValue(selectedValues.timeTo),
         isActive: true,
-        userId: user._id, // Add user ID
+        userId: user._id,
         pairedSchedule: selectedValues.isPaired ? {
           ...pairedSchedule,
           timeFrom: formatTimeValue(pairedSchedule.timeFrom),
@@ -361,18 +337,15 @@ export default function NewScheduleModal({
         ? await updateSchedule(scheduleData.id || scheduleData._id, scheduleData)
         : await createSchedule(scheduleData);
 
-      // Log the response
       console.log('Save response:', response);
 
       if (response.error) {
         throw new Error(response.error);
       }
 
-      // Handle conflicts
       if (response.conflicts) {
-        // Set state to display conflicts
         setConflicts(response.conflicts);
-        return; // Stop execution here to show conflicts
+        return;
       }
 
       await Swal.fire({
@@ -395,10 +368,163 @@ export default function NewScheduleModal({
     }
   };
 
-  // Add state for conflicts
+  const checkScheduleDuration = (conflicts) => {
+    const getMinutesBetween = (timeFrom, timeTo) => {
+      const [fromTime, fromPeriod] = timeFrom.split(' ');
+      const [toTime, toPeriod] = timeTo.split(' ');
+      
+      let [fromHour, fromMinute] = fromTime.split(':').map(Number);
+      let [toHour, toMinute] = toTime.split(':').map(Number);
+      
+      // Convert to 24-hour format
+      if (fromPeriod === 'PM' && fromHour !== 12) fromHour += 12;
+      if (fromPeriod === 'AM' && fromHour === 12) fromHour = 0;
+      if (toPeriod === 'PM' && toHour !== 12) toHour += 12;
+      if (toPeriod === 'AM' && toHour === 12) toHour = 0;
+      
+      const minutes = (toHour * 60 + toMinute) - (fromHour * 60 + fromMinute);
+      return minutes > 0 ? minutes : minutes + (24 * 60); // Handle overnight schedules
+    };
+
+    const minimumDuration = 120; // 2 hours in minutes
+    let totalShortDurations = 0;
+    let affectedSchedules = [];
+
+    // Process each type of conflict
+    const processConflicts = (conflictArray) => {
+      conflictArray.forEach(conflict => {
+        const duration = getMinutesBetween(conflict.timeFrom, conflict.timeTo);
+        if (duration < minimumDuration) {
+          totalShortDurations++;
+          affectedSchedules.push({
+            type: conflict.room ? 'Room' : conflict.faculty ? 'Faculty' : 'Section',
+            duration,
+            details: `${duration} minutes`
+          });
+        }
+      });
+    };
+
+    processConflicts(conflicts.roomConflicts);
+    processConflicts(conflicts.facultyConflicts);
+    processConflicts(conflicts.sectionConflicts);
+
+    const currentDuration = getCurrentScheduleDuration();
+    if (currentDuration < minimumDuration) {
+      totalShortDurations++;
+      affectedSchedules.push({
+        type: 'Current Schedule',
+        duration: currentDuration,
+        details: `${currentDuration} minutes`
+      });
+    }
+
+    return {
+      isValid: totalShortDurations === 0,
+      shortDurations: totalShortDurations,
+      affectedSchedules
+    };
+  };
+
+  const getCurrentScheduleDuration = () => {
+    const getMinutesBetween = (timeFrom, timeTo) => {
+      const [fromTime, fromPeriod] = timeFrom.split(' ');
+      const [toTime, toPeriod] = timeTo.split(' ');
+      
+      let [fromHour, fromMinute] = fromTime.split(':').map(Number);
+      let [toHour, toMinute] = toTime.split(':').map(Number);
+      
+      // Convert to 24-hour format
+      if (fromPeriod === 'PM' && fromHour !== 12) fromHour += 12;
+      if (fromPeriod === 'AM' && fromHour === 12) fromHour = 0;
+      if (toPeriod === 'PM' && toHour !== 12) toHour += 12;
+      if (toPeriod === 'AM' && toHour === 12) toHour = 0;
+      
+      return (toHour * 60 + toMinute) - (fromHour * 60 + fromMinute);
+    };
+
+    return selectedValues.timeFrom && selectedValues.timeTo ? 
+      getMinutesBetween(selectedValues.timeFrom, selectedValues.timeTo) : 0;
+  };
+
+  const handleOverride = async () => {
+    try {
+      const durationCheck = checkScheduleDuration(conflicts);
+      if (durationCheck.shortDurations > 0) {
+        const result = await Swal.fire({
+          title: 'Warning: Short Duration Schedules',
+          html: `
+            <div class="text-left">
+              <p class="mb-2">The following schedules have less than 2 hours duration:</p>
+              <ul class="list-disc pl-5">
+                ${durationCheck.affectedSchedules.map(schedule => 
+                  `<li>${schedule.type}: ${schedule.details}</li>`
+                ).join('')}
+              </ul>
+              <p class="mt-2 text-red-600">Are you sure you want to proceed?</p>
+            </div>
+          `,
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#1a237e',
+          cancelButtonColor: '#d33',
+          confirmButtonText: 'Yes, Override',
+          cancelButtonText: 'Cancel'
+        });
+
+        if (!result.isConfirmed) {
+          return;
+        }
+      }
+
+      const scheduleData = {
+        ...selectedValues,
+        term: termInfo._id,
+        days: [selectedValues.days],
+        classLimit: parseInt(selectedValues.classLimit, 10),
+        timeFrom: formatTimeValue(selectedValues.timeFrom),
+        timeTo: formatTimeValue(selectedValues.timeTo),
+        isActive: true,
+        userId: user._id,
+        force: true,
+        pairedSchedule: selectedValues.isPaired ? {
+          ...pairedSchedule,
+          timeFrom: formatTimeValue(pairedSchedule.timeFrom),
+          timeTo: formatTimeValue(pairedSchedule.timeTo),
+          days: [pairedSchedule.days]
+        } : null
+      };
+
+      const response = editMode
+        ? await updateSchedule(scheduleData.id || scheduleData._id, scheduleData)
+        : await createSchedule(scheduleData);
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      await Swal.fire({
+        title: 'Success!',
+        text: `Schedule has been ${editMode ? 'updated' : 'created'} successfully.`,
+        icon: 'success',
+        timer: 1500
+      });
+
+      onClose();
+      clearForm();
+      onScheduleCreated();
+    } catch (error) {
+      console.error('Error in override:', error);
+      await Swal.fire({
+        title: 'Error!',
+        text: error.message,
+        icon: 'error'
+      });
+    }
+  };
+
   const [conflicts, setConflicts] = useState(null);
 
-  // Add this to your clearForm function
   const clearForm = () => {
     setSelectedValues({
       term: '',
@@ -431,15 +557,16 @@ export default function NewScheduleModal({
       <Dialog as="div" className="relative z-50" onClose={() => {
         clearForm();
         onClose();
-      }}>        <Transition.Child
-        as={Fragment}
-        enter="ease-out duration-300"
-        enterFrom="opacity-0"
-        enterTo="opacity-100"
-        leave="ease-in duration-200"
-        leaveFrom="opacity-100"
-        leaveTo="opacity-0"
-      >
+      }}>
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
           <div className="fixed inset-0 bg-black bg-opacity-25" />
         </Transition.Child>
 
@@ -459,12 +586,11 @@ export default function NewScheduleModal({
                   {editMode ? 'Edit Schedule' : 'New Schedule Entry'}
                 </Dialog.Title>
 
-                <div className="max-h-[70vh] overflow-y-auto  p-6">
+                <div className="max-h-[70vh] overflow-y-auto p-6">
                   {loading ? (
                     <ScheduleModalSkeleton />
                   ) : (
                     <>
-                      {/* Academic Year and Term Info */}
                       <div className="bg-[#1a237e] p-4 rounded-lg mb-6">
                         <div className="space-y-1 text-white">
                           <div className="flex gap-2">
@@ -478,9 +604,7 @@ export default function NewScheduleModal({
                         </div>
                       </div>
 
-                      {/* Checkboxes */}
                       <div className="flex gap-6 mb-6">
-
                         <label className="flex items-center gap-2 text-black">
                           <input
                             type="checkbox"
@@ -503,89 +627,19 @@ export default function NewScheduleModal({
                         </label>
                       </div>
 
-
-                      {/* // Add this to your component, right before the form content */}
                       {conflicts && (
-                        <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-                          <div className="flex">
-                            {/* <div className="flex-shrink-0">
-                              <XCircleIcon className="h-5 w-5 text-red-400" aria-hidden="true" />
-                            </div> */}
-                            <div className="ml-3">
-                              <h3 className="text-sm font-bold text-red-800">
-                                Schedule Conflicts Detected
-                              </h3>
-                              <div className="mt-2 text-sm text-red-700">
-                                {conflicts.roomConflicts.length > 0 && (
-                                  <div className="mb-2">
-                                    <strong>Room Conflicts:</strong>
-                                    <ul className="list-disc pl-5 space-y-1 mt-1">
-                                      {conflicts.roomConflicts.map((conflict, idx) => (
-                                        <li key={`room-${idx}`}>
-                                          Room {conflict.room} is already booked on {conflict.day} from {conflict.timeFrom} to {conflict.timeTo}
-                                          {conflict.conflictingSchedules.map((schedule, i) => (
-                                            <div key={`room-schedule-${i}`} className="text-xs ml-2 pt-2">
-                                              • Conflicted Schedule: {schedule.section}: {schedule.timeFrom} - {schedule.timeTo} 
-                                            </div>
-                                          ))}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                )}
-
-                                {conflicts.facultyConflicts.length > 0 && (
-                                  <div className="mb-2">
-                                    <strong>Faculty Conflicts:</strong>
-                                    <ul className="list-disc pl-5 space-y-1 mt-1">
-                                      {conflicts.facultyConflicts.map((conflict, idx) => (
-                                        <li key={`faculty-${idx}`}>
-                                          {conflict.faculty} is already scheduled on {conflict.day} from {conflict.timeFrom} to {conflict.timeTo}
-                                          {conflict.conflictingSchedules.map((schedule, i) => (
-                                            <div key={`faculty-schedule-${i}`} className="text-xs ml-2">
-                                              • Section {schedule.section}: {schedule.timeFrom} - {schedule.timeTo}
-                                            </div>
-                                          ))}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                )}
-
-                                {conflicts.sectionConflicts.length > 0 && (
-                                  <div>
-                                    <strong>Section Conflicts:</strong>
-                                    <ul className="list-disc pl-5 space-y-1 mt-1">
-                                      {conflicts.sectionConflicts.map((conflict, idx) => (
-                                        <li key={`section-${idx}`}>
-                                          Section {conflict.section} already has classes on {conflict.day} from {conflict.timeFrom} to {conflict.timeTo}
-                                          {conflict.conflictingSchedules.map((schedule, i) => (
-                                            <div key={`section-schedule-${i}`} className="text-xs ml-2">
-                                              • {schedule.subject}: {schedule.timeFrom} - {schedule.timeTo}
-                                            </div>
-                                          ))}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                )}
-                              </div>
-                              <div className="mt-3">
-                                <button
-                                  type="button"
-                                  onClick={() => setConflicts(null)}
-                                  className="text-sm font-medium text-red-600 hover:text-red-500"
-                                >
-                                  Dismiss
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                        <ConflictAlert
+                          conflicts={conflicts}
+                          onDismiss={() => setConflicts(null)}
+                          onOverride={handleOverride}
+                          overrideEnabled={overrideEnabled}
+                          setOverrideEnabled={setOverrideEnabled}
+                          hasShortDuration={!checkScheduleDuration(conflicts).isValid}
+                          currentScheduleDuration={getCurrentScheduleDuration()}
+                        />
                       )}
-                      {/* Form Grid */}
+
                       <div className="grid grid-cols-2 gap-4 mb-6">
-                        {/* Left Column */}
                         <div className="space-y-4">
                           <div>
                             <label className="block text-sm font-medium text-black mb-1">Section</label>
@@ -642,7 +696,6 @@ export default function NewScheduleModal({
                               onChange={handleInputChange}
                               className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-[#323E8F] focus:ring-[#323E8F] shadow-sm"
                               placeholder="Enter class limit"
-
                             />
                           </div>
                           <div>
@@ -657,13 +710,12 @@ export default function NewScheduleModal({
                               placeholder="Select Student Type"
                               isClearable
                               isSearchable={true}
-                              menuPlacement="top"  // This will make the menu appear above the input
+                              menuPlacement="top"
                               maxMenuHeight={200}
                             />
                           </div>
                         </div>
 
-                        {/* Right Column */}
                         <div className="space-y-4">
                           <div>
                             <div>
@@ -680,7 +732,6 @@ export default function NewScheduleModal({
                               />
                             </div>
 
-
                             <div className="pt-4">
                               <label className="block text-sm font-medium text-black mb-1">Time From</label>
                               <Select
@@ -694,7 +745,6 @@ export default function NewScheduleModal({
                                 isClearable
                               />
                             </div>
-
 
                             <div className="pt-4">
                               <label className="block text-sm font-medium text-black mb-1">Time To</label>
@@ -720,7 +770,7 @@ export default function NewScheduleModal({
                               styles={customStyles}
                               className="text-black"
                               placeholder="Select a Room"
-                              menuPlacement="top"  // This will make the menu appear above the input
+                              menuPlacement="top"
                               maxMenuHeight={200}
                               isSearchable={true}
                               isClearable
@@ -738,11 +788,10 @@ export default function NewScheduleModal({
                               placeholder="Select Schedule Type"
                               isClearable
                               isSearchable={true}
-                              menuPlacement="top"  // This will make the menu appear above the input
+                              menuPlacement="top"
                               maxMenuHeight={200}
                             />
                           </div>
-
                         </div>
                       </div>
                       {selectedValues.isPaired && (
@@ -825,7 +874,6 @@ export default function NewScheduleModal({
                   )}
                 </div>
 
-                {/* Action Buttons */}
                 <div className="flex justify-end gap-3 pt-4">
                   <button
                     type="button"

@@ -57,6 +57,14 @@ export async function createSchedule(scheduleData) {
       throw new Error('User ID is required');
     }
 
+    // Convert room IDs to ObjectIds if force flag is set
+    if (scheduleData.force) {
+      scheduleData.room = new mongoose.Types.ObjectId(scheduleData.room);
+      if (scheduleData.pairedSchedule?.room) {
+        scheduleData.pairedSchedule.room = new mongoose.Types.ObjectId(scheduleData.pairedSchedule.room);
+      }
+    }
+
     console.log('Creating schedule with data:', scheduleData);
     
     const result = await schedulesModel.createSchedule(scheduleData);
@@ -90,8 +98,14 @@ export async function updateSchedule(scheduleId, scheduleData) {
       throw new Error('User ID is required');
     }
     
-    // Convert userId to ObjectId
-    scheduleData.userId = new mongoose.Types.ObjectId(scheduleData.userId);
+    // Convert IDs to ObjectIds if force flag is set
+    if (scheduleData.force) {
+      scheduleData.room = new mongoose.Types.ObjectId(scheduleData.room);
+      scheduleData.userId = new mongoose.Types.ObjectId(scheduleData.userId);
+      if (scheduleData.pairedSchedule?.room) {
+        scheduleData.pairedSchedule.room = new mongoose.Types.ObjectId(scheduleData.pairedSchedule.room);
+      }
+    }
     
     const result = await schedulesModel.updateSchedule(scheduleId, scheduleData);
     

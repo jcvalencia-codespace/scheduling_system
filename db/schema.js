@@ -467,7 +467,7 @@ const ScheduleSchema = new Schema({
   faculty: {
     type: Schema.Types.ObjectId,
     ref: 'Users',
-    required: true
+    default: null
   },
   subject: {
     type: Schema.Types.ObjectId,

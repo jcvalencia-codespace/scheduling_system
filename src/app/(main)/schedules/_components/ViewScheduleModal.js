@@ -144,7 +144,7 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule, onSchedul
                               <UserIcon className="h-5 w-5" />
                               <p className="text-sm">
                                 Scheduled for: <span className="font-semibold text-gray-900">
-                                  {schedule.faculty?.firstName} {schedule.faculty?.lastName}
+                                  {schedule.faculty ? `${schedule.faculty.firstName} ${schedule.faculty.lastName}` : 'TBA (To Be Assigned)'}
                                 </span>
                               </p>
                             </div>
