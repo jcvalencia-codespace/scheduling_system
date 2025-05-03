@@ -394,20 +394,19 @@ function renderEventContent(eventInfo) {
       </div>
 
       <div className="mb-1"
-      style={{ fontWeight: "400", fontSize: "0.65rem" }}
+        style={{ fontWeight: "400", fontSize: "0.65rem" }}
       >
         {schedule.subject?.subjectName || 'N/A'}
       </div>
 
       <div className="mb-1"
-       style={{ fontWeight: "600", fontSize: "0.75rem" }}
+        style={{ fontWeight: "600", fontSize: "0.75rem" }}
       >
         {schedule.room?.roomCode || 'Room N/A'}
       </div>
 
-      <div
-      style={{ fontWeight: "600", fontSize: "0.75rem" }}>
-        {`${schedule.faculty?.firstName ? schedule.faculty.firstName[0] : ''}.${schedule.faculty?.lastName ? ' ' + schedule.faculty.lastName : ''}`}
+      <div style={{ fontWeight: "600", fontSize: "0.75rem" }}>
+        {schedule.faculty ? `${schedule.faculty.firstName[0]}.${' ' + schedule.faculty.lastName}` : 'TBA (To Be Assigned)'}
       </div>
     </div>
   );

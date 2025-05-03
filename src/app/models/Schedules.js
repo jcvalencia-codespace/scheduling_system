@@ -192,17 +192,223 @@ export default class SchedulesModel {
     }
   }
 
+  static async handleScheduleTrimming(scheduleData) {
+    // Helper function to calculate duration
+    const calculateDuration = (timeFrom, timeTo) => {
+      const [fromTime, fromPeriod] = timeFrom.split(' ');
+      const [toTime, toPeriod] = timeTo.split(' ');
+      
+      let [fromHour, fromMinute] = fromTime.split(':').map(Number);
+      let [toHour, toMinute] = toTime.split(':').map(Number);
+      
+      if (fromPeriod === 'PM' && fromHour !== 12) fromHour += 12;
+      if (fromPeriod === 'AM' && fromHour === 12) fromHour = 0;
+      if (toPeriod === 'PM' && toHour !== 12) toHour += 12;
+      if (toPeriod === 'AM' && toHour === 12) toHour = 0;
+      
+      const minutes = (toHour * 60 + toMinute) - (fromHour * 60 + fromMinute);
+      return minutes > 0 ? minutes : minutes + (24 * 60);
+    };
+
+    // Check if resulting schedules would be too short
+    const minimumDuration = 120; // 2 hours in minutes
+
+    // Format schedule slots array
+    const scheduleSlots = [{
+      days: Array.isArray(scheduleData.days) ? scheduleData.days : [scheduleData.days],
+      timeFrom: scheduleData.timeFrom,
+      timeTo: scheduleData.timeTo,
+      room: new mongoose.Types.ObjectId(scheduleData.room)
+    }];
+
+    if (scheduleData.isPaired && scheduleData.pairedSchedule) {
+      const pairedSlot = {
+        days: Array.isArray(scheduleData.pairedSchedule.days) 
+          ? scheduleData.pairedSchedule.days 
+          : [scheduleData.pairedSchedule.days],
+        timeFrom: scheduleData.pairedSchedule.timeFrom,
+        timeTo: scheduleData.pairedSchedule.timeTo,
+        room: new mongoose.Types.ObjectId(scheduleData.pairedSchedule.room)
+      };
+      scheduleSlots.push(pairedSlot);
+    }
+
+    for (const slot of scheduleSlots) {
+      const conflictingSchedules = await Schedules.find({
+        isActive: true,
+        'scheduleSlots.days': { $in: slot.days },
+        _id: { $ne: scheduleData._id }
+      }).populate(['faculty', 'scheduleSlots.room', 'subject', 'section']);
+
+      for (const existingSchedule of conflictingSchedules) {
+        let modified = false;
+        const newScheduleSlots = [];
+
+        for (const existingSlot of existingSchedule.scheduleSlots) {
+          if (slot.days.some(day => existingSlot.days.includes(day))) {
+            const newTimeFrom = moment(slot.timeFrom, 'h:mm A');
+            const newTimeTo = moment(slot.timeTo, 'h:mm A');
+            const existingTimeFrom = moment(existingSlot.timeFrom, 'h:mm A');
+            const existingTimeTo = moment(existingSlot.timeTo, 'h:mm A');
+
+            // Check for complete overlap
+            const isCompleteOverride = (
+              // Case 1: Same start and end time
+              (newTimeFrom.isSame(existingTimeFrom) && newTimeTo.isSame(existingTimeTo)) ||
+              // Case 2: New schedule contains entire existing schedule
+              (newTimeFrom.isSameOrBefore(existingTimeFrom) && newTimeTo.isSameOrAfter(existingTimeTo)) ||
+              // Case 3: Same start time, new schedule extends longer
+              (newTimeFrom.isSame(existingTimeFrom) && newTimeTo.isAfter(existingTimeTo)) ||
+              // Case 4: Same end time, new schedule starts earlier
+              (newTimeTo.isSame(existingTimeTo) && newTimeFrom.isBefore(existingTimeFrom))
+            );
+
+            if (isCompleteOverride) {
+              modified = true;
+              continue; // Skip this slot entirely
+            }
+
+            // Handle non-complete overlaps
+            if (!(newTimeTo.isSameOrBefore(existingTimeFrom) || newTimeFrom.isSameOrAfter(existingTimeTo))) {
+              modified = true;
+
+              if (newTimeFrom.isBefore(existingTimeFrom)) {
+                existingSlot.timeFrom = newTimeTo.format('h:mm A');
+                const duration = calculateDuration(existingSlot.timeFrom, existingSlot.timeTo);
+                if (duration >= minimumDuration) {
+                  newScheduleSlots.push(existingSlot);
+                }
+              }
+              else if (newTimeTo.isAfter(existingTimeTo)) {
+                existingSlot.timeTo = newTimeFrom.format('h:mm A');
+                const duration = calculateDuration(existingSlot.timeFrom, existingSlot.timeTo);
+                if (duration >= minimumDuration) {
+                  newScheduleSlots.push(existingSlot);
+                }
+              }
+              else if (newTimeFrom.isAfter(existingTimeFrom) && newTimeTo.isBefore(existingTimeTo)) {
+                const firstSlot = {
+                  ...existingSlot.toObject(),
+                  timeTo: newTimeFrom.format('h:mm A')
+                };
+                const secondSlot = {
+                  ...existingSlot.toObject(),
+                  timeFrom: newTimeTo.format('h:mm A')
+                };
+
+                const firstDuration = calculateDuration(firstSlot.timeFrom, firstSlot.timeTo);
+                const secondDuration = calculateDuration(secondSlot.timeFrom, secondSlot.timeTo);
+
+                if (firstDuration >= minimumDuration) {
+                  newScheduleSlots.push(firstSlot);
+                }
+                if (secondDuration >= minimumDuration) {
+                  newScheduleSlots.push(secondSlot);
+                }
+              }
+            } else {
+              newScheduleSlots.push(existingSlot);
+            }
+          } else {
+            newScheduleSlots.push(existingSlot);
+          }
+        }
+
+        // Only update if there are changes and remaining slots
+        if (modified) {
+          if (newScheduleSlots.length > 0) {
+            await Schedules.findByIdAndUpdate(existingSchedule._id, {
+              $set: { scheduleSlots: newScheduleSlots },
+              $push: {
+                updateHistory: {
+                  updatedBy: scheduleData.userId,
+                  updatedAt: new Date(),
+                  action: 'trimmed'
+                }
+              }
+            });
+          } else {
+            // If no slots remain, deactivate the schedule
+            await Schedules.findByIdAndUpdate(existingSchedule._id, {
+              $set: { isActive: false },
+              $push: {
+                updateHistory: {
+                  updatedBy: scheduleData.userId,
+                  updatedAt: new Date(),
+                  action: 'replaced'
+                }
+              }
+            });
+          }
+
+          // Only send notification if faculty exists
+          if (existingSchedule.faculty) {
+            const affectedDays = newScheduleSlots
+              .map(slot => slot.days.join(', '))
+              .join('; ');
+
+            const slotTimeChanges = newScheduleSlots
+              .map(slot => `${slot.days.join(',')} ${slot.timeFrom}-${slot.timeTo}`)
+              .join('; ');
+
+            const currentTime = moment().format('h:mm A');
+
+            const sectionDisplay = Array.isArray(existingSchedule.section) 
+              ? existingSchedule.section.map(s => s.sectionName).join(', ')
+              : (existingSchedule.section.sectionName || 'Unknown Section');
+
+            await createNotification({
+              userId: existingSchedule.faculty._id,
+              title: 'Schedule Time Overridden Due to Conflict',
+              message: `Your schedule for ${existingSchedule.subject.subjectCode} - ${existingSchedule.subject.subjectName} for section ${sectionDisplay} has been automatically overridden at ${currentTime}.
+                Affected Days: ${affectedDays}
+                New Schedule Times: ${slotTimeChanges}
+                This adjustment was made to accommodate a new schedule in the same time slot.`,
+              type: 'warning',
+              relatedSchedule: existingSchedule._id
+            });
+          }
+        }
+      }
+    }
+  }
+
   static async createSchedule(scheduleData) {
     try {
-      // Check for conflicts before creating
-      const conflicts = await this.checkScheduleConflicts(scheduleData);
-      if (conflicts.hasConflicts) {
-        return { conflicts };
+      // Check conflicts first if not forcing
+      if (!scheduleData.force) {
+        const conflicts = await this.checkScheduleConflicts(scheduleData);
+        if (conflicts.hasConflicts) {
+          return { conflicts };
+        }
       }
 
       const formatTime = (timeStr) => {
         return moment(timeStr, 'h:mm A').format('h:mm A');
       };
+
+      // Format schedule data for trimming
+      const trimmingData = {
+        ...scheduleData,
+        timeFrom: formatTime(scheduleData.timeFrom),
+        timeTo: formatTime(scheduleData.timeTo),
+        days: Array.isArray(scheduleData.days) ? scheduleData.days : [scheduleData.days],
+        room: new mongoose.Types.ObjectId(scheduleData.room)
+      };
+
+      if (scheduleData.isPaired && scheduleData.pairedSchedule) {
+        trimmingData.pairedSchedule = {
+          ...scheduleData.pairedSchedule,
+          timeFrom: formatTime(scheduleData.pairedSchedule.timeFrom),
+          timeTo: formatTime(scheduleData.pairedSchedule.timeTo),
+          days: Array.isArray(scheduleData.pairedSchedule.days) ? 
+            scheduleData.pairedSchedule.days : [scheduleData.pairedSchedule.days],
+          room: new mongoose.Types.ObjectId(scheduleData.pairedSchedule.room)
+        };
+      }
+
+      // Always handle schedule trimming
+      await this.handleScheduleTrimming(trimmingData);
 
       // Get the term details to access academicYear
       const term = await mongoose.model('Terms').findById(scheduleData.term);
@@ -234,7 +440,7 @@ export default class SchedulesModel {
       const schedule = await Schedules.create({
         term: scheduleData.term,
         section: scheduleData.isMultipleSections ? scheduleData.section : [scheduleData.section],
-        faculty: scheduleData.faculty,
+        faculty: scheduleData.faculty || null, // Allow null faculty
         subject: scheduleData.subject,
         classLimit: scheduleData.classLimit,
         studentType: scheduleData.studentType,
@@ -258,14 +464,21 @@ export default class SchedulesModel {
           { path: 'section', select: 'sectionName' }
         ]);
 
-      // Create notification with readable values
-      await createNotification({ 
-        userId: scheduleData.faculty,
-        title: 'New Schedule Assigned',
-        message: `You have been assigned to teach ${populatedSchedule.subject.subjectCode} - ${populatedSchedule.subject.subjectName} for section ${populatedSchedule.section.sectionName}`,
-        type: 'success',
-        relatedSchedule: schedule._id
-      });
+      // Handle section name safely
+      const sectionDisplay = Array.isArray(populatedSchedule.section) 
+        ? populatedSchedule.section.map(s => s.sectionName).join(', ')
+        : populatedSchedule.section.sectionName || 'Unknown Section';
+
+      // Only create notification if faculty is assigned
+      if (scheduleData.faculty) {
+        await createNotification({ 
+          userId: scheduleData.faculty,
+          title: 'New Schedule Assigned',
+          message: `You have been assigned to teach ${populatedSchedule.subject.subjectCode} - ${populatedSchedule.subject.subjectName} for section ${sectionDisplay}`,
+          type: 'success',
+          relatedSchedule: schedule._id
+        });
+      }
 
       return { schedule };
     } catch (error) {
@@ -307,10 +520,9 @@ export default class SchedulesModel {
             from: 'users',
             localField: 'faculty',
             foreignField: '_id',
-            as: 'faculty'
+            as: 'facultyData'
           }
         },
-        // Lookup for rooms in scheduleSlots
         {
           $lookup: {
             from: 'rooms',
@@ -322,7 +534,6 @@ export default class SchedulesModel {
         { $unwind: '$term' },
         { $unwind: '$section' },
         { $unwind: '$subject' },
-        { $unwind: '$faculty' },
         {
           $project: {
             _id: 1,
@@ -370,16 +581,27 @@ export default class SchedulesModel {
               subjectName: '$subject.subjectName'
             },
             faculty: {
-              _id: '$faculty._id',
-              firstName: '$faculty.firstName',
-              lastName: '$faculty.lastName',
-              fullName: {
-                $concat: ['$faculty.lastName', ', ', '$faculty.firstName']
+              $cond: {
+                if: { $eq: [{ $size: '$facultyData' }, 0] },
+                then: null,
+                else: {
+                  _id: { $arrayElemAt: ['$facultyData._id', 0] },
+                  firstName: { $arrayElemAt: ['$facultyData.firstName', 0] },
+                  lastName: { $arrayElemAt: ['$facultyData.lastName', 0] },
+                  fullName: {
+                    $concat: [
+                      { $arrayElemAt: ['$facultyData.lastName', 0] },
+                      ', ',
+                      { $arrayElemAt: ['$facultyData.firstName', 0] }
+                    ]
+                  }
+                }
               }
             }
           }
         }
       ]);
+console.log('Fetched schedules:', schedules); // Debug log      
       return schedules;
     } catch (error) {
       console.error('Schedules fetch error:', error);
@@ -416,13 +638,13 @@ export default class SchedulesModel {
       );
 
       // Add notification with populated data
-      await createNotification({
-        userId: schedule.faculty._id,
-        title: 'Schedule Deleted',
-        message: `Your schedule for ${schedule.subject.subjectCode} - ${schedule.subject.subjectName} for section ${schedule.section.sectionName} has been removed`,
-        type: 'error',
-        relatedSchedule: scheduleId
-      });
+      // await createNotification({
+      //   userId: schedule.faculty._id,
+      //   title: 'Schedule Deleted',
+      //   message: `Your schedule for ${schedule.subject.subjectCode} - ${schedule.subject.subjectName} for section ${schedule.section.sectionName} has been removed`,
+      //   type: 'error',
+      //   relatedSchedule: scheduleId
+      // });
 
       return result;
     } catch (error) {
@@ -437,10 +659,17 @@ export default class SchedulesModel {
         throw new Error('Schedule ID is required for update');
       }
 
-      // Check for conflicts before updating, excluding the current schedule
-      const conflicts = await this.checkScheduleConflicts(scheduleData, scheduleId);
-      if (conflicts.hasConflicts) {
-        return { conflicts };
+      // Only check conflicts if force flag is not set
+      if (!scheduleData.force) {
+        const conflicts = await this.checkScheduleConflicts(scheduleData, scheduleId);
+        if (conflicts.hasConflicts) {
+          return { conflicts };
+        }
+      }
+
+      // If force flag is set, handle schedule trimming
+      if (scheduleData.force) {
+        await this.handleScheduleTrimming(scheduleData);
       }
 
       const formatTime = (timeStr) => {
@@ -469,8 +698,11 @@ export default class SchedulesModel {
 
       const updatedData = {
         term: new mongoose.Types.ObjectId(scheduleData.term),
-        section: new mongoose.Types.ObjectId(scheduleData.section),
-        faculty: new mongoose.Types.ObjectId(scheduleData.faculty),
+        section: Array.isArray(scheduleData.section) 
+          ? scheduleData.section.map(s => new mongoose.Types.ObjectId(s))
+          : [new mongoose.Types.ObjectId(scheduleData.section)],
+        // Handle faculty field - can be null
+        faculty: scheduleData.faculty ? new mongoose.Types.ObjectId(scheduleData.faculty) : null,
         subject: new mongoose.Types.ObjectId(scheduleData.subject),
         classLimit: scheduleData.classLimit,
         studentType: scheduleData.studentType,
@@ -493,7 +725,7 @@ export default class SchedulesModel {
         { new: true }
       ).populate([
         { path: 'term' },
-        { path: 'section' },
+        { path: 'section', populate: { path: 'course' } },
         { path: 'faculty' },
         { path: 'subject' },
         {
@@ -505,15 +737,6 @@ export default class SchedulesModel {
       if (!schedule) {
         throw new Error('Schedule not found');
       }
-
-      // Add notification with populated data
-      await createNotification({
-        userId: scheduleData.faculty,
-        title: 'Schedule Updated',
-        message: `Your schedule for ${schedule.subject.subjectCode} - ${schedule.subject.subjectName} for section ${schedule.section.sectionName} has been updated`,
-        type: 'warning',
-        relatedSchedule: schedule._id
-      });
 
       return { schedule };
     } catch (error) {
@@ -528,8 +751,84 @@ export default class SchedulesModel {
         hasConflicts: false,
         roomConflicts: [],
         facultyConflicts: [],
-        sectionConflicts: []
+        sectionConflicts: [],
+        durationConflicts: [] // Add duration conflicts array
       };
+
+      const calculateDuration = (timeFrom, timeTo) => {
+        const [fromTime, fromPeriod] = timeFrom.split(' ');
+        const [toTime, toPeriod] = timeTo.split(' ');
+        
+        let [fromHour, fromMinute] = fromTime.split(':').map(Number);
+        let [toHour, toMinute] = toTime.split(':').map(Number);
+        
+        if (fromPeriod === 'PM' && fromHour !== 12) fromHour += 12;
+        if (fromPeriod === 'AM' && fromHour === 12) fromHour = 0;
+        if (toPeriod === 'PM' && toHour !== 12) toHour += 12;
+        if (toPeriod === 'AM' && toHour === 12) toHour = 0;
+        
+        const minutes = (toHour * 60 + toMinute) - (fromHour * 60 + fromMinute);
+        return minutes > 0 ? minutes : minutes + (24 * 60);
+      };
+
+      // Check duration limits for each slot
+      const checkDurationLimits = (slot) => {
+        const duration = calculateDuration(slot.timeFrom, slot.timeTo);
+        const maxDuration = 240; // 4 hours in minutes
+        const minDuration = 120; // 2 hours in minutes
+
+        if (duration > maxDuration) {
+          conflicts.hasConflicts = true;
+          conflicts.durationConflicts.push({
+            timeFrom: slot.timeFrom,
+            timeTo: slot.timeTo,
+            duration,
+            type: 'exceeded',
+            message: `Schedule duration (${Math.floor(duration/60)} hours ${duration%60} minutes) exceeds maximum allowed (4 hours)`
+          });
+        } else if (duration < minDuration) {
+          conflicts.hasConflicts = true;
+          conflicts.durationConflicts.push({
+            timeFrom: slot.timeFrom,
+            timeTo: slot.timeTo,
+            duration,
+            type: 'insufficient',
+            message: `Schedule duration (${Math.floor(duration/60)} hours ${duration%60} minutes) is less than minimum required (2 hours)`
+          });
+        }
+      };
+
+      // Process all schedule slots (main and paired if exists)
+      const allSlots = [
+        {
+          days: Array.isArray(scheduleData.days) ? scheduleData.days : [scheduleData.days],
+          timeFrom: scheduleData.timeFrom,
+          timeTo: scheduleData.timeTo,
+          room: scheduleData.room
+        }
+      ];
+
+      // Check duration for main schedule
+      checkDurationLimits(allSlots[0]);
+
+      if (scheduleData.isPaired && scheduleData.pairedSchedule) {
+        const pairedSlot = {
+          days: Array.isArray(scheduleData.pairedSchedule.days) 
+            ? scheduleData.pairedSchedule.days 
+            : [scheduleData.pairedSchedule.days],
+          timeFrom: scheduleData.pairedSchedule.timeFrom,
+          timeTo: scheduleData.pairedSchedule.timeTo,
+          room: scheduleData.pairedSchedule.room
+        };
+        allSlots.push(pairedSlot);
+        // Check duration for paired schedule
+        checkDurationLimits(pairedSlot);
+      }
+
+      // If there are duration conflicts, return early
+      if (conflicts.durationConflicts.length > 0) {
+        return conflicts;
+      }
 
       // Helper function to check time overlap
       const isTimeOverlap = (slot1, slot2) => {
@@ -555,27 +854,6 @@ export default class SchedulesModel {
           timeFrom1.isSameOrAfter(timeTo2)
         );
       };
-
-      // Process all schedule slots (main and paired if exists)
-      const allSlots = [
-        {
-          days: Array.isArray(scheduleData.days) ? scheduleData.days : [scheduleData.days],
-          timeFrom: scheduleData.timeFrom,
-          timeTo: scheduleData.timeTo,
-          room: scheduleData.room
-        }
-      ];
-
-      if (scheduleData.isPaired && scheduleData.pairedSchedule) {
-        allSlots.push({
-          days: Array.isArray(scheduleData.pairedSchedule.days) 
-            ? scheduleData.pairedSchedule.days 
-            : [scheduleData.pairedSchedule.days],
-          timeFrom: scheduleData.pairedSchedule.timeFrom,
-          timeTo: scheduleData.pairedSchedule.timeTo,
-          room: scheduleData.pairedSchedule.room
-        });
-      }
 
       // Check each slot for conflicts
       for (const slot of allSlots) {
@@ -663,58 +941,60 @@ export default class SchedulesModel {
             });
           }
 
-          // 2. Check for faculty conflicts
-          const facultyConflicts = await Schedules.aggregate([
-            {
-              $match: {
-                ...baseQuery,
-                faculty: new mongoose.Types.ObjectId(scheduleData.faculty)
-              }
-            },
-            { $unwind: '$scheduleSlots' },
-            {
-              $match: {
-                'scheduleSlots.days': day
-              }
-            },
-            {
-              $lookup: {
-                from: 'users',
-                localField: 'faculty',
-                foreignField: '_id',
-                as: 'facultyInfo'
-              }
-            },
-            { $unwind: '$facultyInfo' },
-            {
-              $lookup: {
-                from: 'sections',
-                localField: 'section',
-                foreignField: '_id',
-                as: 'sectionInfo'
-              }
-            },
-            { $unwind: '$sectionInfo' }
-          ]);
+          // 2. Check for faculty conflicts - Only if faculty is provided
+          if (scheduleData.faculty) {
+            const facultyConflicts = await Schedules.aggregate([
+              {
+                $match: {
+                  ...baseQuery,
+                  faculty: new mongoose.Types.ObjectId(scheduleData.faculty)
+                }
+              },
+              { $unwind: '$scheduleSlots' },
+              {
+                $match: {
+                  'scheduleSlots.days': day
+                }
+              },
+              {
+                $lookup: {
+                  from: 'users',
+                  localField: 'faculty',
+                  foreignField: '_id',
+                  as: 'facultyInfo'
+                }
+              },
+              { $unwind: '$facultyInfo' },
+              {
+                $lookup: {
+                  from: 'sections',
+                  localField: 'section',
+                  foreignField: '_id',
+                  as: 'sectionInfo'
+                }
+              },
+              { $unwind: '$sectionInfo' }
+            ]);
 
-          // Filter faculty conflicts by time overlap
-          const filteredFacultyConflicts = facultyConflicts.filter(conflict => 
-            isTimeOverlap(slot, conflict.scheduleSlots)
-          );
+            // Filter faculty conflicts by time overlap
+            const filteredFacultyConflicts = facultyConflicts.filter(conflict => 
+              isTimeOverlap(slot, conflict.scheduleSlots)
+            );
 
-          if (filteredFacultyConflicts.length > 0) {
-            conflicts.hasConflicts = true;
-            conflicts.facultyConflicts.push({
-              day,
-              faculty: `${filteredFacultyConflicts[0].facultyInfo.lastName}, ${filteredFacultyConflicts[0].facultyInfo.firstName}`,
-              timeFrom: slot.timeFrom,
-              timeTo: slot.timeTo,
-              conflictingSchedules: filteredFacultyConflicts.map(c => ({
-                section: c.sectionInfo.sectionName,
-                timeFrom: c.scheduleSlots.timeFrom,
-                timeTo: c.scheduleSlots.timeTo
-              }))
-            });
+            if (filteredFacultyConflicts.length > 0) {
+              conflicts.hasConflicts = true;
+              conflicts.facultyConflicts.push({
+                day,
+                faculty: `${filteredFacultyConflicts[0].facultyInfo.lastName}, ${filteredFacultyConflicts[0].facultyInfo.firstName}`,
+                timeFrom: slot.timeFrom,
+                timeTo: slot.timeTo,
+                conflictingSchedules: filteredFacultyConflicts.map(c => ({
+                  section: c.sectionInfo.sectionName,
+                  timeFrom: c.scheduleSlots.timeFrom,
+                  timeTo: c.scheduleSlots.timeTo
+                }))
+              });
+            }
           }
 
           // 3. Check for section conflicts - Modified for multiple sections
