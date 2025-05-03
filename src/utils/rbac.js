@@ -121,12 +121,12 @@ export const menuItems = [
     icon: 'AcademicCapIcon',
     roles: ['Administrator', 'Dean', 'Program Chair']
   },
-  {
-    title: 'Override Requests',
-    href: '/override-requests',
-    icon: 'ArrowPathIcon',
-    roles: ['Administrator']
-  },
+  // {
+  //   title: 'Override Requests',
+  //   href: '/override-requests',
+  //   icon: 'ArrowPathIcon',
+  //   roles: ['Administrator']
+  // },
   {
     title: 'Activity Logs',
     href: '/logs',

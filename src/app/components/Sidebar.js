@@ -150,11 +150,11 @@ const roleMenuItems = {
       href: '/term',
       icon: AcademicCapIcon
     },
-    {
-      title: 'Override Requests',
-      href: '/override-requests',
-      icon: ArrowPathIcon
-    },
+    // {
+    //   title: 'Override Requests',
+    //   href: '/override-requests',
+    //   icon: ArrowPathIcon
+    // },
     {
       title: 'Activity Logs',
       href: '/activity-logs',
