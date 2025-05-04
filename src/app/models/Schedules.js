@@ -285,6 +285,7 @@ export default class SchedulesModel {
     for (const slot of scheduleSlots) {
       const conflictingSchedules = await Schedules.find({
         isActive: true,
+        term: scheduleData.term, // Add term filter
         'scheduleSlots.days': { $in: slot.days },
         _id: { $ne: scheduleData._id }
       }).populate(['faculty', 'scheduleSlots.room', 'subject', 'section']);
