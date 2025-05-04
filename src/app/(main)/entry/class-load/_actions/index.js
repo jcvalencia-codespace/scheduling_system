@@ -2,6 +2,7 @@
 
 import AssignSubjectsModel from '@/app/models/AssignSubjects';
 import TermsModel from '@/app/models/Terms';
+import sectionsModel from '@/app/models/Sections';
 
 export async function getClasses(yearLevel) {
   try {
@@ -19,6 +20,16 @@ export async function getSubjects(departmentId = null) {
     return subjects || [];
   } catch (error) {
     console.error('Error fetching subjects:', error);
+    return [];
+  }
+}
+
+export async function getAllSubjects() {
+  try {
+    const subjects = await AssignSubjectsModel.fetchSubjects(); // Call without departmentId
+    return subjects || [];
+  } catch (error) {
+    console.error('Error fetching all subjects:', error);
     return [];
   }
 }
@@ -42,6 +53,36 @@ export async function getDepartments() {
     return departments || [];
   } catch (error) {
     console.error('Error fetching departments:', error);
+    return [];
+  }
+}
+
+export async function getCoursesByDepartment(departmentId) {
+  try {
+    const courses = await AssignSubjectsModel.fetchCoursesByDepartment(departmentId);
+    return courses || [];
+  } catch (error) {
+    console.error('Error fetching courses:', error);
+    return [];
+  }
+}
+
+export async function getYearLevelsByCourse(courseId) {
+  try {
+    const yearLevels = await AssignSubjectsModel.fetchYearLevelsByCourse(courseId);
+    return yearLevels || [];
+  } catch (error) {
+    console.error('Error fetching year levels:', error);
+    return [];
+  }
+}
+
+export async function getSectionsByCourseAndYear(courseId, yearLevel) {
+  try {
+    const sections = await AssignSubjectsModel.fetchSectionsByCourseAndYear(courseId, yearLevel);
+    return sections || [];
+  } catch (error) {
+    console.error('Error fetching sections:', error);
     return [];
   }
 }
@@ -101,6 +142,7 @@ export async function getActiveTerm() {
     return {
       success: true,
       term: {
+        _id: activeTerm._id, // Add term ID
         sy: activeTerm.academicYear,
         term: activeTerm.term.replace('Term ', ''),
         termName: activeTerm.term
@@ -133,5 +175,55 @@ export async function getTermDetails(termNumbers) {
       success: false,
       terms: []
     };
+  }
+}
+
+export async function getAllCourses() {
+  try {
+    const courses = await AssignSubjectsModel.fetchAllCourses();
+    return courses || [];
+  } catch (error) {
+    console.error('Error fetching all courses:', error);
+    return [];
+  }
+}
+
+export async function getAllYearLevels() {
+  try {
+    const yearLevels = await AssignSubjectsModel.fetchAllYearLevels();
+    return yearLevels || [];
+  } catch (error) {
+    console.error('Error fetching all year levels:', error);
+    return [];
+  }
+}
+
+export async function getAllSections() {
+  try {
+    const sections = await AssignSubjectsModel.fetchAllSections();
+    return sections || [];
+  } catch (error) {
+    console.error('Error fetching all sections:', error);
+    return [];
+  }
+}
+
+export async function getYearLevelsByDepartment(departmentId = null) {
+  try {
+    const yearLevels = await sectionsModel.getYearLevelsByDepartment(departmentId);
+    return yearLevels || [];
+  } catch (error) {
+    console.error('Error fetching year levels:', error);
+    return [];
+  }
+}
+
+export async function getSectionsByDepartment(departmentId = null) {
+  try {
+    const sections = await sectionsModel.getSectionsByDepartment(departmentId);
+    return sections || [];
+  } catch (error) {
+    console.error('Error fetching sections:', error);
+    return [];
   }
 }
