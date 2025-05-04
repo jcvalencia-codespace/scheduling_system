@@ -127,7 +127,6 @@ export default class SchedulesModel {
   static async getFaculty() {
     try {
       const faculty = await Users.aggregate([
-        // Match non-administrator users
         {
           $match: {
             role: { $ne: 'Administrator' }
@@ -161,6 +160,8 @@ export default class SchedulesModel {
                 '$departmentInfo.departmentCode',
                 ' - ',
                 '$role',
+                ' - ',
+                '$employmentType',
                 ')'
               ]
             }
@@ -1124,6 +1125,69 @@ export default class SchedulesModel {
     } catch (error) {
       console.error('Schedule conflict check error:', error);
       throw new Error('Failed to check schedule conflicts: ' + error.message);
+    }
+  }
+
+  static async calculateFacultyLoad(facultyId, termId) {
+    try {
+      const facultyInfo = await mongoose.model('Users').findById(facultyId);
+      if (!facultyInfo) {
+        throw new Error('Faculty not found');
+      }
+
+      const isFullTime = facultyInfo.employmentType === 'full-time';
+      const maxHours = isFullTime ? 40 : 24;
+
+      // Get all active schedules with subject info
+      const schedules = await Schedules.aggregate([
+        {
+          $match: {
+            faculty: new mongoose.Types.ObjectId(facultyId),
+            term: new mongoose.Types.ObjectId(termId),
+            isActive: true
+          }
+        },
+        {
+          $lookup: {
+            from: 'subjects',
+            localField: 'subject',
+            foreignField: '_id',
+            as: 'subjectInfo'
+          }
+        },
+        { $unwind: '$subjectInfo' },
+        { $unwind: '$scheduleSlots' }
+      ]);
+
+      let totalTeachingHours = 0;
+      const subjectCodes = new Set();
+
+      schedules.forEach(schedule => {
+        const timeFrom = moment(schedule.scheduleSlots.timeFrom, 'h:mm A');
+        const timeTo = moment(schedule.scheduleSlots.timeTo, 'h:mm A');
+        const durationHours = timeTo.diff(timeFrom, 'minutes') / 60;
+        totalTeachingHours += durationHours * schedule.scheduleSlots.days.length;
+        subjectCodes.add(schedule.subjectInfo.subjectCode);
+      });
+
+      const adminHours = isFullTime ? Math.max(0, maxHours - totalTeachingHours) : 0;
+
+      return {
+        employmentType: facultyInfo.employmentType || 'N/A',
+        totalHours: maxHours,
+        teachingHours: Math.round(totalTeachingHours * 100) / 100,
+        adminHours: Math.round(adminHours * 100) / 100,
+        subjectCodes: Array.from(subjectCodes)
+      };
+    } catch (error) {
+      console.error('Error calculating faculty load:', error);
+      return {
+        employmentType: 'N/A',
+        totalHours: 0,
+        teachingHours: 0,
+        adminHours: 0,
+        subjectCodes: []
+      };
     }
   }
 }
