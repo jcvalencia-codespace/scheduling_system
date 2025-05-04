@@ -1,4 +1,4 @@
-import { RoomSchema } from '../../../db/schema';
+import { RoomSchema, TermSchema } from '../../../db/schema';
 import connectDB from '../../../lib/mongo';
 import mongoose from 'mongoose';
 
@@ -15,43 +15,170 @@ class RoomsModel {
     return this.MODEL;
   }
 
+  async validateRoomData(roomData) {
+    // Get active term
+    const Term = mongoose.models.Term || mongoose.model('Term', TermSchema);
+    const activeTerm = await Term.findOne({ status: 'Active' });
+    if (!activeTerm) {
+      throw new Error('No active term found');
+    }
+    roomData.academicYear = activeTerm.academicYear;
+
+    // Continue with existing validation
+  }
+
   async createRoom(roomData) {
     const Room = await this.initModel();
-    const room = new Room(roomData);
+    const room = new Room({
+      ...roomData,
+      updateHistory: [{
+        updatedBy: roomData.updatedBy,
+        updatedAt: new Date(),
+        action: 'created',
+        academicYear: roomData.academicYear // Make sure academicYear is passed through
+      }]
+    });
     const savedRoom = await room.save();
+    await savedRoom.populate('department', 'departmentCode departmentName');
     return JSON.parse(JSON.stringify(savedRoom));
   }
 
-  async getAllRooms() {
+  async processRoomCreation(roomData) {
+    // Get active term first
+    const Term = mongoose.models.Term || mongoose.model('Term', TermSchema);
+    const activeTerm = await Term.findOne({ status: 'Active' });
+    if (!activeTerm) {
+      throw new Error('No active term found');
+    }
+    roomData.academicYear = activeTerm.academicYear;
+
+    // Check for existing active room
+    const existingActive = await this.getRoomByCode(roomData.roomCode);
+    if (existingActive) {
+      throw new Error('Room code already exists');
+    }
+
+    // Check for inactive room
+    const existingInactive = await this.getInactiveRoomByCode(roomData.roomCode);
+    if (existingInactive) {
+      return await this.reactivateRoom(roomData.roomCode, roomData.userId);
+    }
+
+    return await this.createRoom(roomData);
+  }
+
+  async getInactiveRoomByCode(roomCode) {
     const Room = await this.initModel();
-    const rooms = await Room.find({ isActive: true });
+    const room = await Room.findOne({ 
+      roomCode, 
+      isActive: false 
+    });
+    return room ? JSON.parse(JSON.stringify(room)) : null;
+  }
+
+  async reactivateRoom(roomCode, userId) {
+    const Room = await this.initModel();
+    const room = await Room.findOneAndUpdate(
+      { roomCode, isActive: false },
+      { 
+        isActive: true,
+        $push: {
+          updateHistory: {
+            updatedBy: userId,
+            action: 'updated'
+          }
+        }
+      },
+      { new: true }
+    ).populate('department', 'departmentCode departmentName');
+    
+    return room ? JSON.parse(JSON.stringify(room)) : null;
+  }
+
+  async getAllRooms() {
+    const Rooms = await this.initModel();
+    const rooms = await Rooms.find({ isActive: true })
+      .sort({ roomCode: 1 })
+      .populate('department', 'departmentCode departmentName')
+      .populate('updateHistory.updatedBy', 'firstName lastName'); // Add this line
     return JSON.parse(JSON.stringify(rooms));
   }
 
   async getRoomByCode(roomCode) {
     const Room = await this.initModel();
-    const room = await Room.findOne({ roomCode, isActive: true });
+    const room = await Room.findOne({ roomCode, isActive: true })
+      .populate('department', 'departmentCode departmentName')
+      .populate('updateHistory.updatedBy', 'firstName lastName'); // Add this line
     return room ? JSON.parse(JSON.stringify(room)) : null;
   }
 
   async updateRoom(roomCode, updateData) {
     const Room = await this.initModel();
+    const { $push, ...otherUpdateData } = updateData;
+    
     const room = await Room.findOneAndUpdate(
       { roomCode, isActive: true },
-      { $set: updateData },
+      { 
+        $set: otherUpdateData,
+        $push: updateData.$push // Remove nesting since it's already structured correctly
+      },
       { new: true, runValidators: true }
+    ).populate('department', 'departmentCode departmentName');
+    
+    return room ? JSON.parse(JSON.stringify(room)) : null;
+  }
+
+  async processRoomUpdate(roomCode, updateData) {
+    const updatedRoom = await this.updateRoom(roomCode, updateData);
+    if (!updatedRoom) {
+      throw new Error('Room not found');
+    }
+    return updatedRoom;
+  }
+
+  async deleteRoom(roomCode, updateData) {
+    const Room = await this.initModel();
+    const { $push, academicYear, ...otherUpdateData } = updateData;
+    
+    const room = await Room.findOneAndUpdate(
+      { roomCode, isActive: true },
+      { 
+        $set: { ...otherUpdateData, isActive: false },
+        $push: {
+          ...updateData.$push,
+          'updateHistory.$.academicYear': academicYear
+        }
+      },
+      { new: true }
     );
     return room ? JSON.parse(JSON.stringify(room)) : null;
   }
 
-  async deleteRoom(roomCode) {
-    const Room = await this.initModel();
-    const room = await Room.findOneAndUpdate(
-      { roomCode, isActive: true },
-      { $set: { isActive: false } },
-      { new: true }
-    );
-    return room ? JSON.parse(JSON.stringify(room)) : null;
+  async processRoomDeletion(roomCode, userId) {
+    // Get active term
+    const Term = mongoose.models.Term || mongoose.model('Term', TermSchema);
+    const activeTerm = await Term.findOne({ status: 'Active' });
+    if (!activeTerm) {
+      throw new Error('No active term found');
+    }
+
+    const updateData = {
+      updatedBy: userId,
+      $push: {
+        updateHistory: {
+          updatedBy: userId,
+          updatedAt: new Date(),
+          action: 'deleted',
+          academicYear: activeTerm.academicYear
+        }
+      }
+    };
+
+    const deletedRoom = await this.deleteRoom(roomCode, updateData);
+    if (!deletedRoom) {
+      throw new Error('Failed to delete room');
+    }
+    return deletedRoom;
   }
 
   async getRoomsByDepartment(departmentCode) {

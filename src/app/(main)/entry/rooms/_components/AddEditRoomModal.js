@@ -5,6 +5,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { addRoom, editRoom } from '../_actions';
 import Swal from 'sweetalert2';
+import useAuthStore from '../../../../../store/useAuthStore';
 
 const FLOOR_OPTIONS = ['1st Floor', '2nd Floor', '3rd Floor', '4th Floor'];
 const ROOM_TYPES = ['Lecture Room', 'Laboratory', 'Office', 'Conference Room'];
@@ -19,6 +20,7 @@ const initialFormState = {
 };
 
 export default function AddEditRoomModal({ show, onClose, room, departments, onSuccess }) {
+  const { user } = useAuthStore();
   const [formData, setFormData] = useState(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -56,6 +58,9 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
       Object.keys(formData).forEach(key => {
         form.append(key, formData[key]);
       });
+      
+      // Add user ID to form data
+      form.append('userId', user?._id);
 
       const result = room
         ? await editRoom(room.roomCode, form)

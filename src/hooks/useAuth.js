@@ -15,7 +15,7 @@ export function useAuth() {
   useEffect(() => {
     // If on a public path and user is authenticated, redirect to home
     if (publicPaths.includes(pathname) && isAuthenticated) {
-      router.push('/home');
+      router.push('/schedules');
       return;
     }
 
@@ -29,7 +29,7 @@ export function useAuth() {
     if (isAuthenticated && !publicPaths.includes(pathname)) {
       const hasAccess = hasPermission(user?.role, pathname);
       if (!hasAccess) {
-        router.push('/home');
+        router.push('/schedules');
       }
     }
   }, [pathname, isAuthenticated, router, user?.role]);

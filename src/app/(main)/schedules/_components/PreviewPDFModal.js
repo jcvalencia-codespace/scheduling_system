@@ -1,10 +1,11 @@
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
-
 import SchedulePDF from './SchedulePDF';
 
 export default function PreviewPDFModal({ isOpen, onClose, pdfProps }) {
+  const { activeTerm, schedules, selectedSection } = pdfProps;
+
   return (
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
@@ -31,15 +32,21 @@ export default function PreviewPDFModal({ isOpen, onClose, pdfProps }) {
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-                <Dialog.Panel className="w-full max-w-6xl transform overflow-hidden rounded-2xl bg-white p-6 shadow-xl transition-all">
+              <Dialog.Panel className="w-full max-w-6xl transform overflow-hidden rounded-2xl bg-white p-6 shadow-xl transition-all">
                 <div className="flex justify-between items-center mb-4">
                   <Dialog.Title as="h3" className="text-lg font-medium text-gray-900">
                     Preview Schedule
                   </Dialog.Title>
                   <div className="flex gap-2">
                     <PDFDownloadLink
-                      document={<SchedulePDF {...pdfProps} />}
-                      fileName={`Schedule_${pdfProps.selectedSection || 'All'}_${pdfProps.activeTerm?.term || ''}.pdf`}
+                      document={
+                        <SchedulePDF
+                          activeTerm={activeTerm}
+                          schedules={schedules}
+                          selectedSection={selectedSection}
+                        />
+                      }
+                      fileName={`Schedule_${selectedSection || 'All'}_${activeTerm?.term || ''}.pdf`}
                     >
                       {({ loading }) => (
                         <button
@@ -58,9 +65,13 @@ export default function PreviewPDFModal({ isOpen, onClose, pdfProps }) {
                     </button>
                   </div>
                 </div>
-                <div className="h-[500px] w-full">
+                <div className="h-[800px] w-full"> {/* Increased height for better portrait view */}
                   <PDFViewer width="100%" height="100%" style={{ border: 'none' }}>
-                    <SchedulePDF {...pdfProps} />
+                    <SchedulePDF
+                      activeTerm={activeTerm}
+                      schedules={schedules}
+                      selectedSection={selectedSection}
+                    />
                   </PDFViewer>
                 </div>
               </Dialog.Panel>

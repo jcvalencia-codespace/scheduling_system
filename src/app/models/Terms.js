@@ -18,7 +18,7 @@ class TermsModel {
   async getAllTerms() {
     try {
       const Term = await this.initModel();
-      const terms = await Term.find({})
+      const terms = await Term.find({ isVisible: true })  // Only get visible terms
         .sort({ academicYear: -1, startDate: 1 })
         .lean();
       return terms.map(this.mapTermData);
@@ -43,6 +43,7 @@ class TermsModel {
     try {
       const Term = await this.initModel();
       const term = await Term.findOne({ status: 'Active' }).lean();
+      console.log('Active term found:', term); // Debug log
       return term ? this.mapTermData(term) : null;
     } catch (error) {
       console.error('Error in getActiveTerm:', error);
@@ -58,7 +59,8 @@ class TermsModel {
         term: termData.term,
         startDate: termData.startDate,
         endDate: termData.endDate,
-        status: 'Inactive'
+        status: 'Inactive',
+        isVisible: true  // New terms are visible by default
       });
       
       const savedTerm = await newTerm.save();
@@ -186,6 +188,38 @@ class TermsModel {
     }
   }
 
+  async getTermsByNumbers(termNumbers = []) {
+    try {
+      const Term = await this.initModel();
+      const terms = await Term.find({
+        term: { $in: termNumbers.map(num => `Term ${num}`) }
+      })
+        .sort({ academicYear: -1 })
+        .lean();
+      return terms.map(this.mapTermData);
+    } catch (error) {
+      console.error('Error in getTermsByNumbers:', error);
+      throw error;
+    }
+  }
+
+  async endAllTerms() {
+    try {
+      const Term = await this.initModel();
+      const result = await Term.updateMany(
+        { isVisible: true }, // Only update visible terms
+        { 
+          status: 'Inactive',
+          isVisible: false  // Hide the terms
+        }
+      );
+      return result.modifiedCount > 0;
+    } catch (error) {
+      console.error('Error in endAllTerms:', error);
+      throw error;
+    }
+  }
+
   mapTermData(term) {
     return {
       id: term._id.toString(),
@@ -194,6 +228,7 @@ class TermsModel {
       startDate: term.startDate.toISOString().split('T')[0],
       endDate: term.endDate.toISOString().split('T')[0],
       status: term.status,
+      isVisible: term.isVisible,
     };
   }
 }

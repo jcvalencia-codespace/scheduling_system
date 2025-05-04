@@ -26,7 +26,7 @@ export default function AddEditCourseModal({ show, onClose, course, onSuccess })
       setFormData({
         courseCode: course.courseCode || '',
         courseTitle: course.courseTitle || '',
-        departmentCode: course.departmentCode || '',
+        departmentCode: course.department?.departmentCode || '',
       });
     } else {
       setFormData(initialFormState);

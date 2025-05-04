@@ -4,7 +4,7 @@
 export const rolePermissions = {
   Administrator: ['*'], // Full access to all routes and features
   Dean: [
-    '/home',
+    '/schedules',
     '/entry',
     '/entry/subjects',
     '/entry/sections',
@@ -14,10 +14,12 @@ export const rolePermissions = {
     '/logs/override-history',
     '/logs/archive',
     '/term',
-    '/feedback'
+    '/feedback',
+    '/chats'
+    
   ],
   'Program Chair': [
-    '/home',
+    '/schedules',
     '/entry',
     '/entry/subjects',
     '/entry/sections',
@@ -27,21 +29,23 @@ export const rolePermissions = {
     '/logs/override-history',
     '/logs/archive',
     '/term',
-    '/feedback'
+    '/feedback',
+    '/chats'
   ],
  
   Faculty: [
-    '/home',
+    '/schedules',
     '/feedback',
-    '/profile'
+    '/profile',
+    '/chats'
   ]
 };
 
 // Define menu items with their access roles
 export const menuItems = [
   {
-    title: 'Home',
-    href: '/home',
+    title: 'Schedules',
+    href: '/schedules',
     icon: 'CalendarDaysIcon',
     roles: ['Administrator', 'Dean', 'Program Chair', 'Faculty']
   },
@@ -154,6 +158,12 @@ export const menuItems = [
     title: 'Send Feedback',
     href: '/feedback',
     icon: 'EnvelopeIcon',
+    roles: ['Administrator', 'Dean', 'Program Chair', 'Faculty']
+  },
+  {
+    title: 'Chats',
+    href: '/chats',
+    icon: 'ChatBubbleLeftRightIcon',
     roles: ['Administrator', 'Dean', 'Program Chair', 'Faculty']
   }
 ];

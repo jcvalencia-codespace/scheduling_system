@@ -134,6 +134,7 @@ export default function UsersPage() {
   };
 
   const handleEdit = (user) => {
+    // user object should already have populated department and course from getAllUsers
     setSelectedUser(user);
     setShowModal(true);
   };
@@ -277,8 +278,8 @@ export default function UsersPage() {
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{user.email}</td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{user.role}</td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{user.department}</td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{user.course}</td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{user.department?.departmentCode || '-'}</td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{user.course?.courseCode || '-'}</td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{formatEmploymentType(user.employmentType)}</td>
                       <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                         <button

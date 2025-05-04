@@ -1,5 +1,6 @@
-import { Fragment } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
+import Swal from 'sweetalert2';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { 
   CalendarIcon,
@@ -13,9 +14,66 @@ import {
   PresentationChartLineIcon,
   ArrowsRightLeftIcon
 } from '@heroicons/react/24/outline';
+import { deleteSchedule } from '../_actions';
+import NewScheduleModal  from './NewScheduleModal';
 
-export default function ViewScheduleModal({ isOpen, onClose, schedule }) {
-  if (!schedule) return null;
+// Add useAuthStore to imports
+import useAuthStore from '@/store/useAuthStore';
+
+export default function ViewScheduleModal({ isOpen, onClose, schedule, onScheduleDeleted }) {
+  // Add user from auth store
+  const { user } = useAuthStore();
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [currentSchedule, setCurrentSchedule] = useState(schedule);
+
+  // Update currentSchedule when schedule prop changes
+  useEffect(() => {
+    setCurrentSchedule(schedule);
+  }, [schedule]);
+
+  const handleEditClose = () => {
+    setIsEditMode(false);
+    onScheduleDeleted(); // Refresh the parent component's data
+    onClose(); // Close the modal after successful edit
+  };
+
+  const handleDelete = async () => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "You won't be able to revert this!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        // Pass the user._id as second parameter
+        const response = await deleteSchedule(schedule._id, user._id);
+        if (response.error) {
+          throw new Error(response.error);
+        }
+        await Swal.fire({
+          title: 'Deleted!',
+          text: 'Schedule has been deleted.',
+          icon: 'success',
+        });
+        onClose();
+        onScheduleDeleted();
+      } catch (error) {
+        console.error('Error deleting schedule:', error);
+        await Swal.fire({
+          title: 'Error!',
+          text: 'Failed to delete schedule',
+          icon: 'error'
+        });
+      }
+    }
+  };
+  if (!currentSchedule) return null;
 
   return (
     <Transition.Root show={isOpen} as={Fragment}>
@@ -65,8 +123,8 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule }) {
                     <div className="flex items-center space-x-3">
                       <CalendarIcon className="h-5 w-5 text-blue-600 flex-shrink-0" />
                       <div>
-                        <p className="text-sm font-medium text-blue-900">School Year: {schedule.term.academicYear}</p>
-                        <p className="text-sm font-medium text-blue-900">Term {schedule.term.term}</p>
+                        <p className="text-sm font-bold text-blue-900">Academic Year: {schedule.term?.academicYear || 'N/A'}</p>
+                        <p className="text-sm font-bold text-blue-900">{schedule.term?.term || 'N/A'}</p>
                       </div>
                     </div>
                   </div>
@@ -85,7 +143,9 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule }) {
                             <div className="flex items-center gap-x-2 text-gray-600">
                               <UserIcon className="h-5 w-5" />
                               <p className="text-sm">
-                                Scheduled for: <span className="font-semibold text-gray-900">{schedule.faculty.firstName} {schedule.faculty.lastName}</span>
+                                Scheduled for: <span className="font-semibold text-gray-900">
+                                  {schedule.faculty ? `${schedule.faculty.firstName} ${schedule.faculty.lastName}` : 'TBA (To Be Assigned)'}
+                                </span>
                               </p>
                             </div>
                           </div>
@@ -94,7 +154,7 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule }) {
                             <div className="flex items-center gap-x-2 text-gray-600">
                               <AcademicCapIcon className="h-5 w-5" />
                               <p className="text-sm">
-                                Class: <span className="font-semibold text-gray-900">{schedule.building}</span>
+                                Section: <span className="font-semibold text-gray-900">{schedule.section?.sectionName}</span>
                               </p>
                             </div>
                           </div>
@@ -103,7 +163,9 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule }) {
                             <div className="flex items-center gap-x-2 text-gray-600">
                               <BookOpenIcon className="h-5 w-5" />
                               <p className="text-sm">
-                                Subject: <span className="font-semibold text-gray-900">{schedule.subjectCode} - {schedule.subjectName}</span>
+                                Subject: <span className="font-semibold text-gray-900">
+                                  {schedule.subject?.subjectCode} - {schedule.subject?.subjectName}
+                                </span>
                               </p>
                             </div>
                           </div>
@@ -112,7 +174,7 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule }) {
                             <div className="flex items-center gap-x-2 text-gray-600">
                               <BuildingOfficeIcon className="h-5 w-5" />
                               <p className="text-sm">
-                                Room: <span className="font-semibold text-gray-900">{schedule.room.roomCode}</span>
+                                Room: <span className="font-semibold text-gray-900">{schedule.room?.roomCode}</span>
                               </p>
                             </div>
                           </div>
@@ -121,7 +183,9 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule }) {
                             <div className="flex items-center gap-x-2 text-gray-600">
                               <ClockIcon className="h-5 w-5" />
                               <p className="text-sm">
-                                Time: <span className="font-semibold text-gray-900">{schedule.timeFrom} - {schedule.timeTo}</span>
+                                Time: <span className="font-semibold text-gray-900">
+                                  {schedule.timeFrom} - {schedule.timeTo}
+                                </span>
                               </p>
                             </div>
                           </div>
@@ -151,7 +215,7 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule }) {
                             <div className="flex items-center gap-x-2 text-gray-600">
                               <UserGroupIcon className="h-5 w-5" />
                               <p className="text-sm">
-                                Student Type: <span className="font-semibold text-gray-900">Continuing Students only within college</span>
+                                Student Type: <span className="font-semibold text-gray-900">{schedule.studentType}</span>
                               </p>
                             </div>
                           </div>
@@ -160,7 +224,9 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule }) {
                             <div className="flex items-center gap-x-2 text-gray-600">
                               <PresentationChartLineIcon className="h-5 w-5" />
                               <p className="text-sm">
-                                Schedule Type: <span className="font-semibold text-gray-900">{schedule.scheduleType}</span>
+                                Schedule Type: <span className="font-semibold text-gray-900">
+                                  {schedule.scheduleType?.charAt(0).toUpperCase() + schedule.scheduleType?.slice(1)}
+                                </span>
                               </p>
                             </div>
                           </div>
@@ -169,7 +235,9 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule }) {
                             <div className="flex items-center gap-x-2 text-gray-600">
                               <ArrowsRightLeftIcon className="h-5 w-5" />
                               <p className="text-sm">
-                                Pairing: <span className="font-semibold text-gray-900">No</span>
+                                Pairing: <span className="font-semibold text-gray-900">
+                                  {schedule.isPaired ? 'Yes' : 'No'}
+                                </span>
                               </p>
                             </div>
                           </div>
@@ -183,18 +251,25 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule }) {
                     <button
                       type="button"
                       className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-6 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 transition-colors"
-                      onClick={() => {
-                        // Handle edit action
-                      }}
+                      onClick={() => setIsEditMode(true)}
                     >
                       Edit
                     </button>
+               
+                    {isEditMode && (
+                      <NewScheduleModal
+                        isOpen={isEditMode}
+                        onClose={handleEditClose}
+                        onScheduleCreated={onScheduleDeleted}
+                        editMode={true}
+                        scheduleData={currentSchedule}
+                      />
+                    )}
+
                     <button
                       type="button"
                       className="inline-flex items-center justify-center rounded-lg bg-red-600 px-6 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 transition-colors"
-                      onClick={() => {
-                        // Handle delete action
-                      }}
+                      onClick={handleDelete}
                     >
                       Delete
                     </button>

@@ -3,38 +3,49 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { addSubject, editSubject } from '../_actions';
+import { addSubject, editSubject, getSubjects } from '../_actions';
 import Swal from 'sweetalert2';
+import Select from 'react-select';
+import useAuthStore from '../../../../../store/useAuthStore';
 
 const initialFormState = {
-  schoolYear: '',
-  term: '',
   subjectCode: '',
   subjectName: '',
   lectureHours: '',
   labHours: '',
-  course: ''
+  department: ''
 };
 
 export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }) {
+  const { user } = useAuthStore();
   const [formData, setFormData] = useState(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [departments, setDepartments] = useState([]);
 
   useEffect(() => {
     if (subject) {
       setFormData({
-        schoolYear: subject.schoolYear,
-        term: subject.term,
         subjectCode: subject.subjectCode,
         subjectName: subject.subjectName,
         lectureHours: subject.lectureHours,
         labHours: subject.labHours,
-        course: subject.course
+        department: subject.department?._id || subject.department
       });
     } else {
       setFormData(initialFormState);
     }
   }, [subject, show]);
+
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      const result = await getSubjects();
+      if (result.departments) {
+        setDepartments(result.departments);
+      }
+    };
+
+    fetchDepartments();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,12 +54,18 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
     setIsSubmitting(true);
 
     try {
+      if (!user || !user._id) {
+        throw new Error('User not authenticated');
+      }
+
       console.log('Submitting form data:', formData);
       
       const form = new FormData();
       Object.keys(formData).forEach(key => {
         form.append(key, formData[key]);
       });
+      
+      form.append('userId', user._id);
 
       const result = subject 
         ? await editSubject(subject.subjectCode, form)
@@ -87,7 +104,7 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value } = e.target || {};
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -148,43 +165,6 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
                       <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
                           <div className="sm:col-span-2">
-                            <label htmlFor="schoolYear" className="block text-sm font-medium text-gray-700">
-                              School Year
-                            </label>
-                            <input
-                              type="text"
-                              name="schoolYear"
-                              id="schoolYear"
-                              required
-                              value={formData.schoolYear}
-                              onChange={handleChange}
-                              disabled={isSubmitting}
-                              placeholder="2023-2024"
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
-                            />
-                          </div>
-
-                          <div className="sm:col-span-2">
-                            <label htmlFor="term" className="block text-sm font-medium text-gray-700">
-                              Term
-                            </label>
-                            <select
-                              name="term"
-                              id="term"
-                              required
-                              value={formData.term}
-                              onChange={handleChange}
-                              disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
-                            >
-                              <option value="">Select Term</option>
-                              <option value="1">1st Term</option>
-                              <option value="2">2nd Term</option>
-                              <option value="3">3rd Term</option>
-                            </select>
-                          </div>
-
-                          <div className="sm:col-span-2">
                             <label htmlFor="subjectCode" className="block text-sm font-medium text-gray-700">
                               Subject Code
                             </label>
@@ -195,7 +175,7 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
                               required
                               value={formData.subjectCode}
                               onChange={handleChange}
-                              disabled={isSubmitting || !!subject}
+                              disabled={isSubmitting}
                               placeholder="COMP101"
                               className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6 uppercase"
                             />
@@ -255,19 +235,43 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
                           </div>
 
                           <div className="sm:col-span-2">
-                            <label htmlFor="course" className="block text-sm font-medium text-gray-700">
-                              Course
+                            <label htmlFor="department" className="block text-sm font-medium text-gray-700">
+                              Department
                             </label>
-                            <input
-                              type="text"
-                              name="course"
-                              id="course"
+                            <Select
+                              id="department"
+                              name="department" 
+                              value={departments.find(d => d._id === formData.department) ? {
+                                value: formData.department,
+                                label: `${departments.find(d => d._id === formData.department).departmentCode} - ${departments.find(d => d._id === formData.department).departmentName}`
+                              } : null}
+                              onChange={(selectedOption) => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  department: selectedOption?.value || ''
+                                }));
+                              }}
+                              options={departments.map(dept => ({
+                                value: dept._id,
+                                label: `${dept.departmentCode} - ${dept.departmentName}`
+                              }))}
+                              isDisabled={isSubmitting}
+                              className="mt-1"
+                              classNamePrefix="select"
+                              placeholder="Select a department..."
+                              isSearchable
                               required
-                              value={formData.course}
-                              onChange={handleChange}
-                              disabled={isSubmitting}
-                              placeholder="BSCS"
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
+                              styles={{
+                                menu: (provided) => ({
+                                  ...provided,
+                                  zIndex: 9999
+                                }),
+                                menuPortal: (provided) => ({
+                                  ...provided,
+                                  zIndex: 9999
+                                })
+                              }}
+                              menuPlacement="auto"
                             />
                           </div>
                         </div>

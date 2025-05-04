@@ -21,15 +21,16 @@ import {
   ListBulletIcon,
   BookOpenIcon,
   XMarkIcon,
-  ArrowLeftOnRectangleIcon
+  ArrowLeftOnRectangleIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
 
 // Define role-based menu items
 const roleMenuItems = {
   Dean: [
     {
-      title: 'Home',
-      href: '/home',
+      title: 'Schedules',
+      href: '/schedules',
       icon: CalendarDaysIcon,
     },
     {
@@ -50,25 +51,30 @@ const roleMenuItems = {
     },
     {
       title: 'Activity Logs',
-      href: '/logs',
+      href: '/activity-logs',
       icon: ClipboardDocumentListIcon,
       hasDropdown: true,
       subItems: [
-        { title: 'Schedule History', href: '/logs/schedule-history', icon: ListBulletIcon },
-        { title: 'Override History', href: '/logs/override-history', icon: ListBulletIcon },
-        { title: 'Archive', href: '/logs/archive', icon: ListBulletIcon }
+        { title: 'Schedule History', href: '/activity-logs/schedule-history', icon: ListBulletIcon },
+        { title: 'Override History', href: '/activity-logs/override-history', icon: ListBulletIcon },
+        { title: 'Archive', href: '/activity-logs/archive', icon: ListBulletIcon }
       ]
     },
     {
       title: 'Send Feedback',
       href: '/feedback',
       icon: EnvelopeIcon
+    },
+    {
+      title: 'Chat',
+      href: '/chats',
+      icon: ChatBubbleLeftRightIcon
     }
   ],
   'Program Chair': [
     {
-      title: 'Home',
-      href: '/home',
+      title: 'Schedules',
+      href: '/schedules',
       icon: CalendarDaysIcon,
     },
     {
@@ -89,25 +95,30 @@ const roleMenuItems = {
     },
     {
       title: 'Activity Logs',
-      href: '/logs',
+      href: '/activity-logs',
       icon: ClipboardDocumentListIcon,
       hasDropdown: true,
       subItems: [
-        { title: 'Schedule History', href: '/logs/schedule-history', icon: ListBulletIcon },
-        { title: 'Override History', href: '/logs/override-history', icon: ListBulletIcon },
-        { title: 'Archive', href: '/logs/archive', icon: ListBulletIcon }
+        { title: 'Schedule History', href: '/activity-logs/schedule-history', icon: ListBulletIcon },
+        { title: 'Override History', href: '/activity-logs/override-history', icon: ListBulletIcon },
+        { title: 'Archive', href: '/activity-logs/archive', icon: ListBulletIcon }
       ]
     },
     {
       title: 'Send Feedback',
       href: '/feedback',
       icon: EnvelopeIcon
+    },
+    {
+      title: 'Chat',
+      href: '/chats',
+      icon: ChatBubbleLeftRightIcon
     }
   ],
   Administrator: [
     {
-      title: 'Home',
-      href: '/home',
+      title: 'Schedules',
+      href: '/schedules',
       icon: CalendarDaysIcon,
     },
     {
@@ -146,26 +157,36 @@ const roleMenuItems = {
     },
     {
       title: 'Activity Logs',
-      href: '/logs',
+      href: '/activity-logs',
       icon: ClipboardDocumentListIcon,
       hasDropdown: true,
       subItems: [
-        { title: 'Schedule History', href: '/logs/schedule-history', icon: ListBulletIcon },
-        { title: 'Override History', href: '/logs/override-history', icon: ListBulletIcon },
-        { title: 'Archive', href: '/logs/archive', icon: ListBulletIcon }
+        { title: 'Schedule History', href: '/activity-logs/schedule-history', icon: ListBulletIcon },
+        { title: 'Override History', href: '/activity-logs/override-history', icon: ListBulletIcon },
+        { title: 'Archive', href: '/activity-logs/archive', icon: ListBulletIcon }
       ]
     },
     {
       title: 'Send Feedback',
       href: '/feedback',
       icon: EnvelopeIcon
+    },
+    {
+      title: 'Chat',
+      href: '/chats',
+      icon: ChatBubbleLeftRightIcon
     }
   ],
   Faculty: [
     {
-      title: 'Home',
-      href: '/home',
+      title: 'Schedules',
+      href: '/schedules',
       icon: CalendarDaysIcon,
+    },
+    {
+      title: 'Chat',
+      href: '/chats',
+      icon: ChatBubbleLeftRightIcon
     },
     {
       title: 'Send Feedback',

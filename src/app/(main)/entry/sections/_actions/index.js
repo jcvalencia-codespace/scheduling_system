@@ -3,90 +3,63 @@
 import sectionsModel from '@/app/models/Sections';
 import coursesModel from '@/app/models/Courses';
 import { revalidatePath } from 'next/cache';
+import mongoose from 'mongoose';
 
 export async function getSections() {
   try {
-    const sections = await sectionsModel.getAllSections();
+    await sectionsModel.initModel(); // Ensure models are initialized
+    const sections = await sectionsModel.getAllSectionsWithDepartment();
+    if (!sections) {
+      throw new Error('No sections found');
+    }
     return { sections };
   } catch (error) {
     console.error('Error fetching sections:', error);
-    return { error: 'Failed to fetch sections' };
+    return { error: error.message || 'Failed to fetch sections' };
   }
 }
 
 export async function addSection(formData) {
   try {
-    const sectionName = formData.get('sectionName');
-    const courseCode = formData.get('courseCode');
-    const yearLevel = formData.get('yearLevel');
-
-    // Check if section already exists
-    const existingSection = await sectionsModel.getSectionByName(sectionName);
-    if (existingSection) {
-      return { error: 'Section already exists' };
+    const userId = formData.get('userId');
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return { error: 'Invalid user ID' };
     }
 
-    // Get department from course
-    const course = await coursesModel.getCourseByCode(courseCode);
-    if (!course) {
-      return { error: 'Course not found' };
-    }
-
-    const sectionData = {
-      sectionName,
-      courseCode,
-      departmentCode: course.departmentCode,
-      yearLevel,
-    };
-
-    const newSection = await sectionsModel.createSection(sectionData);
+    const result = await sectionsModel.processSectionCreation(formData);
     revalidatePath('/entry/sections');
-    return { success: true, section: newSection };
+    return { success: true, ...result };
   } catch (error) {
     console.error('Error adding section:', error);
     return { error: error.message || 'Failed to add section' };
   }
 }
 
-export async function editSection(sectionName, formData) {
+export async function editSection(sectionId, formData) {
   try {
-    const newCourseCode = formData.get('courseCode');
-    const newYearLevel = formData.get('yearLevel');
-
-    // Get department from course
-    const course = await coursesModel.getCourseByCode(newCourseCode);
-    if (!course) {
-      return { error: 'Course not found' };
+    const userId = formData.get('userId');
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return { error: 'Invalid user ID' };
     }
 
-    const updateData = {
-      courseCode: newCourseCode,
-      departmentCode: course.departmentCode,
-      yearLevel: newYearLevel,
-    };
-
-    const updatedSection = await sectionsModel.updateSection(sectionName, updateData);
-    if (!updatedSection) {
-      return { error: 'Section not found' };
-    }
-
+    const result = await sectionsModel.processSectionUpdate(sectionId, formData);
     revalidatePath('/entry/sections');
-    return { success: true, section: updatedSection };
+    return { success: true, ...result };
   } catch (error) {
     console.error('Error editing section:', error);
     return { error: error.message || 'Failed to edit section' };
   }
 }
 
-export async function removeSection(sectionName) {
+export async function removeSection(sectionId, userId) {
   try {
-    const deletedSection = await sectionsModel.deleteSection(sectionName);
-    if (!deletedSection) {
-      return { error: 'Section not found' };
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return { error: 'Invalid user ID' };
     }
 
+    const result = await sectionsModel.processSectionDeletion(sectionId, userId);
     revalidatePath('/entry/sections');
-    return { success: true, section: deletedSection };
+    return { success: true, ...result };
   } catch (error) {
     console.error('Error removing section:', error);
     return { error: error.message || 'Failed to remove section' };
@@ -95,7 +68,11 @@ export async function removeSection(sectionName) {
 
 export async function getCourses() {
   try {
-    const courses = await coursesModel.getAllCourses();
+    await sectionsModel.initModel(); // Ensure models are initialized
+    const courses = await sectionsModel.getAllCoursesWithDepartment();
+    if (!courses) {
+      throw new Error('No courses found');
+    }
     return { courses };
   } catch (error) {
     console.error('Error in getCourses:', error);

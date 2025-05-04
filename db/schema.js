@@ -34,14 +34,14 @@ const UserSchema = new Schema({
     enum: ['Administrator', 'Dean', 'Program Chair', 'Faculty']
   },
   department: {
-    type: String,
-    required: true,
-    trim: true
+    type: Schema.Types.ObjectId,
+    ref: 'departments',
+    required: true
   },
   course: {
-    type: String,
-    required: true,
-    trim: true
+    type: Schema.Types.ObjectId,
+    ref: 'courses',
+    required: true
   },
   employmentType: {
     type: String,
@@ -54,15 +54,6 @@ const UserSchema = new Schema({
 });
 
 const SubjectSchema = new Schema({
-  schoolYear: {
-    type: String,
-    required: true,
-  },
-  term: {
-    type: Number,
-    required: true,
-    enum: [1, 2, 3],
-  },
   subjectCode: {
     type: String,
     required: true,
@@ -82,14 +73,36 @@ const SubjectSchema = new Schema({
     required: true,
     min: 0,
   },
-  course: {
-    type: String,
+  department: {
+    type: Schema.Types.ObjectId,
+    ref: 'Departments',
     required: true,
   },
   isActive: {
     type: Boolean,
     default: true,
-  }
+  },
+  updateHistory: [{
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+      required: true
+    },
+    action: {
+      type: String,
+      enum: ['created', 'updated', 'deleted'],
+      required: true
+    },
+    academicYear: {
+      type: String,
+      required: true
+    }
+  }],
 }, {
   timestamps: true,
   collection: 'subjects'
@@ -130,11 +143,10 @@ const CourseSchema = new Schema({
     required: [true, 'Course title is required'],
     trim: true,
   },
-  departmentCode: {
-    type: String,
+  department: {
+    type: Schema.Types.ObjectId,
+    ref: 'Departments',  // Changed from 'departments' to 'Departments'
     required: [true, 'Department is required'],
-    trim: true,
-    ref: 'Departments',
   },
   isActive: {
     type: Boolean,
@@ -169,10 +181,9 @@ const RoomSchema = new Schema({
     trim: true,
     enum: ['1st Floor', '2nd Floor', '3rd Floor', '4th Floor'],
   },
-  departmentCode: {
-    type: String,
+  department: {
+    type: Schema.Types.ObjectId,
     required: [true, 'Department is required'],
-    trim: true,
     ref: 'Departments',
   },
   capacity: {
@@ -184,6 +195,27 @@ const RoomSchema = new Schema({
     type: Boolean,
     default: true,
   },
+  updateHistory: [{
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+      required: true
+    },
+    action: {
+      type: String,
+      enum: ['created', 'updated', 'deleted'],
+      required: true
+    },
+    academicYear: {
+      type: String,
+      required: true  
+    }
+  }],
 }, {
   timestamps: true,
   collection: 'rooms'
@@ -193,20 +225,17 @@ const SectionSchema = new Schema({
   sectionName: {
     type: String,
     required: [true, 'Section name is required'],
-    unique: true,
     trim: true,
     uppercase: true,
   },
-  courseCode: {
-    type: String,
+  course: {  // Changed from courseCode
+    type: Schema.Types.ObjectId,
     required: [true, 'Course is required'],
-    trim: true,
     ref: 'Courses',
   },
-  departmentCode: {
-    type: String,
+  department: {
+    type: Schema.Types.ObjectId,
     required: [true, 'Department is required'],
-    trim: true,
     ref: 'Departments',
   },
   yearLevel: {
@@ -219,10 +248,41 @@ const SectionSchema = new Schema({
     type: Boolean,
     default: true,
   },
+  updateHistory: [{
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+      required: true
+    },
+    action: {
+      type: String,
+      enum: ['created', 'updated', 'deleted'],
+      required: true
+    },
+    academicYear: {
+      type: String,
+      required: true
+    }
+  }],
 }, {
   timestamps: true,
   collection: 'sections'
 });
+
+// Drop any existing indexes and create only the compound index
+SectionSchema.on('index', function(error) {
+  if (error) {
+    console.error('Section Schema index error:', error);
+  }
+});
+
+// This is the only index we want
+SectionSchema.index({ sectionName: 1, isActive: 1 }, { unique: true });
 
 const TermSchema = new Schema({
   academicYear: {
@@ -248,6 +308,11 @@ const TermSchema = new Schema({
     required: true,
     enum: ['Active', 'Inactive'],
     default: 'Inactive'
+  },
+  isVisible: {
+    type: Boolean,
+    default: true,
+    required: true
   }
 }, {
   timestamps: true,
@@ -297,8 +362,261 @@ const FeedbackSchema = new Schema({
   collection: 'feedback'
 });
 
+const AssignSubjectsSchema = new Schema({
+  yearLevel: {
+    type: String,
+    required: true,
+    enum: ['1st', '2nd', '3rd', '4th', 'grad']
+  },
+  academicYear: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  classId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Section',
+    required: true
+  },
+  subjects: [{
+    subject: {
+      type: Schema.Types.ObjectId,
+      ref: 'Subject',
+      required: true
+    },
+    term: {
+      type: Number,
+      required: true,
+      enum: [1, 2, 3]
+    },
+    termId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Terms',
+      required: true
+    }
+  }],
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  updateHistory: [{
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+      required: true
+    },
+    action: {
+      type: String,
+      enum: ['created', 'updated', 'deleted'],
+      required: true
+    },
+    academicYear: {
+      type: String,
+      required: true
+    }
+  }]
+}, {
+  timestamps: true,
+  collection: 'assignSubjects'
+});
+
 TermSchema.index({ academicYear: 1, term: 1 }, { unique: true });
 TermSchema.index({ status: 1 });
+
+const ScheduleSlotSchema = new Schema({
+  days: [{
+    type: String,
+    required: true
+  }],
+  timeFrom: {
+    type: String,
+    required: true
+  },
+  timeTo: {
+    type: String,
+    required: true
+  },
+  room: {
+    type: Schema.Types.ObjectId,
+    ref: 'Rooms',
+    required: true
+  },
+  scheduleType: {
+    type: String,
+    required: true,
+    enum: ['lecture', 'laboratory', 'tutorial']
+  }
+});
+
+const ScheduleSchema = new Schema({
+  term: {
+    type: Schema.Types.ObjectId,
+    ref: 'Terms',
+    required: true
+  },
+  section: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Sections',
+    required: true
+  }],
+  faculty: {
+    type: Schema.Types.ObjectId,
+    ref: 'Users',
+    default: null
+  },
+  subject: {
+    type: Schema.Types.ObjectId,
+    ref: 'Subjects',
+    required: true
+  },
+  classLimit: {
+    type: Number,
+    required: true
+  },
+  studentType: {
+    type: String,
+    required: true
+  },
+  isPaired: {
+    type: Boolean,
+    default: false
+  },
+  isMultipleSections: {
+    type: Boolean,
+    default: false
+  },
+  scheduleSlots: [ScheduleSlotSchema],
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  // Add update history tracking
+  updateHistory: [{
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+      required: true
+    },
+    action: {
+      type: String,
+      enum: ['created', 'updated', 'deleted'],
+      required: true
+    },
+    academicYear: {
+      type: String,
+      required: true
+    }
+  }]
+}, {
+  timestamps: true,
+  collection: 'schedules'
+});
+// Add this to your existing schema.js file
+const NotificationSchema = new Schema({
+  userId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Users',
+    required: true,
+    index: true
+  },
+  title: {
+    type: String,
+    required: true
+  },
+  message: {
+    type: String,
+    required: true
+  },
+  type: {
+    type: String,
+    enum: ['success', 'warning', 'error', 'info'],
+    default: 'info'
+  },
+  isRead: {
+    type: Boolean,
+    default: false
+  },
+  relatedSchedule: {
+    type: Schema.Types.ObjectId,
+    ref: 'Schedules',
+    required: false
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+    expires: 2592000 // 30 days
+  }
+}, {
+  timestamps: true,
+  collection: 'notifications'
+});
+
+const ChatSchema = new Schema({
+  participants: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Users',
+    required: true
+  }],
+  messages: [{
+    sender: {
+      type: Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
+    },
+    content: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    readBy: [{
+      user: {
+        type: Schema.Types.ObjectId,
+        ref: 'Users'
+      },
+      readAt: {
+        type: Date,
+        default: Date.now
+      }
+    }],
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  lastMessage: {
+    type: Date,
+    default: Date.now
+  },
+  isGroup: {
+    type: Boolean,
+    default: false
+  },
+  groupName: {
+    type: String,
+    trim: true
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  }
+}, {
+  timestamps: true,
+  collection: 'chats'
+});
+
+// Index for efficient querying
+ChatSchema.index({ participants: 1, lastMessage: -1 });
+ChatSchema.index({ 'messages.sender': 1, 'messages.createdAt': -1 });
 
 export {
   UserSchema,
@@ -308,5 +626,9 @@ export {
   RoomSchema,
   SectionSchema,
   TermSchema,
-  FeedbackSchema
+  FeedbackSchema,
+  AssignSubjectsSchema,
+  ScheduleSchema,
+  NotificationSchema,
+  ChatSchema
 };
