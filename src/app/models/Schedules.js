@@ -75,6 +75,55 @@ export default class SchedulesModel {
     }
   }
 
+  static async getAllActiveSections() {
+    try {
+      const sections = await Sections.aggregate([
+        { $match: { isActive: true } },
+        {
+          $lookup: {
+            from: 'courses',
+            localField: 'course',
+            foreignField: '_id',
+            as: 'course'
+          }
+        },
+        { $unwind: '$course' },
+        {
+          $lookup: {
+            from: 'departments',
+            localField: 'course.department',
+            foreignField: '_id',
+            as: 'department'
+          }
+        },
+        { $unwind: '$department' },
+        {
+          $project: {
+            _id: 1,
+            sectionName: 1,
+            yearLevel: 1,
+            course: {
+              _id: '$course._id',
+              courseCode: '$course.courseCode',
+              courseTitle: '$course.courseTitle',
+              department: {
+                _id: '$department._id',
+                departmentCode: '$department.departmentCode',
+                departmentName: '$department.departmentName'
+              }
+            }
+          }
+        },
+        { $sort: { sectionName: 1 } }
+      ]);
+
+      return sections;
+    } catch (error) {
+      console.error('Error fetching all active sections:', error);
+      throw new Error('Failed to fetch sections');
+    }
+  }
+
   static async getFaculty() {
     try {
       const faculty = await Users.aggregate([
@@ -489,8 +538,18 @@ export default class SchedulesModel {
 
   static async getSchedules(query = {}) {
     try {
+      // Convert term string to ObjectId if present
+      if (query.term) {
+        query.term = new mongoose.Types.ObjectId(query.term);
+      }
+
       const schedules = await Schedules.aggregate([
-        { $match: { isActive: true, ...query } },
+        { 
+          $match: { 
+            isActive: true,
+            ...(query.term ? { term: query.term } : {})
+          } 
+        },
         {
           $lookup: {
             from: 'terms',
@@ -601,7 +660,7 @@ export default class SchedulesModel {
           }
         }
       ]);
-console.log('Fetched schedules:', schedules); // Debug log      
+      console.log('Fetched schedules with query:', query, 'Count:', schedules.length); // Debug log
       return schedules;
     } catch (error) {
       console.error('Schedules fetch error:', error);

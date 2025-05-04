@@ -123,7 +123,18 @@ export async function updateSchedule(scheduleId, scheduleData) {
 
 export async function getSchedules(query = {}) {
   try {
-    const schedules = await schedulesModel.getSchedules(query);
+    // Get active term first
+    const term = await TermsModel.getActiveTerm();
+    if (!term) {
+      return { error: 'No active term found' };
+    }
+    
+    // Add term filter to query and ensure it's a string
+    const schedules = await schedulesModel.getSchedules({
+      ...query,
+      term: term.id.toString()
+    });
+    
     return { schedules: JSON.parse(JSON.stringify(schedules)) };
   } catch (error) {
     console.error('Error fetching schedules:', error);
@@ -141,5 +152,18 @@ export async function deleteSchedule(scheduleId, userId) {
   } catch (error) {
     console.error('Error deleting schedule:', error);
     return { error: error.message || 'Failed to delete schedule' };
+  }
+}
+
+export async function getAllSections() {
+  try {
+    const sections = await schedulesModel.getAllActiveSections();
+    if (!sections) {
+      throw new Error('Failed to fetch sections');
+    }
+    return { sections: JSON.parse(JSON.stringify(sections)) };
+  } catch (error) {
+    console.error('Error fetching all sections:', error);
+    return { error: error.message || 'Failed to fetch sections' };
   }
 }
