@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { getAllCourses, getCoursesByDepartment, getAllYearLevels, getAllSections, getYearLevelsByDepartment, getSectionsByDepartment } from '../_actions';
 
 // Dynamically import React-Select with disabled SSR
 const ReactSelect = dynamic(() => import('react-select'), {
@@ -38,16 +39,84 @@ const customSelectStyles = {
 
 export default function Filter({ filters, handleFilterChange, filterOptions, departments }) {
   const [isMounted, setIsMounted] = useState(false);
+  const [allData, setAllData] = useState({
+    courses: [],
+    yearLevels: [],
+    sections: []
+  });
+  const [filteredData, setFilteredData] = useState({
+    courses: [],
+    yearLevels: [],
+    sections: []
+  });
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
+  // Load all data initially
+  useEffect(() => {
+    const loadAllData = async () => {
+      const [coursesData, yearLevelsData, sectionsData] = await Promise.all([
+        getAllCourses(),
+        getAllYearLevels(),
+        getAllSections()
+      ]);
+      setAllData({
+        courses: coursesData,
+        yearLevels: yearLevelsData,
+        sections: sectionsData
+      });
+      setFilteredData({
+        courses: coursesData,
+        yearLevels: yearLevelsData,
+        sections: sectionsData
+      });
+    };
+    loadAllData();
+  }, []);
+
+  // Filter data when department changes
+  useEffect(() => {
+    const filterDataByDepartment = async () => {
+      if (filters.department) {
+        const departmentData = departments.find(d => d.departmentCode === filters.department);
+        if (departmentData) {
+          const [coursesData, yearLevelsData, sectionsData] = await Promise.all([
+            getCoursesByDepartment(departmentData._id),
+            getYearLevelsByDepartment(departmentData._id),
+            getSectionsByDepartment(departmentData._id)
+          ]);
+          setFilteredData({
+            courses: coursesData,
+            yearLevels: yearLevelsData,
+            sections: sectionsData
+          });
+        }
+      } else {
+        setFilteredData(allData);
+      }
+    };
+    filterDataByDepartment();
+  }, [filters.department, departments]);
+
+  // Reset filters when department changes
+  useEffect(() => {
+    handleFilterChange('course', '');
+  }, [filters.department]);
+
+  useEffect(() => {
+    handleFilterChange('yearLevel', '');
+  }, [filters.course]);
+
+  useEffect(() => {
+    handleFilterChange('section', '');
+  }, [filters.yearLevel]);
+
   if (!isMounted) {
     return (
       <div className="bg-white shadow rounded-lg p-6 mb-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Loading placeholders */}
           {[...Array(4)].map((_, i) => (
             <div key={i}>
               <div className="h-5 w-24 bg-gray-200 rounded mb-2"></div>
@@ -85,12 +154,12 @@ export default function Filter({ filters, handleFilterChange, filterOptions, dep
           <ReactSelect
             value={filters.course ? { 
               value: filters.course, 
-              label: filters.course 
+              label: `${filters.course} - ${filteredData.courses.find(c => c.courseCode === filters.course)?.courseTitle || ''}` 
             } : null}
             onChange={(option) => handleFilterChange('course', option?.value || '')}
-            options={filterOptions.courses.map(course => ({
-              value: course,
-              label: course
+            options={filteredData.courses.map(course => ({
+              value: course.courseCode,
+              label: `${course.courseCode} - ${course.courseTitle}`
             }))}
             isClearable
             placeholder="All Courses"
@@ -103,12 +172,12 @@ export default function Filter({ filters, handleFilterChange, filterOptions, dep
           <ReactSelect
             value={filters.yearLevel ? { 
               value: filters.yearLevel, 
-              label: `${filters.yearLevel} Year` 
+              label: filters.yearLevel 
             } : null}
             onChange={(option) => handleFilterChange('yearLevel', option?.value || '')}
-            options={filterOptions.yearLevels.map(year => ({
+            options={filteredData.yearLevels.map(year => ({
               value: year,
-              label: `${year} Year`
+              label: year
             }))}
             isClearable
             placeholder="All Year Levels"
@@ -124,7 +193,7 @@ export default function Filter({ filters, handleFilterChange, filterOptions, dep
               label: filters.section 
             } : null}
             onChange={(option) => handleFilterChange('section', option?.value || '')}
-            options={filterOptions.sections.map(section => ({
+            options={filteredData.sections.map(section => ({
               value: section,
               label: section
             }))}

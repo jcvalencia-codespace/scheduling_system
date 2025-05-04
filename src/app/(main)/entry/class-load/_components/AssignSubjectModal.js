@@ -1,7 +1,7 @@
 import { Fragment, useState, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
-import { getClasses, getSubjects, createAssignment, updateAssignment } from '../_actions'
+import { getClasses, getSubjects, createAssignment, updateAssignment, getActiveTerm } from '../_actions'
 import { DropdownSkeleton } from './SkeletonLoader'
 import Swal from 'sweetalert2'
 import Select from 'react-select';
@@ -68,6 +68,8 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
   const [isLoadingClasses, setIsLoadingClasses] = useState(false);
   const [isLoadingSubjects, setIsLoadingSubjects] = useState(false);
   const [portalTarget, setPortalTarget] = useState(null);
+  const [allSubjects, setAllSubjects] = useState([]);
+  const [termInfo, setTermInfo] = useState(null);
 
   const yearLevels = [
     { id: '1st Year', label: '1st Year' },
@@ -174,52 +176,72 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
     loadEditData();
   }, [editData]);
 
-  // Also load subjects when modal opens
+  // Load all subjects when modal opens
   useEffect(() => {
-    const loadSubjects = async () => {
-      if (isOpen && formData.classes.length > 0) {
+    const loadAllSubjects = async () => {
+      if (isOpen) {
         setIsLoadingSubjects(true);
+        try {
+          const subjects = await getSubjects(); // Call without departmentId to get all subjects
+          setAllSubjects(subjects);
+          setAvailableSubjects(subjects);
+        } catch (error) {
+          console.error('Error loading all subjects:', error);
+        } finally {
+          setIsLoadingSubjects(false);
+        }
+      }
+    };
+    loadAllSubjects();
+  }, [isOpen]);
+
+  // Add effect to load active term when modal opens
+  useEffect(() => {
+    const loadActiveTerm = async () => {
+      if (isOpen) {
+        try {
+          const { success, term } = await getActiveTerm();
+          if (success) {
+            setTermInfo(term);
+          }
+        } catch (error) {
+          console.error('Error loading active term:', error);
+        }
+      }
+    };
+    loadActiveTerm();
+  }, [isOpen]);
+
+  // Update subject filtering when class is selected
+  useEffect(() => {
+    const filterSubjects = async () => {
+      if (formData.classes.length > 0) {
         try {
           // Get the department ID from the first selected class
           const selectedClass = availableClasses.find(c => c._id === formData.classes[0]);
           const departmentId = selectedClass?.course?.department?._id;
           
-          console.log('Loading subjects for department:', departmentId);
-          
           if (departmentId) {
-            const subjects = await getSubjects(departmentId);
-            console.log('Fetched subjects:', subjects);
-            setAvailableSubjects(subjects || []);
+            const departmentSubjects = await getSubjects(departmentId);
+            setAvailableSubjects(departmentSubjects);
           } else {
-            setAvailableSubjects([]);
+            setAvailableSubjects(allSubjects); // Show all subjects if no department
           }
         } catch (error) {
-          console.error('Error loading subjects:', error);
-          setAvailableSubjects([]);
-        } finally {
-          setIsLoadingSubjects(false);
+          console.error('Error filtering subjects:', error);
+          setAvailableSubjects(allSubjects); // Fallback to all subjects
         }
       } else {
-        // Clear subjects if no class is selected
-        setAvailableSubjects([]);
+        setAvailableSubjects(allSubjects); // Show all subjects when no class selected
       }
     };
 
-    loadSubjects();
-  }, [isOpen, formData.classes, availableClasses]);
+    filterSubjects();
+  }, [formData.classes, availableClasses, allSubjects]);
 
   useEffect(() => {
     setPortalTarget(document.body);
   }, []);
-
-  // const handleClassesChange = (selected) => {
-  //   setFormData(prev => ({
-  //     ...prev,
-  //     classes: selected ? selected.map(option => option.value) : [],
-  //     subjects: [] // Reset subjects when class changes
-  //   }));
-  //   setAvailableSubjects([]); // Clear available subjects when class changes
-  // };
 
   const handleSubjectsChange = (e) => {
     const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
@@ -232,11 +254,21 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      if (!termInfo) {
+        throw new Error('Active term information is required');
+      }
+
+      const submissionData = {
+        ...formData,
+        academicYear: termInfo.sy,
+        termId: termInfo._id
+      };
+
       let result;
       if (editData) {
-        result = await updateAssignment(editData._id, formData, userId);
+        result = await updateAssignment(editData._id, submissionData, userId);
       } else {
-        result = await createAssignment(formData, userId);
+        result = await createAssignment(submissionData, userId);
       }
       
       if (result.success) {

@@ -40,6 +40,12 @@ export default function AssignSubjectsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    // Scroll to top when changing pages (optional)
+    window.scrollTo(0, 0);
+  };
+
   useEffect(() => {
     loadAssignments();
     loadDepartments();
@@ -135,10 +141,30 @@ export default function AssignSubjectsPage() {
   };
 
   const filteredAssignments = assignments.filter(assignment => {
-    if (filters.yearLevel && assignment.yearLevel !== filters.yearLevel) return false;
-    if (filters.section && assignment.classId?.sectionName !== filters.section) return false;
-    if (filters.course && assignment.classId?.course?.courseCode !== filters.course) return false;
-    if (filters.department && assignment.classId?.course?.department?.departmentCode !== filters.department) return false;
+    // Department filter
+    if (filters.department && 
+        assignment.classId?.course?.department?.departmentCode !== filters.department) {
+      return false;
+    }
+
+    // Course filter - only apply if department matches or no department selected
+    if (filters.course && 
+        assignment.classId?.course?.courseCode !== filters.course) {
+      return false;
+    }
+
+    // Year Level filter - only apply if course matches or no course selected
+    if (filters.yearLevel && 
+        !assignment.yearLevel?.toLowerCase().includes(filters.yearLevel.toLowerCase().replace(' year', ''))) {
+      return false;
+    }
+
+    // Section filter - only apply if year level matches or no year level selected
+    if (filters.section && 
+        assignment.classId?.sectionName !== filters.section) {
+      return false;
+    }
+
     return true;
   });
 
@@ -146,19 +172,26 @@ export default function AssignSubjectsPage() {
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredAssignments.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredAssignments.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredAssignments.length / itemsPerPage); // Add this line
 
-  // Add pagination handler
-  const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
-  };
-
-  // Get unique values for filters from assignments
+  // Update filterOptions based on department selection
   const filterOptions = {
-    yearLevels: [...new Set(assignments.map(a => a.yearLevel))].sort(),
-    sections: [...new Set(assignments.map(a => a.classId?.sectionName).filter(Boolean))].sort(),
-    courses: [...new Set(assignments.map(a => a.classId?.course?.courseCode).filter(Boolean))].sort(),
-    departments: departments.map(dept => dept.departmentCode).sort(),
+    yearLevels: [...new Set(assignments
+      .filter(a => !filters.department || a.classId?.course?.department?.departmentCode === filters.department)
+      .map(a => a.yearLevel + ' Year'))].sort(),
+    sections: [...new Set(assignments
+      .filter(a => {
+        if (filters.department && a.classId?.course?.department?.departmentCode !== filters.department) return false;
+        if (filters.course && a.classId?.course?.courseCode !== filters.course) return false;
+        if (filters.yearLevel && !a.yearLevel?.toLowerCase().includes(filters.yearLevel.toLowerCase().replace(' year', ''))) return false;
+        return true;
+      })
+      .map(a => a.classId?.sectionName)
+      .filter(Boolean))].sort(),
+    courses: [...new Set(assignments
+      .filter(a => !filters.department || a.classId?.course?.department?.departmentCode === filters.department)
+      .map(a => a.classId?.course?.courseCode)
+      .filter(Boolean))].sort()
   };
 
   // Get unique courses from assignments with proper deduplication

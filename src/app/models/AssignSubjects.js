@@ -88,11 +88,7 @@ class AssignSubjectsModel {
       
       let query = { isActive: true };
       if (departmentId) {
-        const courses = await this.models.Course.find({ 
-          department: departmentId,
-          isActive: true 
-        });
-        query.department = departmentId; // Filter by department directly
+        query.department = departmentId; // Use the department ID directly
       }
 
       const subjects = await this.models.Subject.find(query)
@@ -102,11 +98,6 @@ class AssignSubjectsModel {
         })
         .select('subjectCode subjectName lectureHours labHours department')
         .lean();
-
-      if (!subjects || subjects.length === 0) {
-        console.log('No subjects found for department:', departmentId);
-        return [];
-      }
 
       return subjects.map(subject => ({
         ...subject,
@@ -118,6 +109,35 @@ class AssignSubjectsModel {
       }));
     } catch (error) {
       console.error('Error fetching subjects:', error);
+      throw error;
+    }
+  }
+
+  async fetchCoursesByDepartment(departmentId) {
+    try {
+      await this.initializeModels();
+      
+      const courses = await this.models.Course.find({ 
+        department: departmentId,
+        isActive: true 
+      })
+      .populate({
+        path: 'department',
+        select: 'departmentCode departmentName'
+      })
+      .select('courseCode courseTitle department')
+      .lean();
+
+      return courses.map(course => ({
+        ...course,
+        _id: course._id.toString(),
+        department: course.department ? {
+          ...course.department,
+          _id: course.department._id.toString()
+        } : null
+      }));
+    } catch (error) {
+      console.error('Error fetching courses:', error);
       throw error;
     }
   }
@@ -231,13 +251,15 @@ class AssignSubjectsModel {
 
       const subjectsWithTerm = data.subjects.map(subjectId => ({
         subject: subjectId,
-        term: Number(data.term)
+        term: Number(data.term),
+        termId: data.termId // Add termId here
       }));
 
       const historyEntry = {
         updatedBy: userId,
         updatedAt: new Date(),
-        action: existingAssignment ? 'updated' : 'created'
+        action: existingAssignment ? 'updated' : 'created',
+        academicYear: data.academicYear // Add academicYear here
       };
 
       if (existingAssignment) {
@@ -247,6 +269,7 @@ class AssignSubjectsModel {
 
         await existingAssignment.updateOne({
           yearLevel: data.yearLevel,
+          academicYear: data.academicYear, // Add academicYear here
           subjects: [...existingSubjects, ...subjectsWithTerm],
           $push: { updateHistory: historyEntry }
         });
@@ -256,6 +279,7 @@ class AssignSubjectsModel {
         return await this.models.AssignSubjects.create({
           yearLevel: data.yearLevel,
           classId: classId,
+          academicYear: data.academicYear, // Add academicYear here
           subjects: subjectsWithTerm,
           updateHistory: [historyEntry]
         });
@@ -381,6 +405,129 @@ class AssignSubjectsModel {
       }));
     } catch (error) {
       console.error('Error fetching departments:', error);
+      throw error;
+    }
+  }
+
+  async getActiveTerm() {
+    try {
+      await this.initializeModels();
+
+      const activeTerm = await mongoose.model('Terms').findOne({
+        status: 'Active',
+        isVisible: true
+      }).sort({ createdAt: -1 }).lean();
+
+      if (!activeTerm) {
+        throw new Error('No active term found');
+      }
+
+      return {
+        _id: activeTerm._id.toString(),
+        academicYear: activeTerm.academicYear,
+        term: activeTerm.term
+      };
+    } catch (error) {
+      console.error('Error getting active term:', error);
+      throw error;
+    }
+  }
+
+  async fetchYearLevelsByCourse(courseId) {
+    try {
+      await this.initializeModels();
+      
+      const yearLevels = await this.models.Section.find({ 
+        course: courseId,
+        isActive: true 
+      })
+      .distinct('yearLevel')
+      .lean();
+
+      return yearLevels.sort();
+    } catch (error) {
+      console.error('Error fetching year levels:', error);
+      throw error;
+    }
+  }
+
+  async fetchSectionsByCourseAndYear(courseId, yearLevel) {
+    try {
+      await this.initializeModels();
+      
+      const sections = await this.models.Section.find({ 
+        course: courseId,
+        yearLevel: yearLevel,
+        isActive: true 
+      })
+      .select('sectionName')
+      .lean();
+
+      return sections.map(section => section.sectionName).sort();
+    } catch (error) {
+      console.error('Error fetching sections:', error);
+      throw error;
+    }
+  }
+
+  async fetchAllCourses() {
+    try {
+      await this.initializeModels();
+      
+      const courses = await this.models.Course.find({ 
+        isActive: true 
+      })
+      .populate({
+        path: 'department',
+        select: 'departmentCode departmentName'
+      })
+      .select('courseCode courseTitle department')
+      .lean();
+
+      return courses.map(course => ({
+        ...course,
+        _id: course._id.toString(),
+        department: course.department ? {
+          ...course.department,
+          _id: course.department._id.toString()
+        } : null
+      }));
+    } catch (error) {
+      console.error('Error fetching all courses:', error);
+      throw error;
+    }
+  }
+
+  async fetchAllYearLevels() {
+    try {
+      await this.initializeModels();
+      
+      const yearLevels = await this.models.Section.find({ 
+        isActive: true 
+      })
+      .distinct('yearLevel')
+      .lean();
+
+      return yearLevels.sort();
+    } catch (error) {
+      console.error('Error fetching all year levels:', error);
+      throw error;
+    }
+  }
+
+  async fetchAllSections() {
+    try {
+      await this.initializeModels();
+      
+      const sections = await this.models.Section.find({ 
+        isActive: true 
+      })
+      .select('sectionName')
+      .lean();
+
+      return sections.map(section => section.sectionName).sort();
+    } catch (error) {
+      console.error('Error fetching all sections:', error);
       throw error;
     }
   }

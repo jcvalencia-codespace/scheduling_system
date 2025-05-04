@@ -384,6 +384,35 @@ class SectionsModel {
       .populate('department', 'departmentCode departmentName');
     return JSON.parse(JSON.stringify(courses));
   }
+
+  async getYearLevelsByDepartment(departmentId) {
+    try {
+      const Section = await this.initModel();
+      const query = departmentId ? { department: departmentId, isActive: true } : { isActive: true };
+      
+      const yearLevels = await Section.distinct('yearLevel', query);
+      return yearLevels.sort();
+    } catch (error) {
+      console.error('Error in getYearLevelsByDepartment:', error);
+      throw error;
+    }
+  }
+
+  async getSectionsByDepartment(departmentId) {
+    try {
+      const Section = await this.initModel();
+      const query = departmentId ? { department: departmentId, isActive: true } : { isActive: true };
+      
+      const sections = await Section.find(query)
+        .select('sectionName')
+        .lean();
+
+      return sections.map(section => section.sectionName).sort();
+    } catch (error) {
+      console.error('Error in getSectionsByDepartment:', error);
+      throw error;
+    }
+  }
 }
 
 const sectionsModel = new SectionsModel();
