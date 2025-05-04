@@ -10,7 +10,7 @@ import interactionPlugin from "@fullcalendar/interaction"
 import NewScheduleModal from "./_components/NewScheduleModal"
 import ViewScheduleModal from "./_components/ViewScheduleModal"
 import PreviewPDFModal from "./_components/PreviewPDFModal"
-import { getActiveTerm } from './_actions';
+import { getActiveTerm, getAllSections } from './_actions';
 import { getSchedules } from './_actions';
 import useAuthStore from '@/store/useAuthStore';
 
@@ -38,7 +38,7 @@ export default function SchedulePage() {
   const [calendarEvents, setCalendarEvents] = useState([])
   const calendarRef = useRef(null)
   const [isTermLoading, setIsTermLoading] = useState(true);
-
+  const [availableSections, setAvailableSections] = useState([]); // Add new state for sections list
 
   // Generate time slots from 6am to 9pm with hourly intervals
   // Keep this for compatibility with existing components like PDF preview
@@ -52,13 +52,12 @@ export default function SchedulePage() {
   // Define weekDays for compatibility with existing components
   const weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
-
-  
-
   useEffect(() => {
     fetchActiveTerm();
     fetchSchedules();
+    fetchAllSections(); // Add this new function call
   }, []);
+
   const fetchSchedules = async () => {
     setIsLoading(true);
     try {
@@ -95,19 +94,34 @@ export default function SchedulePage() {
     }
   };
 
+  const fetchAllSections = async () => {
+    try {
+      const response = await getAllSections(); // We'll create this action
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      setAvailableSections(response.sections);
+    } catch (error) {
+      console.error('Error fetching sections:', error);
+    }
+  };
+
   // Replace the formatDate function
   const formatDate = (dateStr) => {
     return moment(dateStr).format('MMMM D, YYYY')
   }
 
-  // Update the convertSchedulesToEvents function
+  // Update the convertSchedulesToEvents function to handle section filtering
   const convertSchedulesToEvents = (schedules) => {
-    if (!selectedSection) return [];
-    
-    const filteredSchedules = schedules.filter((schedule) => 
+    if (!selectedSection || !activeTerm) return [];
+
+    // Filter schedules for selected section only
+    // Remove the term filter since it's already handled by the backend
+    const filteredSchedules = schedules.filter((schedule) =>
       schedule.section?.sectionName === selectedSection
     );
 
+    console.log('Filtered schedules:', filteredSchedules.length); // Debug log
     return filteredSchedules.flatMap((schedule) => {
       return schedule.scheduleSlots.flatMap((slot) => {
         return slot.days.map((day) => {
@@ -122,7 +136,7 @@ export default function SchedulePage() {
           }
 
           const dayNumber = dayMap[day]
-          
+
           // Replace date manipulation with moment
           const today = moment()
           const thisWeek = moment(today)
@@ -162,24 +176,29 @@ export default function SchedulePage() {
     })
   }
 
+  // Replace the getUniqueSections function with a simpler one that uses availableSections
+  const getUniqueSections = () => {
+    return availableSections.map(section => section.sectionName).sort();
+  };
+
   const handleEventClick = (info) => {
     setSelectedSchedule(info.event.extendedProps.schedule)
     setIsViewScheduleModalOpen(true)
   }
-const handlePrintClick = () => {
-  if (!selectedSection) {
-    Swal.fire({
-      icon: 'warning',
-      title: 'No Section Selected',
-      text: 'Please select a section before printing the schedule.',
-      confirmButtonColor: '#323E8F'
-    });
-    return;
-  }
-  setIsPDFPreviewOpen(true);
-};
+  const handlePrintClick = () => {
+    if (!selectedSection) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'No Section Selected',
+        text: 'Please select a section before printing the schedule.',
+        confirmButtonColor: '#323E8F'
+      });
+      return;
+    }
+    setIsPDFPreviewOpen(true);
+  };
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 bg-gray-100">
+    <div className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8 bg-gray-100">
       {/* Add FullCalendar styles directly in the component */}
       <style jsx global>{`
         /* Make the calendar fill its container */
@@ -237,27 +256,8 @@ const handlePrintClick = () => {
 
       <div className="space-y-6">
         {/* Header Section */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-4 pt-12">
-          <h1 className="text-xl sm:text-2xl font-semibold text-gray-800">Class Schedule</h1>
-          <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
-            <button
-              onClick={() => setIsNewScheduleModalOpen(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#323E8F] hover:bg-[#35408E] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#323E8F]"
-            >
-               <PlusIcon className="h-5 w-5 mr-2" />
-              New Schedule
-            </button>
-            <button
-               onClick={handlePrintClick}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#323E8F]"
-            >
-             <PrinterIcon className="h-5 w-5 mr-2" />
-             Print Schedule
-            </button>
-          </div>
-        </div>
-
-        {/* Section Selection */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-2">
+          {/* Section Selection */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
           <label className="text-sm font-medium text-gray-600 whitespace-nowrap">View Schedule of Section:</label>
           <div className="relative w-full sm:w-auto min-w-[240px]">
@@ -268,39 +268,53 @@ const handlePrintClick = () => {
               className="w-full appearance-none rounded-md border border-gray-300 bg-white px-4 py-2 pr-8 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="">Select a Section</option>
-              {schedules
-                .map(schedule => schedule.section?.sectionName)
-                .filter((value, index, self) => value && self.indexOf(value) === index)
-                .map((sectionName) => (
-                  <option key={sectionName} value={sectionName}>
-                    {sectionName}
-                  </option>
-                ))}
+              {getUniqueSections().map((sectionName) => (
+                <option key={sectionName} value={sectionName}>
+                  {sectionName}
+                </option>
+              ))}
             </select>
           </div>
         </div>
-
-        {/* Schedule Title */}
-        <div className="text-center my-6">
-          {isTermLoading ? (
-            <ScheduleSkeleton />
-          ) : activeTerm ? (
-            <>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Schedule for {activeTerm.term}</h2>
-              <p className="mt-1 text-sm text-gray-600">AY - {activeTerm.academicYear}</p>
-              <p className="mt-0.5 text-sm text-gray-500">
-                {formatDate(activeTerm.startDate)} - {formatDate(activeTerm.endDate)}
-              </p>
-            </>
-          ) : (
-            <div className="text-center py-4">
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">No Active Term</h2>
-              <p className="mt-2 text-sm text-gray-600">
-                Please set an active term in the Term Management page to view schedules.
-              </p>
-            </div>
-          )}
+          <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
+            <button
+              onClick={() => setIsNewScheduleModalOpen(true)}
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#323E8F] hover:bg-[#35408E] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#323E8F]"
+            >
+              <PlusIcon className="h-5 w-5 mr-2" />
+              New Schedule
+            </button>
+            <button
+              onClick={handlePrintClick}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#323E8F]"
+            >
+              <PrinterIcon className="h-5 w-5 mr-2" />
+              Print Schedule
+            </button>
+          </div>
         </div>
+
+
+{/* Schedule Title */}
+<div className="text-center my-6">
+            {isTermLoading ? (
+              <ScheduleSkeleton />
+            ) : activeTerm ? (
+              <>
+                <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Class Schedules for AY - {activeTerm.academicYear} ({activeTerm.term})</h2>
+                <p className="mt-0.5 text-sm text-gray-800">
+                  {formatDate(activeTerm.startDate)} - {formatDate(activeTerm.endDate)}
+                </p>
+              </>
+            ) : (
+              <div className="text-center py-4">
+                <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">No Active Term</h2>
+                <p className="mt-2 text-sm text-gray-600">
+                  Please set an active term in the Term Management page to view schedules.
+                </p>
+              </div>
+            )}
+          </div>
 
         {/* FullCalendar Schedule */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
