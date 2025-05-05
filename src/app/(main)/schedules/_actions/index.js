@@ -167,3 +167,39 @@ export async function getAllSections() {
     return { error: error.message || 'Failed to fetch sections' };
   }
 }
+
+export async function getFacultyLoad(facultyId, termId) {
+  try {
+    if (!facultyId || !termId) {
+      return {
+        employmentType: 'N/A',
+        totalHours: 0,
+        teachingHours: 0,
+        adminHours: 0
+      };
+    }
+    
+    const loadData = await schedulesModel.calculateFacultyLoad(facultyId, termId);
+    
+    // If there's an error in the response, handle it gracefully
+    if (loadData.error) {
+      console.error('Faculty load calculation error:', loadData.error);
+      return {
+        employmentType: 'unknown',
+        totalHours: 0,
+        teachingHours: 0,
+        adminHours: 0
+      };
+    }
+    
+    return loadData;
+  } catch (error) {
+    console.error('Error getting faculty load:', error);
+    return {
+      employmentType: 'N/A',
+      totalHours: 0,
+      teachingHours: 0,
+      adminHours: 0
+    };
+  }
+}
