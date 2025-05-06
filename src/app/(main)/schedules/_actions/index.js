@@ -208,7 +208,13 @@ export async function getFacultyLoad(facultyId, termId) {
 
 export async function getAdminHours(userId, termId) {
   try {
-    const hours = await adminHoursModel.getAdminHours(userId, termId);
+    // Get active term first
+    const term = await TermsModel.getActiveTerm();
+    if (!term) {
+      return { error: 'No active term found' };
+    }
+
+    const hours = await adminHoursModel.getAdminHours(userId, term.id);
     return { hours: JSON.parse(JSON.stringify(hours)) };
   } catch (error) {
     console.error('Error fetching admin hours:', error);
@@ -216,52 +222,72 @@ export async function getAdminHours(userId, termId) {
   }
 }
 
-export async function saveAdminHours(userId, termId, slots) {
+export async function saveAdminHours(userId, termId, slots, creatorId, role) {
   try {
-    // Check for overlapping slots
-    const sortedSlots = slots.sort((a, b) => {
-      if (a.day === b.day) {
-        return moment(a.startTime, 'h:mm A').diff(moment(b.startTime, 'h:mm A'));
+    // Get active term if termId not provided
+    if (!termId) {
+      const term = await TermsModel.getActiveTerm();
+      if (!term) {
+        return { error: 'No active term found' };
       }
-      return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].indexOf(a.day) -
-             ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].indexOf(b.day);
-    });
-
-    for (let i = 0; i < sortedSlots.length - 1; i++) {
-      const current = sortedSlots[i];
-      const next = sortedSlots[i + 1];
-      
-      if (current.day === next.day) {
-        const currentEnd = moment(current.endTime, 'h:mm A');
-        const nextStart = moment(next.startTime, 'h:mm A');
-        
-        if (currentEnd.isSameOrAfter(nextStart)) {
-          return { error: 'Time slots cannot overlap' };
-        }
-      }
+      termId = term.id;
     }
 
-    // Calculate total hours
-    const totalHours = slots.reduce((total, slot) => {
-      const start = moment(slot.startTime, 'h:mm A');
-      const end = moment(slot.endTime, 'h:mm A');
-      return total + end.diff(start, 'hours', true);
-    }, 0);
+    console.log('Saving admin hours with termId:', termId); // Debug log
 
-    // Get faculty's current teaching load
-    const loadData = await schedulesModel.calculateFacultyLoad(userId, termId);
-    const availableHours = loadData.adminHours;
-
-    if (totalHours > availableHours) {
-      return { 
-        error: `Total admin hours (${totalHours.toFixed(1)}) exceed available hours (${availableHours.toFixed(1)})` 
-      };
-    }
-
-    const result = await adminHoursModel.saveAdminHours(userId, termId, slots);
+    const result = await adminHoursModel.saveAdminHours(
+      userId,
+      termId,
+      slots,
+      creatorId,
+      role
+    );
     return { success: true, hours: JSON.parse(JSON.stringify(result)) };
   } catch (error) {
     console.error('Error saving admin hours:', error);
-    return { error: 'Failed to save admin hours' };
+    return { error: error.message };
+  }
+}
+
+export async function approveAdminHours(adminHoursId, approverId, approved, rejectionReason) {
+  try {
+    const result = await adminHoursModel.approveAdminHours(adminHoursId, approverId, approved, rejectionReason);
+    return { success: true, hours: JSON.parse(JSON.stringify(result)) };
+  } catch (error) {
+    console.error('Error updating admin hours approval:', error);
+    return { error: error.message };
+  }
+}
+
+export async function cancelAdminHours(adminHoursId) {
+  try {
+    if (!adminHoursId) {
+      throw new Error('Admin hours ID is required');
+    }
+
+    console.log('Attempting to cancel admin hours with ID:', adminHoursId);
+    
+    const result = await adminHoursModel.cancelAdminHours(adminHoursId);
+    if (!result) {
+      throw new Error('Failed to cancel admin hours - No result returned');
+    }
+    
+    return { success: true, message: 'Admin hours cancelled successfully' };
+  } catch (error) {
+    console.error('Error in cancelAdminHours action:', error);
+    return { 
+      error: error.message || 'Failed to cancel admin hours',
+      details: error.toString()
+    };
+  }
+}
+
+export async function getFullTimeUsers() {
+  try {
+    const users = await adminHoursModel.getFullTimeUsers();
+    return { users: JSON.parse(JSON.stringify(users)) };
+  } catch (error) {
+    console.error('Error fetching full-time users:', error);
+    return { error: error.message };
   }
 }

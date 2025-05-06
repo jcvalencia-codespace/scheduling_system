@@ -2,11 +2,12 @@
 
 import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, TrashIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
 import Select from 'react-select';
 import moment from 'moment';
 import Swal from 'sweetalert2';
-import { saveAdminHours, getAdminHours } from '../_actions/index';
+import { saveAdminHours, getAdminHours, getFullTimeUsers, getActiveTerm, cancelAdminHours } from '../_actions/index';
+import { AdminHoursModalSkeleton } from './Skeleton';
 
 const DAYS = [
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
@@ -20,38 +21,161 @@ const TIME_OPTIONS = Array.from({ length: 30 }, (_, i) => {
     };
 });
 
-export default function AdminHoursModal({ isOpen, onClose, userId, termId, maxHours }) {
-    const [slots, setSlots] = useState([]);
-    const [totalHours, setTotalHours] = useState(0);
-    const [isLoading, setIsLoading] = useState(false);
+// Utility functions moved to the top
+const calculateDuration = (startTime, endTime) => {
+    const start = moment(startTime, 'h:mm A');
+    const end = moment(endTime, 'h:mm A');
+    return end.diff(start, 'minutes') / 60;
+};
 
-    const handleClose = () => {
-        setSlots([]); // Clear slots
-        setTotalHours(0); // Reset total hours
-        onClose(); // Call parent close handler
+export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser, termId }) {
+    // Utility function needed by hooks
+    const calculateTotalHours = (currentSlots) => {
+        const total = currentSlots.reduce((acc, slot) => {
+            if (slot.startTime && slot.endTime) {
+                return acc + calculateDuration(slot.startTime, slot.endTime);
+            }
+            return acc;
+        }, 0);
+        return Math.round(total * 100) / 100;
     };
 
+    // State declarations
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [availableUsers, setAvailableUsers] = useState([]);
+    const [slots, setSlots] = useState([]);
+    const [existingSlots, setExistingSlots] = useState([]);
+    const [totalHours, setTotalHours] = useState(0);
+    const [isLoading, setIsLoading] = useState(false);
+    const [termInfo, setTermInfo] = useState(null);
+
+    const isAdmin = currentUser?.role === 'Administrator';
+    const isDean = currentUser?.role === 'Dean';
+    const canSelectUser = isAdmin || isDean;
+
+    // useEffect hooks
     useEffect(() => {
-        if (isOpen && userId && termId) {
+        if (isOpen) {
+            if (canSelectUser) {
+                loadAvailableUsers();
+            } else if (currentUser) {
+                setSelectedUser(currentUser);
+            }
+
+            // Check if we have valid termId
+            validateTerm();
+        }
+    }, [isOpen, currentUser]);
+
+    useEffect(() => {
+        if (isOpen && selectedUser && termId) {
             setIsLoading(true);
             loadExistingHours().finally(() => {
                 setIsLoading(false);
             });
         } else if (!isOpen) {
-            setSlots([]); // Clear slots when modal closes
-            setTotalHours(0); // Reset total hours
+            setSlots([]);
+            setExistingSlots([]);
+            setTotalHours(0);
         }
-    }, [isOpen, userId, termId]);
+    }, [isOpen, selectedUser, termId]);
 
     useEffect(() => {
-        calculateTotalHours();
+        setTotalHours(calculateTotalHours(slots));
     }, [slots]);
+
+    useEffect(() => {
+        const fetchTermInfo = async () => {
+            if (termId) {
+                try {
+                    const { term, error } = await getActiveTerm();
+                    if (error) throw new Error(error);
+                    setTermInfo(term);
+                } catch (error) {
+                    console.error('Error fetching term info:', error);
+                }
+            }
+        };
+
+        if (isOpen) {
+            fetchTermInfo();
+        }
+    }, [isOpen, termId]);
+
+    if (!currentUser) {
+        return null;
+    }
+
+    // Add term validation
+    const validateTerm = () => {
+        if (!termId) {
+            Swal.fire({
+                icon: 'error',
+                title: 'No Active Term',
+                text: 'Please ensure there is an active term before setting admin hours.',
+                confirmButtonColor: '#323E8F'
+            });
+            onClose();
+            return false;
+        }
+        return true;
+    };
+
+    // Event handlers and other functions
+    const handleClose = () => {
+        setSlots([]);
+        setExistingSlots([]);
+        setTotalHours(0);
+        onClose();
+    };
+
+    const loadAvailableUsers = async () => {
+        try {
+            setIsLoading(true);
+            console.log('Fetching users...');
+            const { users, error } = await getFullTimeUsers();
+            
+            if (error) {
+                console.error('Error from API:', error);
+                throw new Error(error);
+            }
+            
+            console.log('Fetched users:', users);
+            if (!users || users.length === 0) {
+                console.log('No users returned from API');
+            }
+            
+            setAvailableUsers(users || []);
+        } catch (error) {
+            console.error('Error loading users:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Failed to load available users: ' + error.message,
+                confirmButtonColor: '#323E8F'
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const loadExistingHours = async () => {
         try {
-            const { hours, error } = await getAdminHours(userId, termId);
+            const { hours, error } = await getAdminHours(selectedUser._id, termId);
             if (error) throw new Error(error);
-            setSlots(hours.slots || []);
+            
+            // Only set the existing approved/pending slots in the display section
+            if (hours && hours.slots) {
+                const existingSlots = hours.slots.map(slot => ({
+                    ...slot,
+                    status: hours.status || 'pending',
+                    adminHoursId: hours._id // Add the admin hours record ID
+                }));
+                setExistingSlots(existingSlots);
+            }
+            
+            // Keep the slots for new entries empty
+            setSlots([]);
         } catch (error) {
             console.error('Error loading admin hours:', error);
             Swal.fire({
@@ -63,25 +187,16 @@ export default function AdminHoursModal({ isOpen, onClose, userId, termId, maxHo
         }
     };
 
-    const calculateDuration = (startTime, endTime) => {
-        const start = moment(startTime, 'h:mm A');
-        const end = moment(endTime, 'h:mm A');
-        return end.diff(start, 'minutes') / 60;
-    };
-
-    const calculateTotalHours = () => {
-        const total = slots.reduce((acc, slot) => {
-            return acc + calculateDuration(slot.startTime, slot.endTime);
-        }, 0);
-        setTotalHours(Math.round(total * 100) / 100);
-    };
-
     const handleAddSlot = () => {
         setSlots([...slots, { day: '', startTime: '', endTime: '' }]);
     };
 
-    const handleDeleteSlot = (index) => {
-        setSlots(slots.filter((_, i) => i !== index));
+    const handleDeleteSlot = (index, isExisting = false) => {
+        if (isExisting) {
+            setExistingSlots(existingSlots.filter((_, i) => i !== index));
+        } else {
+            setSlots(slots.filter((_, i) => i !== index));
+        }
     };
 
     const handleSlotChange = (index, field, value) => {
@@ -107,6 +222,14 @@ export default function AdminHoursModal({ isOpen, onClose, userId, termId, maxHo
 
     const handleSave = async () => {
         try {
+            if (!validateTerm()) return;
+
+            if (!selectedUser) {
+                throw new Error('Please select a user');
+            }
+
+            console.log('Using Term ID:', termId); // Debug log
+
             if (totalHours > maxHours) {
                 throw new Error(`Total hours cannot exceed ${maxHours}`);
             }
@@ -117,8 +240,17 @@ export default function AdminHoursModal({ isOpen, onClose, userId, termId, maxHo
             }
 
             setIsLoading(true);
-            const { error } = await saveAdminHours(userId, termId, slots);
-            if (error) throw new Error(error);
+            const response = await saveAdminHours(
+                selectedUser._id,
+                termId,
+                slots,
+                currentUser._id,
+                currentUser.role
+            );
+
+            if (response.error) {
+                throw new Error(response.error);
+            }
 
             Swal.fire({
                 icon: 'success',
@@ -128,10 +260,55 @@ export default function AdminHoursModal({ isOpen, onClose, userId, termId, maxHo
             });
             handleClose();
         } catch (error) {
+            console.error('Save error:', error);
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
                 text: error.message,
+                confirmButtonColor: '#323E8F'
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleCancelRequest = async (adminHoursId) => {
+        try {
+            const result = await Swal.fire({
+                title: 'Cancel Request?',
+                text: 'Are you sure you want to cancel this admin hours request?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#323E8F',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, cancel it!',
+                cancelButtonText: 'No, keep it'
+            });
+
+            if (result.isConfirmed) {
+                setIsLoading(true);
+                const response = await cancelAdminHours(adminHoursId);
+                
+                if (response.error) {
+                    throw new Error(response.error);
+                }
+
+                // Only refresh and show success if no error
+                await loadExistingHours();
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Cancelled!',
+                    text: response.message || 'Admin hours request has been cancelled.',
+                    confirmButtonColor: '#323E8F'
+                });
+            }
+        } catch (error) {
+            console.error('Error cancelling request:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: error.message || 'Failed to cancel admin hours request',
                 confirmButtonColor: '#323E8F'
             });
         } finally {
@@ -183,98 +360,222 @@ export default function AdminHoursModal({ isOpen, onClose, userId, termId, maxHo
                                             Set Weekly Admin Hours
                                         </Dialog.Title>
 
-                                        <div className="mt-6 space-y-4">
-                                            <div className="overflow-x-auto">
-                                                <table className="min-w-full divide-y divide-gray-200">
-                                                    <thead>
-                                                        <tr>
-                                                            <th className="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Day</th>
-                                                            <th className="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Time</th>
-                                                            <th className="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Time</th>
-                                                            <th className="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
-                                                            <th className="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="bg-white divide-y divide-gray-200">
-                                                        {slots.map((slot, index) => (
-                                                            <tr key={index}>
-                                                                <td className="px-3 py-2 whitespace-nowrap">
-                                                                    <Select
-                                                                        options={DAYS}
-                                                                        value={DAYS.find(d => d.value === slot.day)}
-                                                                        onChange={(option) => handleSlotChange(index, 'day', option.value)}
-                                                                        className="w-36"
-                                                                        menuPlacement="auto"
-                                                                    />
-                                                                </td>
-                                                                <td className="px-3 py-2 whitespace-nowrap">
-                                                                    <Select
-                                                                        options={TIME_OPTIONS}
-                                                                        value={TIME_OPTIONS.find(t => t.value === slot.startTime)}
-                                                                        onChange={(option) => handleSlotChange(index, 'startTime', option.value)}
-                                                                        className="w-32"
-                                                                        menuPlacement="auto"
-                                                                    />
-                                                                </td>
-                                                                <td className="px-3 py-2 whitespace-nowrap">
-                                                                    <Select
-                                                                        options={TIME_OPTIONS}
-                                                                        value={TIME_OPTIONS.find(t => t.value === slot.endTime)}
-                                                                        onChange={(option) => handleSlotChange(index, 'endTime', option.value)}
-                                                                        className="w-32"
-                                                                        menuPlacement="auto"
-                                                                    />
-                                                                </td>
-                                                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-                                                                    {slot.startTime && slot.endTime
-                                                                        ? `${calculateDuration(slot.startTime, slot.endTime)} hrs`
-                                                                        : '-'}
-                                                                </td>
-                                                                <td className="px-3 py-2 whitespace-nowrap">
-                                                                    <button
-                                                                        onClick={() => handleDeleteSlot(index)}
-                                                                        className="text-red-600 hover:text-red-800"
-                                                                    >
-                                                                        <TrashIcon className="h-5 w-5" />
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-
-                                            <div className="flex justify-between items-center pt-4">
-                                                <button
-                                                    type="button"
-                                                    onClick={handleAddSlot}
-                                                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-[#323E8F] hover:bg-[#35408E]"
-                                                >
-                                                    Add New Row
-                                                </button>
-                                                <div className="text-sm font-medium text-gray-900">
-                                                    Total Admin Hours: {totalHours} / {maxHours}
+                                        {isLoading || !termInfo ? (
+                                            <AdminHoursModalSkeleton />
+                                        ) : (
+                                            <>
+                                                <div className="mb-4 bg-gray-50 rounded-md p-3 text-sm">
+                                                    <p className="text-gray-700">
+                                                        Active Term: {termInfo ? (
+                                                            <span className="font-medium">
+                                                                {termInfo.academicYear} - {termInfo.term}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-red-500">No active term</span>
+                                                        )}
+                                                    </p>
+                                                    {termId && (
+                                                        <p className="text-gray-500 text-xs mt-1">
+                                                            Term ID: {termId}
+                                                        </p>
+                                                    )}
                                                 </div>
-                                            </div>
-                                        </div>
 
-                                        <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                                            <button
-                                                type="button"
-                                                className="inline-flex w-full justify-center rounded-md bg-[#323E8F] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#35408E] sm:ml-3 sm:w-auto"
-                                                onClick={handleSave}
-                                                disabled={isLoading}
-                                            >
-                                                {isLoading ? 'Saving...' : 'Save'}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
-                                                onClick={handleClose}
-                                            >
-                                                Cancel
-                                            </button>
-                                        </div>
+                                                {canSelectUser ? (
+                                                    <Select
+                                                        options={availableUsers.map(user => ({
+                                                            value: user._id,
+                                                            label: `${user.lastName}, ${user.firstName}${user.department ? ` (${user.department.departmentCode})` : ''}`
+                                                        }))}
+                                                        onChange={(option) => {
+                                                            const selectedUser = availableUsers.find(u => u._id === option.value);
+                                                            console.log('Selected user:', selectedUser);
+                                                            setSelectedUser(selectedUser);
+                                                        }}
+                                                        isLoading={isLoading}
+                                                        className="mb-4 text-black"
+                                                        placeholder="Select user..."
+                                                        noOptionsMessage={() => "No users available"}
+                                                    />
+                                                ) : (
+                                                    <div className="mb-4 px-3 py-2 bg-gray-100 rounded text-black">
+                                                        {currentUser.firstName} {currentUser.lastName} ({currentUser.role})
+                                                    </div>
+                                                )}
+
+                                                <div className="mt-6 bg-white rounded-lg border border-gray-200">
+                                                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                                                        <h4 className="text-base font-semibold text-gray-900">
+                                                            Submitted Admin Hours
+                                                        </h4>
+                                                    </div>
+                                                    <div className="p-4">
+                                                        {existingSlots.length > 0 ? (
+                                                            <div className="overflow-x-auto">
+                                                                <table className="min-w-full divide-y divide-gray-200">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th className="px-3 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Day</th>
+                                                                            <th className="px-3 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
+                                                                            <th className="px-3 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                                                            <th className="px-3 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody className="divide-y divide-gray-200">
+                                                                        {existingSlots.map((slot, index) => (
+                                                                            <tr key={index}>
+                                                                                <td className="px-3 py-2 text-sm text-gray-900">{slot.day}</td>
+                                                                                <td className="px-3 py-2 text-sm text-gray-900">
+                                                                                    {slot.startTime} - {slot.endTime}
+                                                                                </td>
+                                                                                <td className="px-3 py-2">
+                                                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                                                        slot.status === 'approved' 
+                                                                                            ? 'bg-green-100 text-green-800'
+                                                                                            : slot.status === 'rejected'
+                                                                                            ? 'bg-red-100 text-red-800'
+                                                                                            : 'bg-yellow-100 text-yellow-800'
+                                                                                    }`}>
+                                                                                        {slot.status.charAt(0).toUpperCase() + slot.status.slice(1)}
+                                                                                    </span>
+                                                                                </td>
+                                                                                <td className="px-3 py-2">
+                                                                                    <div className="flex items-center space-x-2">
+                                                                                        {slot.status === 'pending' && (
+                                                                                            <>
+                                                                                                <button
+                                                                                                    onClick={() => handleEdit(slot.adminHoursId)}
+                                                                                                    className="text-blue-600 hover:text-blue-800"
+                                                                                                >
+                                                                                                    <PencilSquareIcon className="h-4 w-4" />
+                                                                                                </button>
+                                                                                                <button
+                                                                                                    onClick={() => handleCancelRequest(slot.adminHoursId)}
+                                                                                                    className="text-red-600 hover:text-red-800"
+                                                                                                >
+                                                                                                    <XMarkIcon className="h-4 w-4" />
+                                                                                                </button>
+                                                                                            </>
+                                                                                        )}
+                                                                                        {slot.status === 'rejected' && (
+                                                                                            <span className="text-sm text-red-600">
+                                                                                                {slot.rejectionReason || 'No reason provided'}
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </td>
+                                                                            </tr>
+                                                                        ))}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        ) : (
+                                                            <p className="text-sm text-gray-500">No admin hours submitted yet.</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className="mt-6 bg-white rounded-lg border border-gray-200">
+                                                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                                                        <h4 className="text-base font-semibold text-gray-900">
+                                                            Add New Admin Hours
+                                                        </h4>
+                                                    </div>
+                                                    <div className="p-4">
+                                                        <div className="overflow-x-auto">
+                                                            <table className="min-w-full divide-y divide-gray-200">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th className="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Day</th>
+                                                                        <th className="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Time</th>
+                                                                        <th className="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Time</th>
+                                                                        <th className="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                                                                        <th className="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody className="bg-white divide-y divide-gray-200">
+                                                                    {slots.map((slot, index) => (
+                                                                        <tr key={index}>
+                                                                            <td className="px-3 py-2 whitespace-nowrap">
+                                                                                <Select
+                                                                                    options={DAYS}
+                                                                                    value={DAYS.find(d => d.value === slot.day)}
+                                                                                    onChange={(option) => handleSlotChange(index, 'day', option.value)}
+                                                                                    className="w-36"
+                                                                                    menuPlacement="auto"
+                                                                                />
+                                                                            </td>
+                                                                            <td className="px-3 py-2 whitespace-nowrap">
+                                                                                <Select
+                                                                                    options={TIME_OPTIONS}
+                                                                                    value={TIME_OPTIONS.find(t => t.value === slot.startTime)}
+                                                                                    onChange={(option) => handleSlotChange(index, 'startTime', option.value)}
+                                                                                    className="w-32"
+                                                                                    menuPlacement="auto"
+                                                                                />
+                                                                            </td>
+                                                                            <td className="px-3 py-2 whitespace-nowrap">
+                                                                                <Select
+                                                                                    options={TIME_OPTIONS}
+                                                                                    value={TIME_OPTIONS.find(t => t.value === slot.endTime)}
+                                                                                    onChange={(option) => handleSlotChange(index, 'endTime', option.value)}
+                                                                                    className="w-32"
+                                                                                    menuPlacement="auto"
+                                                                                />
+                                                                            </td>
+                                                                            <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
+                                                                                {slot.startTime && slot.endTime
+                                                                                    ? `${calculateDuration(slot.startTime, slot.endTime)} hrs`
+                                                                                    : '-'}
+                                                                            </td>
+                                                                            <td className="px-3 py-2 whitespace-nowrap">
+                                                                                <button
+                                                                                    onClick={() => handleDeleteSlot(index)}
+                                                                                    className="text-red-600 hover:text-red-800"
+                                                                                >
+                                                                                    <TrashIcon className="h-5 w-5" />
+                                                                                </button>
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+
+                                                        <div className="flex justify-between items-center pt-4">
+                                                            <button
+                                                                type="button"
+                                                                onClick={handleAddSlot}
+                                                                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-[#323E8F] hover:bg-[#35408E]"
+                                                            >
+                                                                Add New Row
+                                                            </button>
+                                                            <div className="text-sm font-medium text-gray-900">
+                                                                Total Admin Hours: {totalHours} / {maxHours}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                                                    <button
+                                                        type="button"
+                                                        className="inline-flex w-full justify-center rounded-md bg-[#323E8F] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#35408E] sm:ml-3 sm:w-auto"
+                                                        onClick={handleSave}
+                                                        disabled={isLoading}
+                                                    >
+                                                        {isLoading ? 'Saving...' : 'Save'}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+                                                        onClick={handleClose}
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </Dialog.Panel>

@@ -548,6 +548,26 @@ const AdminHourSchema = new Schema({
       required: true
     }
   }],
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending'
+  },
+  needsApproval: {
+    type: Boolean,
+    default: true,
+  },
+  approvedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'Users'
+  },
+  approvalDate: Date,
+  rejectionReason: String,
+  createdBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'Users',
+    required: true
+  },
   isActive: {
     type: Boolean,
     default: true
@@ -565,7 +585,7 @@ const AdminHourSchema = new Schema({
     },
     action: {
       type: String,
-      enum: ['created', 'updated', 'deleted'],
+      enum: ['created', 'updated', 'deleted', 'approved', 'rejected'],
       required: true
     },
     academicYear: {

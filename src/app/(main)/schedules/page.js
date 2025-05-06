@@ -398,9 +398,9 @@ export default function SchedulePage() {
         <AdminHoursModal
           isOpen={isAdminHoursModalOpen}
           onClose={() => setIsAdminHoursModalOpen(false)}
-          userId={user?._id}
-          termId={activeTerm?._id}
-          maxHours={40} // Adjust this based on your requirements
+          maxHours={40}
+          currentUser={user}
+          termId={activeTerm?.id} // Change _id to id to match the model's return format
         />
       </div>
     </div>
