@@ -2,7 +2,9 @@
 
 import TermsModel from '@/app/models/Terms';
 import schedulesModel from '@/app/models/Schedules';
+import adminHoursModel from '@/app/models/AdminHours';
 import mongoose from 'mongoose';
+import moment from 'moment'; // Add moment import
 
 export async function getActiveTerm() {
   try {
@@ -201,5 +203,65 @@ export async function getFacultyLoad(facultyId, termId) {
       teachingHours: 0,
       adminHours: 0
     };
+  }
+}
+
+export async function getAdminHours(userId, termId) {
+  try {
+    const hours = await adminHoursModel.getAdminHours(userId, termId);
+    return { hours: JSON.parse(JSON.stringify(hours)) };
+  } catch (error) {
+    console.error('Error fetching admin hours:', error);
+    return { error: 'Failed to fetch admin hours' };
+  }
+}
+
+export async function saveAdminHours(userId, termId, slots) {
+  try {
+    // Check for overlapping slots
+    const sortedSlots = slots.sort((a, b) => {
+      if (a.day === b.day) {
+        return moment(a.startTime, 'h:mm A').diff(moment(b.startTime, 'h:mm A'));
+      }
+      return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].indexOf(a.day) -
+             ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].indexOf(b.day);
+    });
+
+    for (let i = 0; i < sortedSlots.length - 1; i++) {
+      const current = sortedSlots[i];
+      const next = sortedSlots[i + 1];
+      
+      if (current.day === next.day) {
+        const currentEnd = moment(current.endTime, 'h:mm A');
+        const nextStart = moment(next.startTime, 'h:mm A');
+        
+        if (currentEnd.isSameOrAfter(nextStart)) {
+          return { error: 'Time slots cannot overlap' };
+        }
+      }
+    }
+
+    // Calculate total hours
+    const totalHours = slots.reduce((total, slot) => {
+      const start = moment(slot.startTime, 'h:mm A');
+      const end = moment(slot.endTime, 'h:mm A');
+      return total + end.diff(start, 'hours', true);
+    }, 0);
+
+    // Get faculty's current teaching load
+    const loadData = await schedulesModel.calculateFacultyLoad(userId, termId);
+    const availableHours = loadData.adminHours;
+
+    if (totalHours > availableHours) {
+      return { 
+        error: `Total admin hours (${totalHours.toFixed(1)}) exceed available hours (${availableHours.toFixed(1)})` 
+      };
+    }
+
+    const result = await adminHoursModel.saveAdminHours(userId, termId, slots);
+    return { success: true, hours: JSON.parse(JSON.stringify(result)) };
+  } catch (error) {
+    console.error('Error saving admin hours:', error);
+    return { error: 'Failed to save admin hours' };
   }
 }

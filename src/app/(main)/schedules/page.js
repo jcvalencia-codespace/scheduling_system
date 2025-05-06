@@ -10,6 +10,7 @@ import interactionPlugin from "@fullcalendar/interaction"
 import NewScheduleModal from "./_components/NewScheduleModal"
 import ViewScheduleModal from "./_components/ViewScheduleModal"
 import PreviewPDFModal from "./_components/PreviewPDFModal"
+import AdminHoursModal from './_components/AdminHoursModal';
 import { getActiveTerm, getAllSections } from './_actions';
 import { getSchedules } from './_actions';
 import useAuthStore from '@/store/useAuthStore';
@@ -22,7 +23,8 @@ import {
   PrinterIcon,
   PencilSquareIcon,
   TrashIcon,
-  EyeIcon
+  EyeIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline';
 
 export default function SchedulePage() {
@@ -39,6 +41,7 @@ export default function SchedulePage() {
   const calendarRef = useRef(null)
   const [isTermLoading, setIsTermLoading] = useState(true);
   const [availableSections, setAvailableSections] = useState([]); // Add new state for sections list
+  const [isAdminHoursModalOpen, setIsAdminHoursModalOpen] = useState(false);
 
   // Generate time slots from 6am to 9pm with hourly intervals
   // Keep this for compatibility with existing components like PDF preview
@@ -258,29 +261,37 @@ export default function SchedulePage() {
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-2">
           {/* Section Selection */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-          <label className="text-sm font-medium text-gray-600 whitespace-nowrap">View Schedule of Section:</label>
-          <div className="relative w-full sm:w-auto min-w-[240px]">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">View Schedule of Section:</label>
+            <div className="relative w-full sm:w-auto min-w-[240px]">
 
-            <select
-              value={selectedSection}
-              onChange={(e) => setSelectedSection(e.target.value)}
-              className="w-full appearance-none rounded-md border border-gray-300 bg-white px-4 py-2 pr-8 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="">Select a Section</option>
-              {getUniqueSections().map((sectionName) => (
-                <option key={sectionName} value={sectionName}>
-                  {sectionName}
-                </option>
-              ))}
-            </select>
+              <select
+                value={selectedSection}
+                onChange={(e) => setSelectedSection(e.target.value)}
+                className="w-full appearance-none rounded-md border border-gray-300 bg-white px-4 py-2 pr-8 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">Select a Section</option>
+                {getUniqueSections().map((sectionName) => (
+                  <option key={sectionName} value={sectionName}>
+                    {sectionName}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
           <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
+          <button
+              onClick={() => setIsAdminHoursModalOpen(true)}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-white bg-[#579980] hover:bg-gray-[#579980] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#77DD77]"
+            >
+              <ClockIcon className="h-5 w-5 mr-2" />
+              Set Admin Hours
+            </button>
             <button
               onClick={() => setIsNewScheduleModalOpen(true)}
               className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#323E8F] hover:bg-[#35408E] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#323E8F]"
             >
+              
               <PlusIcon className="h-5 w-5 mr-2" />
               New Schedule
             </button>
@@ -291,30 +302,31 @@ export default function SchedulePage() {
               <PrinterIcon className="h-5 w-5 mr-2" />
               Print Schedule
             </button>
+            
           </div>
         </div>
 
 
-{/* Schedule Title */}
-<div className="text-center my-6">
-            {isTermLoading ? (
-              <ScheduleSkeleton />
-            ) : activeTerm ? (
-              <>
-                <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Class Schedules for AY - {activeTerm.academicYear} ({activeTerm.term})</h2>
-                <p className="mt-0.5 text-sm text-gray-800">
-                  {formatDate(activeTerm.startDate)} - {formatDate(activeTerm.endDate)}
-                </p>
-              </>
-            ) : (
-              <div className="text-center py-4">
-                <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">No Active Term</h2>
-                <p className="mt-2 text-sm text-gray-600">
-                  Please set an active term in the Term Management page to view schedules.
-                </p>
-              </div>
-            )}
-          </div>
+        {/* Schedule Title */}
+        <div className="text-center my-6">
+          {isTermLoading ? (
+            <ScheduleSkeleton />
+          ) : activeTerm ? (
+            <>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Class Schedules for AY - {activeTerm.academicYear} ({activeTerm.term})</h2>
+              <p className="mt-0.5 text-sm text-gray-800">
+                {formatDate(activeTerm.startDate)} - {formatDate(activeTerm.endDate)}
+              </p>
+            </>
+          ) : (
+            <div className="text-center py-4">
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">No Active Term</h2>
+              <p className="mt-2 text-sm text-gray-600">
+                Please set an active term in the Term Management page to view schedules.
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* FullCalendar Schedule */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -381,6 +393,14 @@ export default function SchedulePage() {
             schedules,
             selectedSection,
           }}
+        />
+
+        <AdminHoursModal
+          isOpen={isAdminHoursModalOpen}
+          onClose={() => setIsAdminHoursModalOpen(false)}
+          userId={user?._id}
+          termId={activeTerm?._id}
+          maxHours={40} // Adjust this based on your requirements
         />
       </div>
     </div>
