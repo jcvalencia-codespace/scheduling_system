@@ -107,7 +107,11 @@ export async function updateAssignment(id, data, userId) {
     await AssignSubjectsModel.updateAssignmentById(id, {
       ...data,
       termId: activeTerm._id,
-      academicYear: activeTerm.academicYear
+      academicYear: activeTerm.academicYear,
+      subjects: data.subjectAssignments.map(assignment => ({
+        subjectId: assignment.subjectId,
+        hours: assignment.hours
+      }))
     }, userId);
     return { success: true, message: 'Assignment updated successfully' };
   } catch (error) {
@@ -127,7 +131,10 @@ export async function createAssignment(data, userId) {
         term: Number(data.term),
         termId: activeTerm._id,
         academicYear: activeTerm.academicYear,
-        subjects: data.subjects
+        subjects: data.subjectAssignments.map(assignment => ({
+          subjectId: assignment.subjectId,
+          hours: assignment.hours
+        }))
       }, userId);
     }
     return { success: true, message: 'Subjects assigned successfully' };

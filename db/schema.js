@@ -393,6 +393,11 @@ const AssignSubjectsSchema = new Schema({
       type: Schema.Types.ObjectId,
       ref: 'Terms',
       required: true
+    },
+    hours: {  // Add hours field
+      type: Number,
+      required: true,
+      min: 1
     }
   }],
   isActive: {
