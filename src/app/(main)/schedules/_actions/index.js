@@ -249,9 +249,17 @@ export async function saveAdminHours(userId, termId, slots, creatorId, role) {
   }
 }
 
-export async function approveAdminHours(adminHoursId, approverId, approved, rejectionReason) {
+export async function approveAdminHours(adminHoursId, slotId, approverId, approved, rejectionReason) {
   try {
-    const result = await adminHoursModel.approveAdminHours(adminHoursId, approverId, approved, rejectionReason);
+    const result = await adminHoursModel.approveAdminHours(
+      adminHoursId, 
+      slotId,
+      approverId, 
+      approved, 
+      rejectionReason
+    );
+
+    // The notification is now handled in the model layer
     return { success: true, hours: JSON.parse(JSON.stringify(result)) };
   } catch (error) {
     console.error('Error updating admin hours approval:', error);
@@ -288,6 +296,16 @@ export async function getFullTimeUsers() {
     return { users: JSON.parse(JSON.stringify(users)) };
   } catch (error) {
     console.error('Error fetching full-time users:', error);
+    return { error: error.message };
+  }
+}
+
+export async function getAdminHourRequests(filter = 'pending') {
+  try {
+    const requests = await adminHoursModel.getRequests(filter);
+    return { requests: JSON.parse(JSON.stringify(requests)) };
+  } catch (error) {
+    console.error('Error fetching admin hour requests:', error);
     return { error: error.message };
   }
 }

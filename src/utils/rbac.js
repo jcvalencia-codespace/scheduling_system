@@ -15,8 +15,8 @@ export const rolePermissions = {
     '/logs/archive',
     '/term',
     '/feedback',
-    '/chats'
-    
+    '/chats',
+    '/admin-hours'
   ],
   'Program Chair': [
     '/schedules',
@@ -153,6 +153,12 @@ export const menuItems = [
         roles: ['Administrator', 'Dean', 'Program Chair']
       }
     ]
+  },
+  {
+    title: 'Admin Hours',
+    href: '/admin-hours',
+    icon: 'ClockIcon',
+    roles: ['Administrator', 'Dean']
   },
   {
     title: 'Send Feedback',

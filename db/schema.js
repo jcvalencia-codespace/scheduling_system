@@ -534,6 +534,10 @@ const AdminHourSchema = new Schema({
     required: true
   },
   slots: [{
+    _id: {
+      type: Schema.Types.ObjectId,
+      auto: true
+    },
     day: {
       type: String,
       required: true,
@@ -546,13 +550,23 @@ const AdminHourSchema = new Schema({
     endTime: {
       type: String,
       required: true
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected', 'cancelled'],
+      default: 'pending'
+    },
+    rejectionReason: String,
+    approvedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Users'
+    },
+    approvalDate: Date,
+    createdAt: {
+      type: Date,
+      default: Date.now
     }
   }],
-  status: {
-    type: String,
-    enum: ['pending', 'approved', 'rejected'],
-    default: 'pending'
-  },
   needsApproval: {
     type: Boolean,
     default: true,

@@ -19,6 +19,7 @@ import {
   BuildingLibraryIcon,
   UsersIcon,
   ListBulletIcon,
+  ClockIcon,
   BookOpenIcon,
   XMarkIcon,
   ArrowLeftOnRectangleIcon,
@@ -149,6 +150,11 @@ const roleMenuItems = {
       title: 'Term',
       href: '/term',
       icon: AcademicCapIcon
+    },
+    {
+      title: 'Admin Hours',
+      href: '/admin-hours',
+      icon: ClockIcon,
     },
     // {
     //   title: 'Override Requests',
