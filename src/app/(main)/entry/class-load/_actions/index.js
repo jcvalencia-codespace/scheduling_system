@@ -234,3 +234,13 @@ export async function getSectionsByDepartment(departmentId = null) {
     return [];
   }
 }
+
+export const getSubjectAssignments = async () => {
+  try {
+    const assignments = await AssignSubjectsModel.fetchAssignments();
+    return { success: true, assignments };
+  } catch (error) {
+    console.error('Error fetching subject assignments:', error);
+    return { success: false, assignments: [] };
+  }
+};

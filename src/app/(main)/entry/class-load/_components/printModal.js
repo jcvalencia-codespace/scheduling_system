@@ -3,8 +3,9 @@ import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import Select from 'react-select';
 import { getTermDetails } from '../_actions';
+import { generateClassLoadExcel, downloadExcel } from './classLoadExcel';
 
-export default function PrintModal({ isOpen, onClose, courses, onPrint }) {
+export default function PrintModal({ isOpen, onClose, courses, onPrint, assignments = [] }) {
   const [portalTarget, setPortalTarget] = useState(null);
   const [pdfDoc, setPdfDoc] = useState(null);
   const [selectedCourse, setSelectedCourse] = useState(null);
@@ -13,6 +14,9 @@ export default function PrintModal({ isOpen, onClose, courses, onPrint }) {
   const [isTermLoading, setIsTermLoading] = useState(true);
   const [pdfUrl, setPdfUrl] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [excelBlob, setExcelBlob] = useState(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     setPortalTarget(document.body);
@@ -67,12 +71,26 @@ export default function PrintModal({ isOpen, onClose, courses, onPrint }) {
   const handleTermSelect = async (selected) => {
     setSelectedTerm(selected.value);
     if (selectedCourse) {
-      const doc = await onPrint(selectedCourse, selected.value, true);
-      setPdfDoc(doc);
-      // Create and set PDF URL
-      const blob = doc.output('blob');
-      const url = URL.createObjectURL(blob);
-      setPdfUrl(url);
+      try {
+        setIsGenerating(true);
+        setError(null);
+
+        const doc = await onPrint(selectedCourse, selected.value, true);
+        setPdfDoc(doc);
+        
+        const blob = doc.output('blob');
+        const url = URL.createObjectURL(blob);
+        setPdfUrl(url);
+
+        // Generate Excel file
+        const excelData = await generateClassLoadExcel(assignments, selectedCourse, selected.value);
+        setExcelBlob(excelData);
+      } catch (error) {
+        console.error('Error generating documents:', error);
+        setError(error.message || 'Failed to generate documents');
+      } finally {
+        setIsGenerating(false);
+      }
     }
   };
 
@@ -88,6 +106,17 @@ export default function PrintModal({ isOpen, onClose, courses, onPrint }) {
   const handleDownload = () => {
     if (pdfDoc && selectedCourse && selectedTerm) {
       pdfDoc.save(`class-load-${selectedCourse.courseCode}-${selectedTerm.sy}-Term${selectedTerm.term}.pdf`);
+    }
+  };
+
+  const handleExcelDownload = async () => {
+    if (excelBlob && selectedCourse && selectedTerm) {
+      try {
+        downloadExcel(excelBlob);
+      } catch (error) {
+        console.error('Error downloading Excel:', error);
+        setError('Failed to download Excel file');
+      }
     }
   };
 
@@ -194,6 +223,19 @@ export default function PrintModal({ isOpen, onClose, courses, onPrint }) {
                         {pdfDoc && (
                           <div>
                             <div className="flex flex-col sm:flex-row justify-end gap-2 mb-2">
+                              {error && (
+                                <p className="text-sm text-red-600 mb-2">{error}</p>
+                              )}
+                              <button
+                                onClick={handleExcelDownload}
+                                disabled={isGenerating}
+                                className={`w-full sm:w-auto inline-flex justify-center items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white ${
+                                  isGenerating ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'
+                                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500`}
+                              >
+                                <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
+                                {isGenerating ? 'Generating...' : 'Download Excel'}
+                              </button>
                               <button
                                 onClick={handleDownload}
                                 className="w-full sm:w-auto inline-flex justify-center items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-[#323E8F] hover:bg-[#35408E] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#323E8F]"
@@ -205,7 +247,7 @@ export default function PrintModal({ isOpen, onClose, courses, onPrint }) {
                             {!isMobile && (
                               <div className="border rounded-lg overflow-hidden" style={{ height: 'calc(60vh - 200px)' }}>
                                 <iframe
-                                  src={pdfUrl}
+                                  src={`${pdfUrl}#page=1&scrollbar=0&view=FitH`}
                                   type="application/pdf"
                                   className="w-full h-full"
                                   title="PDF Preview"
