@@ -131,15 +131,37 @@ export async function getSchedules(query = {}) {
       return { error: 'No active term found' };
     }
     
-    // Add term filter to query and ensure it's a string
+    // Add term and faculty filters to query
     const schedules = await schedulesModel.getSchedules({
       ...query,
-      term: term.id.toString()
+      term: term.id.toString(),
+      faculty: query.faculty ? query.faculty.toString() : undefined
     });
     
     return { schedules: JSON.parse(JSON.stringify(schedules)) };
   } catch (error) {
     console.error('Error fetching schedules:', error);
+    return { error: error.message || 'Failed to fetch schedules' };
+  }
+}
+
+export async function getFacultySchedules(facultyId) {
+  try {
+    // Get active term first
+    const term = await TermsModel.getActiveTerm();
+    if (!term) {
+      return { error: 'No active term found' };
+    }
+    
+    // Add term and faculty filters to query
+    const schedules = await schedulesModel.getSchedules({
+      term: term.id.toString(),
+      faculty: facultyId
+    });
+    
+    return { schedules: JSON.parse(JSON.stringify(schedules)) };
+  } catch (error) {
+    console.error('Error fetching faculty schedules:', error);
     return { error: error.message || 'Failed to fetch schedules' };
   }
 }
@@ -163,7 +185,19 @@ export async function getAllSections() {
     if (!sections) {
       throw new Error('Failed to fetch sections');
     }
-    return { sections: JSON.parse(JSON.stringify(sections)) };
+    
+    // Return populated sections with course and department info
+    return { 
+      sections: JSON.parse(JSON.stringify(
+        sections.map(section => ({
+          ...section,
+          course: {
+            ...section.course,
+            department: section.course?.department || null
+          }
+        }))
+      ))
+    };
   } catch (error) {
     console.error('Error fetching all sections:', error);
     return { error: error.message || 'Failed to fetch sections' };

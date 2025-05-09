@@ -186,7 +186,7 @@ const roleMenuItems = {
   Faculty: [
     {
       title: 'Schedules',
-      href: '/schedules',
+      href: '/schedules/faculty',
       icon: CalendarDaysIcon,
     },
     {

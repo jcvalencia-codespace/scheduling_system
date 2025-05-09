@@ -4,9 +4,9 @@ import {
   Subjects,
   Rooms
 } from './index';
-
+import connectDB from '../../../lib/mongo';  // Add this import
 import mongoose from 'mongoose';
-import { ScheduleSchema } from '../../../db/schema';
+import { ScheduleSchema, SectionSchema } from '../../../db/schema';  // Add SectionSchema import
 import moment from 'moment';
 
 // Define the model at the top
@@ -75,52 +75,93 @@ export default class SchedulesModel {
     }
   }
 
-  static async getAllActiveSections() {
+  static async getAllActiveSections(departmentId = null) {
     try {
-      const sections = await Sections.aggregate([
+      await connectDB();
+      const Sections = mongoose.models.Sections || mongoose.model('Sections', SectionSchema);
+
+      console.log('Starting section filtering with params:', {
+        departmentId,
+        isDeanView: !!departmentId
+      });
+
+      // Base pipeline for all sections
+      const pipeline = [
         { $match: { isActive: true } },
+        // Lookup course details
         {
           $lookup: {
             from: 'courses',
             localField: 'course',
             foreignField: '_id',
-            as: 'course'
+            as: 'courseInfo'
           }
         },
-        { $unwind: '$course' },
+        { $unwind: '$courseInfo' },
+        // Lookup department details
         {
           $lookup: {
             from: 'departments',
-            localField: 'course.department',
+            localField: 'courseInfo.department',
             foreignField: '_id',
-            as: 'department'
+            as: 'departmentInfo'
           }
         },
-        { $unwind: '$department' },
-        {
-          $project: {
-            _id: 1,
-            sectionName: 1,
-            yearLevel: 1,
-            course: {
-              _id: '$course._id',
-              courseCode: '$course.courseCode',
-              courseTitle: '$course.courseTitle',
-              department: {
-                _id: '$department._id',
-                departmentCode: '$department.departmentCode',
-                departmentName: '$department.departmentName'
-              }
+        { $unwind: '$departmentInfo' }
+      ];
+
+      // Add department filter if departmentId is provided (Dean view)
+      if (departmentId) {
+        console.log('Applying department filter for Dean:', {
+          departmentId,
+          filterType: 'course.department'
+        });
+
+        pipeline.push({
+          $match: {
+            'courseInfo.department': new mongoose.Types.ObjectId(departmentId)
+          }
+        });
+      }
+
+      // Add final projection
+      pipeline.push({
+        $project: {
+          _id: 1,
+          sectionName: 1,
+          yearLevel: 1,
+          course: {
+            _id: '$courseInfo._id',
+            courseCode: '$courseInfo.courseCode',
+            courseTitle: '$courseInfo.courseTitle',
+            department: {
+              _id: '$departmentInfo._id',
+              departmentCode: '$departmentInfo.departmentCode',
+              departmentName: '$departmentInfo.departmentName'
             }
           }
-        },
-        { $sort: { sectionName: 1 } }
-      ]);
+        }
+      },
+      { $sort: { sectionName: 1 } });
+
+      const sections = await Sections.aggregate(pipeline);
+
+      // Log detailed results for debugging
+      console.log('Section filtering results:', {
+        totalFound: sections.length,
+        departmentId: departmentId,
+        departmentsFound: sections.length > 0 
+          ? [...new Set(sections.map(s => ({
+              id: s.course.department._id.toString(),
+              code: s.course.department.departmentCode
+            })))]
+          : []
+      });
 
       return sections;
     } catch (error) {
-      console.error('Error fetching all active sections:', error);
-      throw new Error('Failed to fetch sections');
+      console.error('Error in getAllActiveSections:', error);
+      throw new Error(`Failed to fetch sections: ${error.message}`);
     }
   }
 
@@ -307,65 +348,53 @@ export default class SchedulesModel {
               // Case 1: Same start and end time
               (newTimeFrom.isSame(existingTimeFrom) && newTimeTo.isSame(existingTimeTo)) ||
               // Case 2: New schedule contains entire existing schedule
-              (newTimeFrom.isSameOrBefore(existingTimeFrom) && newTimeTo.isSameOrAfter(existingTimeTo)) ||
-              // Case 3: Same start time, new schedule extends longer
-              (newTimeFrom.isSame(existingTimeFrom) && newTimeTo.isAfter(existingTimeTo)) ||
-              // Case 4: Same end time, new schedule starts earlier
-              (newTimeTo.isSame(existingTimeTo) && newTimeFrom.isBefore(existingTimeFrom))
+              (newTimeFrom.isSameOrBefore(existingTimeFrom) && newTimeTo.isSameOrAfter(existingTimeTo))
             );
 
             if (isCompleteOverride) {
               modified = true;
-              continue; // Skip this slot entirely
+              // Don't add this slot as it's completely overlapped
+              continue;
             }
 
-            // Handle non-complete overlaps
+            // Handle partial overlaps
             if (!(newTimeTo.isSameOrBefore(existingTimeFrom) || newTimeFrom.isSameOrAfter(existingTimeTo))) {
               modified = true;
 
-              if (newTimeFrom.isBefore(existingTimeFrom)) {
-                existingSlot.timeFrom = newTimeTo.format('h:mm A');
-                const duration = calculateDuration(existingSlot.timeFrom, existingSlot.timeTo);
-                if (duration >= minimumDuration) {
-                  newScheduleSlots.push(existingSlot);
-                }
-              }
-              else if (newTimeTo.isAfter(existingTimeTo)) {
-                existingSlot.timeTo = newTimeFrom.format('h:mm A');
-                const duration = calculateDuration(existingSlot.timeFrom, existingSlot.timeTo);
-                if (duration >= minimumDuration) {
-                  newScheduleSlots.push(existingSlot);
-                }
-              }
-              else if (newTimeFrom.isAfter(existingTimeFrom) && newTimeTo.isBefore(existingTimeTo)) {
-                const firstSlot = {
+              // Before overlap
+              if (newTimeFrom.isAfter(existingTimeFrom)) {
+                const beforeSlot = {
                   ...existingSlot.toObject(),
                   timeTo: newTimeFrom.format('h:mm A')
                 };
-                const secondSlot = {
+                const beforeDuration = calculateDuration(beforeSlot.timeFrom, beforeSlot.timeTo);
+                if (beforeDuration >= minimumDuration) {
+                  newScheduleSlots.push(beforeSlot);
+                }
+              }
+
+              // After overlap
+              if (newTimeTo.isBefore(existingTimeTo)) {
+                const afterSlot = {
                   ...existingSlot.toObject(),
                   timeFrom: newTimeTo.format('h:mm A')
                 };
-
-                const firstDuration = calculateDuration(firstSlot.timeFrom, firstSlot.timeTo);
-                const secondDuration = calculateDuration(secondSlot.timeFrom, secondSlot.timeTo);
-
-                if (firstDuration >= minimumDuration) {
-                  newScheduleSlots.push(firstSlot);
-                }
-                if (secondDuration >= minimumDuration) {
-                  newScheduleSlots.push(secondSlot);
+                const afterDuration = calculateDuration(afterSlot.timeFrom, afterSlot.timeTo);
+                if (afterDuration >= minimumDuration) {
+                  newScheduleSlots.push(afterSlot);
                 }
               }
             } else {
+              // No overlap, keep the slot as is
               newScheduleSlots.push(existingSlot);
             }
           } else {
+            // Different day, keep the slot as is
             newScheduleSlots.push(existingSlot);
           }
         }
 
-        // Only update if there are changes and remaining slots
+        // Update the schedule if modifications were made
         if (modified) {
           if (newScheduleSlots.length > 0) {
             await Schedules.findByIdAndUpdate(existingSchedule._id, {
@@ -379,7 +408,7 @@ export default class SchedulesModel {
               }
             });
           } else {
-            // If no slots remain, deactivate the schedule
+            // Only deactivate if there are no valid slots remaining
             await Schedules.findByIdAndUpdate(existingSchedule._id, {
               $set: { isActive: false },
               $push: {

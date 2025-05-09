@@ -55,6 +55,11 @@ export async function middleware(request) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
+    // Add Faculty-specific redirect
+    if (session.user.role === 'Faculty' && pathname === '/schedules') {
+      return NextResponse.redirect(new URL('/schedules/faculty', request.url))
+    }
+
     // Check if user has permission to access the route
     if (!hasPermission(session.user.role, pathname)) {
       // Redirect to unauthorized page if user doesn't have permission

@@ -34,7 +34,7 @@ export const rolePermissions = {
   ],
  
   Faculty: [
-    '/schedules',
+    '/schedules/faculty',  // Changed from /schedules
     '/feedback',
     '/profile',
     '/chats'
@@ -45,7 +45,7 @@ export const rolePermissions = {
 export const menuItems = [
   {
     title: 'Schedules',
-    href: '/schedules',
+    href: '/schedules',  // This will be dynamically changed for Faculty
     icon: 'CalendarDaysIcon',
     roles: ['Administrator', 'Dean', 'Program Chair', 'Faculty']
   },

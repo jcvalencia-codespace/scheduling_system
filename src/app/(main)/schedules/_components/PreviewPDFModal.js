@@ -3,15 +3,24 @@ import { Fragment, useEffect, useState } from 'react';
 import SchedulePDF from './SchedulePDF';
 
 export default function PreviewPDFModal({ isOpen, onClose, pdfProps }) {
-  const { activeTerm, schedules, selectedSection } = pdfProps;
   const [pdfUrl, setPdfUrl] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (isOpen) {
-      const doc = SchedulePDF({ activeTerm, schedules, selectedSection });
-      setPdfUrl(doc.output('datauristring'));
+    if (isOpen && pdfProps) {
+      try {
+        setIsLoading(true);
+        // Use the custom PDF generator if provided
+        const PDFGenerator = pdfProps.pdfGenerator || SchedulePDF;
+        const doc = PDFGenerator(pdfProps);
+        setPdfUrl(doc.output('datauristring'));
+      } catch (error) {
+        console.error('Error generating PDF:', error);
+      } finally {
+        setIsLoading(false);
+      }
     }
-  }, [isOpen, activeTerm, schedules, selectedSection]);
+  }, [isOpen, pdfProps]);
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
@@ -47,8 +56,9 @@ export default function PreviewPDFModal({ isOpen, onClose, pdfProps }) {
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
-                        const doc = SchedulePDF({ activeTerm, schedules, selectedSection });
-                        doc.save(`Schedule_${selectedSection || 'All'}_${activeTerm?.term || ''}.pdf`);
+                        const PDFGenerator = pdfProps.pdfGenerator || SchedulePDF;
+                        const doc = PDFGenerator(pdfProps);
+                        doc.save(`Schedule_${pdfProps.selectedSection || 'All'}_${pdfProps.activeTerm?.term || ''}.pdf`);
                       }}
                       className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
                     >
@@ -63,12 +73,18 @@ export default function PreviewPDFModal({ isOpen, onClose, pdfProps }) {
                   </div>
                 </div>
                 <div className="h-[800px] w-full">
-                  <iframe
-                    src={pdfUrl}
-                    width="100%"
-                    height="100%"
-                    style={{ border: 'none' }}
-                  />
+                  {isLoading ? (
+                    <div className="flex items-center justify-center h-full">
+                      <span className="text-gray-500">Loading...</span>
+                    </div>
+                  ) : (
+                    <iframe
+                      src={pdfUrl}
+                      width="100%"
+                      height="100%"
+                      style={{ border: 'none' }}
+                    />
+                  )}
                 </div>
               </Dialog.Panel>
             </Transition.Child>

@@ -205,10 +205,32 @@ class RoomsModel {
     return deletedRoom;
   }
 
-  async getRoomsByDepartment(departmentCode) {
-    const Room = await this.initModel();
-    const rooms = await Room.find({ departmentCode, isActive: true });
-    return JSON.parse(JSON.stringify(rooms));
+  async getRoomsByDepartment(departmentId = null) {
+    try {
+      const Room = await this.initModel();
+      const query = { 
+        isActive: true,
+        $or: [
+          { department: departmentId ? new mongoose.Types.ObjectId(departmentId) : null },
+          { department: { $exists: false } },  // Include rooms without department
+          { department: null }  // Include rooms where department is null
+        ]
+      };
+
+      const rooms = await Room.find(query)
+        .populate({
+          path: 'department',
+          select: 'departmentCode departmentName',
+          model: 'Departments'
+        })
+        .sort({ roomCode: 1 });
+      
+      console.log(`Found ${rooms.length} rooms for department ${departmentId}`);
+      return JSON.parse(JSON.stringify(rooms));
+    } catch (error) {
+      console.error('Error in getRoomsByDepartment:', error);
+      throw error;
+    }
   }
 }
 

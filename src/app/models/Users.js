@@ -58,15 +58,6 @@ class UsersModel {
     return user ? JSON.parse(JSON.stringify(user)) : null;
   }
 
-  // async getAllUsers() {
-  //   const User = await this.initModel();
-  //   const users = await User.find({})
-  //     .select('-password')
-  //     .populate('department', 'departmentCode departmentName')
-  //     .populate('course', 'courseCode courseTitle');
-  //   return JSON.parse(JSON.stringify(users));
-  // }
-
   async updateUser(userId, updateData) {
     const User = await this.initModel();
     
@@ -96,7 +87,7 @@ class UsersModel {
     return bcrypt.compare(password, user.password);
   }
 
-  async getFacultyUsers() {
+  async getFacultyUsers(departmentId = null) {
     try {
       const Users = await this.initModel();
       
@@ -145,10 +136,65 @@ class UsersModel {
       const totalCount = faculty[0]?.totalCount[0]?.count || 0;
       
       console.log(`Found ${totalCount} faculty members`);
-      
-      return JSON.parse(JSON.stringify(facultyData));
+
+      return JSON.parse(JSON.stringify(faculty));
     } catch (error) {
       console.error('Error in getFacultyUsers:', error);
+      throw error;
+    }
+  }
+
+  async getFacultyByDepartment(departmentId = null, isAdmin = false) {
+    try {
+      const User = await this.initModel();
+      // If admin, fetch all faculty regardless of department
+      const query = isAdmin 
+        ? { role: { $in: ['Faculty', 'Program Chair', 'Dean'] } }
+        : {
+            role: { $in: ['Faculty', 'Program Chair', 'Dean'] },
+            ...(departmentId && { department: new mongoose.Types.ObjectId(departmentId) })
+          };
+
+      const faculty = await User.find(query)
+        .select('firstName lastName employmentType department')
+        .populate({
+          path: 'department',
+          model: Departments
+        })
+        .sort({ lastName: 1, firstName: 1 });
+
+      return JSON.parse(JSON.stringify(faculty));
+    } catch (error) {
+      console.error('Error in getFacultyByDepartment:', error);
+      throw error;
+    }
+  }
+
+  async getFacultyByCourse(courseId = null, isAdmin = false) {
+    try {
+      const User = await this.initModel();
+      const query = isAdmin 
+        ? { role: { $in: ['Faculty', 'Program Chair', 'Dean'] } }
+        : {
+            role: { $in: ['Faculty', 'Program Chair'] },
+            ...(courseId && { course: new mongoose.Types.ObjectId(courseId) })
+          };
+
+      const faculty = await User.find(query)
+        .select('firstName lastName employmentType department course')
+        .populate({
+          path: 'department',
+          model: Departments
+        })
+        .populate({
+          path: 'course',
+          model: Courses
+        })
+        .sort({ lastName: 1, firstName: 1 });
+
+      return JSON.parse(JSON.stringify(faculty));
+    } catch (error) {
+      console.error('Error in getFacultyByCourse:', error);
       throw error;
     }
   }

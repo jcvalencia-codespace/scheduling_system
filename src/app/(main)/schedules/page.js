@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 // Replace the date-fns import with moment
-import moment from 'moment'        // Add this line
+import moment from "moment" // Add this line
 import { useLoading } from "../../context/LoadingContext"
 import FullCalendar from "@fullcalendar/react"
 import timeGridPlugin from "@fullcalendar/timegrid"
@@ -10,25 +10,34 @@ import interactionPlugin from "@fullcalendar/interaction"
 import NewScheduleModal from "./_components/NewScheduleModal"
 import ViewScheduleModal from "./_components/ViewScheduleModal"
 import PreviewPDFModal from "./_components/PreviewPDFModal"
-import AdminHoursModal from './_components/AdminHoursModal';
-import { getActiveTerm, getAllSections } from './_actions';
-import { getSchedules } from './_actions';
-import useAuthStore from '@/store/useAuthStore';
+import AdminHoursModal from "./_components/AdminHoursModal"
+import { getActiveTerm, getAllSections } from "./_actions"
+import { getSchedules } from "./_actions"
+import useAuthStore from "@/store/useAuthStore"
 
-import { ScheduleSkeleton, CalendarSkeleton } from './_components/Skeleton';
+import { ScheduleSkeleton, CalendarSkeleton } from "./_components/Skeleton"
 
-import Swal from 'sweetalert2';
+import Swal from "sweetalert2"
 import {
   PlusIcon,
   PrinterIcon,
-  PencilSquareIcon,
-  TrashIcon,
-  EyeIcon,
-  ClockIcon
-} from '@heroicons/react/24/outline';
+  ClockIcon,
+  AcademicCapIcon,
+  UserGroupIcon,
+  BuildingOffice2Icon,
+} from "@heroicons/react/24/outline"
+
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import dynamic from "next/dynamic"
+
+// Create a dynamic import for Select with SSR disabled
+const NoSSRSelect = dynamic(() => import("react-select"), {
+  ssr: false,
+})
 
 export default function SchedulePage() {
-  const { user } = useAuthStore();
+  const { user } = useAuthStore()
   const [selectedSection, setSelectedSection] = useState("")
   const [isNewScheduleModalOpen, setIsNewScheduleModalOpen] = useState(false)
   const [isViewScheduleModalOpen, setIsViewScheduleModalOpen] = useState(false)
@@ -39,9 +48,11 @@ export default function SchedulePage() {
   const [isPDFPreviewOpen, setIsPDFPreviewOpen] = useState(false)
   const [calendarEvents, setCalendarEvents] = useState([])
   const calendarRef = useRef(null)
-  const [isTermLoading, setIsTermLoading] = useState(true);
-  const [availableSections, setAvailableSections] = useState([]); // Add new state for sections list
-  const [isAdminHoursModalOpen, setIsAdminHoursModalOpen] = useState(false);
+  const [isTermLoading, setIsTermLoading] = useState(true)
+  const [availableSections, setAvailableSections] = useState([]) // Add new state for sections list
+  const [isAdminHoursModalOpen, setIsAdminHoursModalOpen] = useState(false)
+  const pathname = usePathname()
+  const [isScrolled, setIsScrolled] = useState(false)
 
   // Generate time slots from 6am to 9pm with hourly intervals
   // Keep this for compatibility with existing components like PDF preview
@@ -56,25 +67,35 @@ export default function SchedulePage() {
   const weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
   useEffect(() => {
-    fetchActiveTerm();
-    fetchSchedules();
-    fetchAllSections(); // Add this new function call
-  }, []);
+    fetchActiveTerm()
+    fetchSchedules()
+    fetchAllSections() // Add this new function call
+  }, [])
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrolled = window.scrollY > 100
+      setIsScrolled(scrolled)
+    }
+
+    window.addEventListener("scroll", handleScroll)
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
 
   const fetchSchedules = async () => {
-    setIsLoading(true);
+    setIsLoading(true)
     try {
-      const response = await getSchedules();
+      const response = await getSchedules()
       if (response.error) {
-        throw new Error(response.error);
+        throw new Error(response.error)
       }
-      setSchedules(response.schedules);
+      setSchedules(response.schedules)
     } catch (error) {
-      console.error('Error fetching schedules:', error);
+      console.error("Error fetching schedules:", error)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
     // Convert schedules to FullCalendar events format
@@ -83,48 +104,46 @@ export default function SchedulePage() {
   }, [schedules, selectedSection])
 
   const fetchActiveTerm = async () => {
-    setIsTermLoading(true);
+    setIsTermLoading(true)
     try {
-      const response = await getActiveTerm();
+      const response = await getActiveTerm()
       if (response.error) {
-        throw new Error(response.error);
+        throw new Error(response.error)
       }
-      setActiveTerm(response.term);
+      setActiveTerm(response.term)
     } catch (error) {
-      console.error('Error fetching active term:', error);
+      console.error("Error fetching active term:", error)
     } finally {
-      setIsTermLoading(false);
+      setIsTermLoading(false)
     }
-  };
+  }
 
   const fetchAllSections = async () => {
     try {
-      const response = await getAllSections(); // We'll create this action
+      const response = await getAllSections() // We'll create this action
       if (response.error) {
-        throw new Error(response.error);
+        throw new Error(response.error)
       }
-      setAvailableSections(response.sections);
+      setAvailableSections(response.sections)
     } catch (error) {
-      console.error('Error fetching sections:', error);
+      console.error("Error fetching sections:", error)
     }
-  };
+  }
 
   // Replace the formatDate function
   const formatDate = (dateStr) => {
-    return moment(dateStr).format('MMMM D, YYYY')
+    return moment(dateStr).format("MMMM D, YYYY")
   }
 
   // Update the convertSchedulesToEvents function to handle section filtering
   const convertSchedulesToEvents = (schedules) => {
-    if (!selectedSection || !activeTerm) return [];
+    if (!selectedSection || !activeTerm) return []
 
     // Filter schedules for selected section only
     // Remove the term filter since it's already handled by the backend
-    const filteredSchedules = schedules.filter((schedule) =>
-      schedule.section?.sectionName === selectedSection
-    );
+    const filteredSchedules = schedules.filter((schedule) => schedule.section?.sectionName === selectedSection)
 
-    console.log('Filtered schedules:', filteredSchedules.length); // Debug log
+    console.log("Filtered schedules:", filteredSchedules.length) // Debug log
     return filteredSchedules.flatMap((schedule) => {
       return schedule.scheduleSlots.flatMap((slot) => {
         return slot.days.map((day) => {
@@ -146,11 +165,11 @@ export default function SchedulePage() {
           thisWeek.day(dayNumber) // Set to the target day of this week
 
           // Format the date
-          const dateStr = thisWeek.format('YYYY-MM-DD')
+          const dateStr = thisWeek.format("YYYY-MM-DD")
 
           // Parse time strings using moment
           const parseTimeStr = (timeStr) => {
-            return moment(timeStr, 'h:mm A').format('HH:mm:ss')
+            return moment(timeStr, "h:mm A").format("HH:mm:ss")
           }
 
           const startTime = parseTimeStr(slot.timeFrom)
@@ -168,7 +187,7 @@ export default function SchedulePage() {
                 timeTo: slot.timeTo,
                 days: [day],
                 room: slot.room,
-                scheduleType: slot.scheduleType
+                scheduleType: slot.scheduleType,
               },
             },
             backgroundColor: "#4285F4",
@@ -179,10 +198,38 @@ export default function SchedulePage() {
     })
   }
 
-  // Replace the getUniqueSections function with a simpler one that uses availableSections
+  // Replace the getUniqueSections function with a role-aware version
   const getUniqueSections = () => {
-    return availableSections.map(section => section.sectionName).sort();
-  };
+    if (!availableSections || !user) return []
+
+    let filteredSections = []
+
+    // If user is a Dean, filter sections by their department
+    if (user.role === "Dean") {
+      filteredSections = availableSections
+        .filter((section) => section.course?.department?._id === user.department)
+        .map((section) => section.sectionName)
+        .sort()
+    }
+    // If user is a Program Chair, filter sections by their course
+    else if (user.role === "Program Chair") {
+      filteredSections = availableSections
+        .filter((section) => section.course?._id === user.course)
+        .map((section) => section.sectionName)
+        .sort()
+    }
+    // For other roles, return all sections
+    else {
+      filteredSections = availableSections.map((section) => section.sectionName).sort()
+    }
+
+    return filteredSections
+  }
+
+  const sectionOptions = getUniqueSections().map((section) => ({
+    value: section,
+    label: section,
+  }))
 
   const handleEventClick = (info) => {
     setSelectedSchedule(info.event.extendedProps.schedule)
@@ -191,107 +238,252 @@ export default function SchedulePage() {
   const handlePrintClick = () => {
     if (!selectedSection) {
       Swal.fire({
-        icon: 'warning',
-        title: 'No Section Selected',
-        text: 'Please select a section before printing the schedule.',
-        confirmButtonColor: '#323E8F'
-      });
-      return;
+        icon: "warning",
+        title: "No Section Selected",
+        text: "Please select a section before printing the schedule.",
+        confirmButtonColor: "#323E8F",
+      })
+      return
     }
-    setIsPDFPreviewOpen(true);
-  };
+    setIsPDFPreviewOpen(true)
+  }
   return (
-    <div className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8 bg-gray-100">
-      {/* Add FullCalendar styles directly in the component */}
+    <div className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-slate-50 to-slate-100">
       <style jsx global>{`
-        /* Make the calendar fill its container */
-        .fullcalendar-container .fc {
+        body {
+          background-color: #f8fafc;
+        }
+
+        /* Add a subtle pattern to the background */
+        .bg-gradient-to-b {
+          background-image: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+          position: relative;
+        }
+
+        .bg-gradient-to-b::before {
+          content: "";
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
           height: 100%;
+          background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23e2e8f0' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+          opacity: 0.3;
+          z-index: 0;
+          pointer-events: none;
         }
 
-        /* Style the time slots */
+        .bg-gradient-to-b > * {
+          position: relative;
+          z-index: 1;
+        }
+
+        /* Calendar styles */
+        .fullcalendar-container .fc {
+          height: auto !important;
+        }
+
         .fc-timegrid-slot {
-          height: 1.35rem !important;  /* Reduced from 4rem to 2.5rem */
+          height: 2rem !important;
         }
 
-        /* Style the events */
+        .fc .fc-scroller {
+          overflow: hidden !important;
+        }
+
+        .fc .fc-scroller-liquid-absolute {
+          position: relative !important;
+        }
+
         .fc-event {
           border-radius: 4px;
           cursor: pointer;
         }
 
-        /* Style the day headers */
         .fc-col-header-cell {
           background-color: #1a237e;
           font-weight: 500;
           text-transform: uppercase;
           font-size: 0.75rem;
-          color:rgb(255, 255, 255);
+          color: rgb(255, 255, 255);
         }
 
-        /* Style the time labels */
         .fc-timegrid-axis {
           font-size: 0.75rem;
           color: #111827 !important;
           font-weight: 500;
         }
 
-        /* Make slot time labels black too */
         .fc .fc-timegrid-slot-label {
           color: #111827;
           font-weight: 500;
         }
 
-        /* Style the grid lines */
-        .fc-timegrid-slot, .fc-timegrid-cols table {
+        .fc-timegrid-slot,
+        .fc-timegrid-cols table {
           border-color: #e5e7eb !important;
         }
 
-    
-
-        /* Style the event content */
-        .fc-event-title, .fc-event-time {
+        .fc-event-title,
+        .fc-event-time {
           font-size: 0.75rem;
           white-space: normal;
           overflow: hidden;
         }
+
+        /* Tooltip styles */
+        .tooltip {
+          position: relative;
+          display: inline-block;
+        }
+
+        .tooltip .tooltiptext {
+          visibility: hidden;
+          background-color: #1a237e;
+          color: white;
+          text-align: center;
+          padding: 4px 8px;
+          border-radius: 6px;
+          position: absolute;
+          z-index: 1;
+          bottom: 125%;
+          left: 50%;
+          transform: translateX(-50%);
+          font-size: 0.75rem;
+          white-space: nowrap;
+          opacity: 0;
+          transition: opacity 0.2s;
+        }
+
+        .tooltip:hover .tooltiptext {
+          visibility: visible;
+          opacity: 1;
+        }
       `}</style>
+
+      {/* Tab Navigation */}
+      <div className="mb-6">
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div className="mx-auto px-4">
+            <div className="flex h-14">
+              <div className="flex space-x-8">
+                {[
+                  { name: "Class Schedules", href: "/schedules", icon: AcademicCapIcon },
+                  { name: "Faculty Schedules", href: "/schedules/faculty", icon: UserGroupIcon },
+                  { name: "Room Schedules", href: "/schedules/room", icon: BuildingOffice2Icon },
+                ].map((tab) => (
+                  <Link
+                    key={tab.name}
+                    href={tab.href}
+                    className={`
+                      group relative inline-flex items-center px-1 pt-3 pb-2.5 text-sm font-medium
+                      transition-all duration-200 ease-in-out
+                      ${pathname === tab.href ? "text-[#323E8F]" : "text-gray-500 hover:text-gray-700"}
+                    `}
+                  >
+                    <div
+                      className={`
+                        absolute bottom-0 left-0 h-0.5 w-full transform
+                        ${pathname === tab.href ? "bg-[#323E8F]" : "bg-transparent group-hover:bg-gray-300"}
+                        transition-all duration-200 ease-in-out
+                      `}
+                    />
+                    <tab.icon
+                      className={`
+                        h-5 w-5 mr-2 transition-all duration-200
+                        ${
+                          pathname === tab.href
+                            ? "text-[#323E8F] transform scale-110"
+                            : "text-gray-400 group-hover:text-gray-500"
+                        }
+                      `}
+                    />
+                    <span className="whitespace-nowrap">{tab.name}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-6"></div>
 
       <div className="space-y-6">
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-2">
           {/* Section Selection */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">View Schedule of Section:</label>
-            <div className="relative w-full sm:w-auto min-w-[240px]">
-
-              <select
-                value={selectedSection}
-                onChange={(e) => setSelectedSection(e.target.value)}
-                className="w-full appearance-none rounded-md border border-gray-300 bg-white px-4 py-2 pr-8 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="">Select a Section</option>
-                {getUniqueSections().map((sectionName) => (
-                  <option key={sectionName} value={sectionName}>
-                    {sectionName}
-                  </option>
-                ))}
-              </select>
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">
+              View Schedule of Section:
+            </label>
+            <div className="w-[300px]">
+              {typeof window !== "undefined" && (
+                <NoSSRSelect
+                  instanceId="section-select"
+                  value={sectionOptions.find((option) => option.value === selectedSection)}
+                  onChange={(option) => setSelectedSection(option?.value || "")}
+                  options={sectionOptions}
+                  className="w-full"
+                  classNamePrefix="react-select"
+                  placeholder={
+                    getUniqueSections().length === 0
+                      ? user?.role === "Dean"
+                        ? "No sections available for your department"
+                        : user?.role === "Program Chair"
+                        ? "No sections available for your course"
+                        : "No sections available"
+                      : "Select a Section"
+                  }
+                  styles={{
+                    menu: (base) => ({
+                      ...base,
+                      zIndex: 9999,
+                    }),
+                    control: (base, state) => ({
+                      ...base,
+                      borderColor: state.isFocused ? "#3b82f6" : "#e5e7eb",
+                      boxShadow: state.isFocused ? "0 0 0 1px #3b82f6" : "none",
+                      "&:hover": {
+                        borderColor: "#3b82f6",
+                      },
+                    }),
+                    option: (base, state) => ({
+                      ...base,
+                      backgroundColor: state.isSelected
+                        ? "#323E8F"
+                        : state.isFocused
+                        ? "#e5e7eb"
+                        : "transparent",
+                      color: state.isSelected ? "white" : "#111827",
+                      "&:active": {
+                        backgroundColor: "#323E8F",
+                      },
+                    }),
+                  }}
+                />
+              )}
             </div>
           </div>
-          <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
-          <button
+
+          {/* Top Buttons */}
+          <div
+            className={`
+            flex gap-2 sm:gap-3 transition-all duration-300 ease-in-out
+            ${isScrolled ? "opacity-0 transform translate-y-[-20px]" : "opacity-100 transform translate-y-0"}
+          `}
+          >
+            <button
               onClick={() => setIsAdminHoursModalOpen(true)}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-white bg-[#579980] hover:bg-gray-[#579980] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#77DD77]"
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-white bg-[#579980] hover:bg-[#488b73] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#77DD77]"
             >
               <ClockIcon className="h-5 w-5 mr-2" />
               Set Admin Hours
             </button>
             <button
               onClick={() => setIsNewScheduleModalOpen(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#323E8F] hover:bg-[#35408E] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#323E8F]"
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#323E8F] hover:bg-[#283275] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#323E8F]"
             >
-              
               <PlusIcon className="h-5 w-5 mr-2" />
               New Schedule
             </button>
@@ -302,10 +494,46 @@ export default function SchedulePage() {
               <PrinterIcon className="h-5 w-5 mr-2" />
               Print Schedule
             </button>
-            
+          </div>
+
+          {/* Fixed Position Circular Buttons */}
+          <div
+            className={`
+            fixed right-8 bottom-8 flex flex-col gap-4 transition-all duration-300 ease-in-out z-[60]
+            ${isScrolled ? "opacity-100 transform translate-y-0" : "opacity-0 transform translate-y-[20px] pointer-events-none"}
+          `}
+          >
+            <div className="tooltip">
+              <button
+                onClick={() => setIsAdminHoursModalOpen(true)}
+                className="w-12 h-12 rounded-full flex items-center justify-center text-white bg-[#579980] hover:bg-[#488b73] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#77DD77] shadow-lg transition-all duration-200"
+              >
+                <ClockIcon className="h-6 w-6" />
+              </button>
+              <span className="tooltiptext">Set Admin Hours</span>
+            </div>
+
+            <div className="tooltip">
+              <button
+                onClick={() => setIsNewScheduleModalOpen(true)}
+                className="w-12 h-12 rounded-full flex items-center justify-center text-white bg-[#323E8F] hover:bg-[#283275] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#323E8F] shadow-lg transition-all duration-200"
+              >
+                <PlusIcon className="h-6 w-6" />
+              </button>
+              <span className="tooltiptext">New Schedule</span>
+            </div>
+
+            <div className="tooltip">
+              <button
+                onClick={handlePrintClick}
+                className="w-12 h-12 rounded-full flex items-center justify-center text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#323E8F] shadow-lg transition-all duration-200"
+              >
+                <PrinterIcon className="h-6 w-6" />
+              </button>
+              <span className="tooltiptext">Print Schedule</span>
+            </div>
           </div>
         </div>
-
 
         {/* Schedule Title */}
         <div className="text-center my-6">
@@ -313,7 +541,9 @@ export default function SchedulePage() {
             <ScheduleSkeleton />
           ) : activeTerm ? (
             <>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Class Schedules for AY - {activeTerm.academicYear} ({activeTerm.term})</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">
+                Class Schedules for AY - {activeTerm.academicYear} ({activeTerm.term})
+              </h2>
               <p className="mt-0.5 text-sm text-gray-800">
                 {formatDate(activeTerm.startDate)} - {formatDate(activeTerm.endDate)}
               </p>
@@ -329,12 +559,12 @@ export default function SchedulePage() {
         </div>
 
         {/* FullCalendar Schedule */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="fullcalendar-container" style={{ height: "800px" }}>
+        <div className="bg-white rounded-lg shadow">
+          <div className="fullcalendar-container">
             {isLoading ? (
               <CalendarSkeleton />
             ) : !selectedSection ? (
-              <div className="h-full flex items-center justify-center">
+              <div className="h-full flex items-center justify-center p-20">
                 <div className="text-center">
                   <p className="text-gray-600 text-lg mb-2">Please select a section to view its schedule</p>
                   <p className="text-gray-500 text-sm">The calendar will display once a section is selected</p>
@@ -351,12 +581,12 @@ export default function SchedulePage() {
                   right: "",
                 }}
                 allDaySlot={false}
-                slotMinTime="07:00:00" // Change this from "06:00:00" to "07:00:00"
+                slotMinTime="07:00:00"
                 slotMaxTime="22:00:00"
                 events={calendarEvents}
                 eventClick={handleEventClick}
                 eventContent={renderEventContent}
-                height="100%"
+                height="auto"
                 slotDuration="00:20:00"
                 slotLabelFormat={{
                   hour: "numeric",
@@ -365,7 +595,7 @@ export default function SchedulePage() {
                   meridiem: "short",
                 }}
                 dayHeaderFormat={{ weekday: "short" }}
-                hiddenDays={[0]} // Hides Sunday
+                hiddenDays={[0]}
               />
             )}
           </div>
@@ -376,13 +606,14 @@ export default function SchedulePage() {
           isOpen={isNewScheduleModalOpen}
           onClose={() => setIsNewScheduleModalOpen(false)}
           onScheduleCreated={fetchSchedules}
+          selectedSection={selectedSection} // Add this line
         />
 
         <ViewScheduleModal
           isOpen={isViewScheduleModalOpen}
           onClose={() => setIsViewScheduleModalOpen(false)}
           schedule={selectedSchedule}
-          onScheduleDeleted={fetchSchedules}  // Make sure this line is included
+          onScheduleDeleted={fetchSchedules} // Make sure this line is included
         />
 
         <PreviewPDFModal
@@ -407,7 +638,7 @@ export default function SchedulePage() {
   )
 }
 function renderEventContent(eventInfo) {
-  const schedule = eventInfo.event.extendedProps.schedule;
+  const schedule = eventInfo.event.extendedProps.schedule
 
   return (
     <div
@@ -418,32 +649,26 @@ function renderEventContent(eventInfo) {
         overflow: "hidden",
       }}
     >
-      <div className="mb-2">{schedule.timeFrom} - {schedule.timeTo}</div>
-
-      <div
-        className="mb-1"
-        style={{ fontWeight: "700", fontSize: "0.85rem" }}
-      >
-        {schedule.subject?.subjectCode || 'N/A'}
+      <div className="mb-2">
+        {schedule.timeFrom} - {schedule.timeTo}
       </div>
 
-      <div className="mb-1"
-        style={{ fontWeight: "400", fontSize: "0.65rem" }}
-      >
-        {schedule.subject?.subjectName || 'N/A'}
+      <div className="mb-1" style={{ fontWeight: "700", fontSize: "0.85rem" }}>
+        {schedule.subject?.subjectCode || "N/A"}
       </div>
 
-      <div className="mb-1"
-        style={{ fontWeight: "600", fontSize: "0.75rem" }}
-      >
-        {schedule.room?.roomCode || 'Room N/A'}
+      <div className="mb-1" style={{ fontWeight: "400", fontSize: "0.65rem" }}>
+        {schedule.subject?.subjectName || "N/A"}
       </div>
 
-      <div style={{ fontWeight: "600", fontSize: "0.75rem" }}>
-        {schedule.faculty ? `${schedule.faculty.firstName[0]}.${' ' + schedule.faculty.lastName}` : 'TBA (To Be Assigned)'}
+      <div className="mb-1" style={{ fontWeight: "600", fontSize: "0.75rem" }}>
+        {schedule.room?.roomCode || "Room N/A"}
       </div>
+
+      <div style={{ fontWeight: "600", fontSize: "0.75rem" }}></div>
+      {schedule.faculty
+        ? `${schedule.faculty.firstName[0]}.${" " + schedule.faculty.lastName}`
+        : "TBA (To Be Assigned)"}
     </div>
-  );
+  )
 }
-
-

@@ -15,7 +15,8 @@ export default function NewScheduleModal({
   onClose,
   onScheduleCreated,
   editMode = false,
-  scheduleData = null
+  scheduleData = null,
+  selectedSection = '' // Add this line
 }) {
   const { user } = useAuthStore();
   const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -228,6 +229,22 @@ export default function NewScheduleModal({
       fetchData();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && selectedSection && formData.sections.length > 0) {
+      // Find the section object that matches the selected section name
+      const sectionObject = formData.sections.find(
+        section => section.sectionName === selectedSection
+      );
+      
+      if (sectionObject) {
+        setSelectedValues(prev => ({
+          ...prev,
+          section: sectionObject._id
+        }));
+      }
+    }
+  }, [isOpen, selectedSection, formData.sections]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
