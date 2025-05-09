@@ -139,13 +139,16 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
       const termSubjects =
         editData.subjects
           ?.filter((subj) => subj?.term === Number.parseInt(term))
-          ?.map((subj) => subj?.subject?._id)
+          ?.map((subj) => ({
+            subjectId: subj?.subject?._id,
+            hours: subj?.hours?.toString() || ""
+          }))
           ?.filter(Boolean) || []
 
       setFormData((prev) => ({
         ...prev,
         term,
-        subjects: termSubjects,
+        subjectAssignments: termSubjects
       }))
     } else {
       setFormData((prev) => ({ ...prev, term }))
@@ -159,24 +162,31 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
           const termSubjects =
             editData.subjects
               ?.filter((subj) => subj?.term === Number.parseInt(editData.term))
-              ?.map((subj) => subj?.subject?._id)
-              ?.filter(Boolean) || []
+              ?.map((subj) => ({
+                subjectId: subj?.subject?._id,
+                hours: subj?.hours?.toString() || ""
+              }))
+              ?.filter((item) => item.subjectId && item.hours) || []
 
           const initialFormData = {
             yearLevel: `${editData.yearLevel} Year`,
             term: editData.term?.toString() || "",
             classes: editData.classId ? [editData.classId._id] : [],
-            subjectAssignments: termSubjects.map((subjectId) => ({ subjectId, hours: "" })),
+            subjectAssignments: termSubjects
           }
-          setFormData(initialFormData)
 
           if (initialFormData.yearLevel) {
             const classes = await getClasses(initialFormData.yearLevel)
             setAvailableClasses(classes || [])
           }
 
-          const subjects = await getSubjects()
+          // Fetch subjects first before setting form data
+          const subjects = await getSubjects(editData.classId?.course?.department?._id)
           setAvailableSubjects(subjects || [])
+          setAllSubjects(subjects || [])
+
+          // Set form data after subjects are loaded
+          setFormData(initialFormData)
         } catch (error) {
           console.error("Error loading edit data:", error)
           setFormData({
@@ -571,7 +581,8 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                                         placeholder="Hours"
                                         className="block text-black w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
                                         required
-                                        min="1"
+                                        min="0"
+                                        step="0.001"
                                       />
                                     </td>
                                     <td className="px-4 py-3 text-right">
