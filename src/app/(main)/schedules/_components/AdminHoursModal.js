@@ -6,8 +6,9 @@ import { XMarkIcon, TrashIcon, PencilSquareIcon } from '@heroicons/react/24/outl
 import Select from 'react-select';
 import moment from 'moment';
 import Swal from 'sweetalert2';
-import { saveAdminHours, getAdminHours, getFullTimeUsers, getActiveTerm, cancelAdminHours } from '../_actions/index';
+import { saveAdminHours, getAdminHours, editAdminHours, getFullTimeUsers, getActiveTerm, cancelAdminHours } from '../_actions/index';
 import { AdminHoursModalSkeleton } from './Skeleton';
+import { pusherClient } from '@/utils/pusher';
 
 const DAYS = [
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
@@ -48,6 +49,7 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
     const [totalHours, setTotalHours] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
     const [termInfo, setTermInfo] = useState(null);
+    const [editingSlot, setEditingSlot] = useState(null);
 
     const isAdmin = currentUser?.role === 'Administrator';
     const isDean = currentUser?.role === 'Dean';
@@ -102,6 +104,30 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
         }
     }, [isOpen, termId]);
 
+    useEffect(() => {
+        if (!isOpen || !selectedUser) return;
+
+        const channel = pusherClient.subscribe('admin-hours');
+
+        channel.bind('request-updated', (data) => {
+            // Update existing slots if they match current user
+            if (data.request.user._id === selectedUser._id) {
+                const updatedSlots = data.request.slots.map(slot => ({
+                    ...slot,
+                    status: slot.status || 'pending',
+                    adminHoursId: data.request._id
+                }));
+                setExistingSlots(updatedSlots);
+            }
+        });
+
+        // Cleanup subscription
+        return () => {
+            channel.unbind_all();
+            pusherClient.unsubscribe('admin-hours');
+        };
+    }, [isOpen, selectedUser]);
+
     if (!currentUser) {
         return null;
     }
@@ -126,6 +152,7 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
         setSlots([]);
         setExistingSlots([]);
         setTotalHours(0);
+        setEditingSlot(null);
         onClose();
     };
 
@@ -164,17 +191,18 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
             const { hours, error } = await getAdminHours(selectedUser._id, termId);
             if (error) throw new Error(error);
             
-            // Only set the existing approved/pending slots in the display section
             if (hours && hours.slots) {
-                const existingSlots = hours.slots.map(slot => ({
+                const activeSlots = hours.slots.filter(slot => 
+                    ['pending', 'approved', 'rejected'].includes(slot.status)
+                ).map(slot => ({
                     ...slot,
-                    status: hours.status || 'pending',
-                    adminHoursId: hours._id // Add the admin hours record ID
+                    adminHoursId: hours._id
                 }));
-                setExistingSlots(existingSlots);
+                setExistingSlots(activeSlots);
+            } else {
+                setExistingSlots([]);
             }
             
-            // Keep the slots for new entries empty
             setSlots([]);
         } catch (error) {
             console.error('Error loading admin hours:', error);
@@ -220,45 +248,80 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
         setSlots(newSlots);
     };
 
+    const handleEdit = async (adminHoursId, slot) => {
+        setEditingSlot({
+            adminHoursId,
+            slotId: slot._id,
+            day: slot.day,
+            startTime: slot.startTime,
+            endTime: slot.endTime
+        });
+
+        // Add a single slot to the slots array for editing
+        setSlots([{
+            day: slot.day,
+            startTime: slot.startTime,
+            endTime: slot.endTime
+        }]);
+    };
+
     const handleSave = async () => {
         try {
             if (!validateTerm()) return;
 
-            if (!selectedUser) {
-                throw new Error('Please select a user');
-            }
-
-            console.log('Using Term ID:', termId); // Debug log
-
-            if (totalHours > maxHours) {
-                throw new Error(`Total hours cannot exceed ${maxHours}`);
-            }
-
-            const invalidSlots = slots.filter(slot => !slot.day || !slot.startTime || !slot.endTime);
-            if (invalidSlots.length > 0) {
-                throw new Error('Please fill in all time slot details');
-            }
-
             setIsLoading(true);
-            const response = await saveAdminHours(
-                selectedUser._id,
-                termId,
-                slots,
-                currentUser._id,
-                currentUser.role
-            );
 
-            if (response.error) {
-                throw new Error(response.error);
+            if (editingSlot) {
+                // Handle edit mode
+                const response = await editAdminHours(
+                    editingSlot.adminHoursId,
+                    editingSlot.slotId,
+                    slots[0] // We only allow editing one slot at a time
+                );
+
+                if (response.error) {
+                    throw new Error(response.error);
+                }
+            } else {
+                // Handle new submission mode
+                if (!selectedUser) {
+                    throw new Error('Please select a user');
+                }
+
+                console.log('Using Term ID:', termId); // Debug log
+
+                if (totalHours > maxHours) {
+                    throw new Error(`Total hours cannot exceed ${maxHours}`);
+                }
+
+                const invalidSlots = slots.filter(slot => !slot.day || !slot.startTime || !slot.endTime);
+                if (invalidSlots.length > 0) {
+                    throw new Error('Please fill in all time slot details');
+                }
+
+                const response = await saveAdminHours(
+                    selectedUser._id,
+                    termId,
+                    slots,
+                    currentUser._id,
+                    currentUser.role
+                );
+
+                if (response.error) {
+                    throw new Error(response.error);
+                }
             }
+
+            await loadExistingHours();
+            setEditingSlot(null);
+            setSlots([]);
 
             Swal.fire({
                 icon: 'success',
                 title: 'Success',
-                text: 'Admin hours saved successfully',
+                text: editingSlot ? 'Admin hours updated successfully' : 'Admin hours saved successfully',
                 confirmButtonColor: '#323E8F'
             });
-            handleClose();
         } catch (error) {
             console.error('Save error:', error);
             Swal.fire({
@@ -444,7 +507,7 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
                                                                                         {slot.status === 'pending' && (
                                                                                             <>
                                                                                                 <button
-                                                                                                    onClick={() => handleEdit(slot.adminHoursId)}
+                                                                                                    onClick={() => handleEdit(slot.adminHoursId, slot)}
                                                                                                     className="text-blue-600 hover:text-blue-800"
                                                                                                 >
                                                                                                     <PencilSquareIcon className="h-4 w-4" />
@@ -478,7 +541,7 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
                                                 <div className="mt-6 bg-white rounded-lg border border-gray-200">
                                                     <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
                                                         <h4 className="text-base font-semibold text-gray-900">
-                                                            Add New Admin Hours
+                                                            {editingSlot ? 'Edit Admin Hours' : 'Add New Admin Hours'}
                                                         </h4>
                                                     </div>
                                                     <div className="p-4">
@@ -543,13 +606,15 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
                                                         </div>
 
                                                         <div className="flex justify-between items-center pt-4">
-                                                            <button
-                                                                type="button"
-                                                                onClick={handleAddSlot}
-                                                                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-[#323E8F] hover:bg-[#35408E]"
-                                                            >
-                                                                Add New Row
-                                                            </button>
+                                                            {!editingSlot && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={handleAddSlot}
+                                                                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-[#323E8F] hover:bg-[#35408E]"
+                                                                >
+                                                                    Add New Row
+                                                                </button>
+                                                            )}
                                                             <div className="text-sm font-medium text-gray-900">
                                                                 Total Admin Hours: {totalHours} / {maxHours}
                                                             </div>
@@ -564,7 +629,7 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
                                                         onClick={handleSave}
                                                         disabled={isLoading}
                                                     >
-                                                        {isLoading ? 'Saving...' : 'Save'}
+                                                        {isLoading ? 'Saving...' : editingSlot ? 'Update' : 'Save'}
                                                     </button>
                                                     <button
                                                         type="button"

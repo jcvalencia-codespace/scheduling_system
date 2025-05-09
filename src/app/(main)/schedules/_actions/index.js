@@ -309,3 +309,18 @@ export async function getAdminHourRequests(filter = 'pending') {
     return { error: error.message };
   }
 }
+
+export async function editAdminHours(adminHoursId, slotId, updatedData) {
+  try {
+    const result = await adminHoursModel.editAdminHours(
+      adminHoursId,
+      slotId,
+      updatedData
+    );
+    
+    return { success: true, hours: JSON.parse(JSON.stringify(result)) };
+  } catch (error) {
+    console.error('Error editing admin hours:', error);
+    return { error: error.message };
+  }
+}

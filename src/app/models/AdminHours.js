@@ -82,13 +82,13 @@ class AdminHoursModel {
           throw new Error(`Schedule conflict found for ${slot.day} at ${slot.startTime}-${slot.endTime}`);
         }
 
-        // Check for admin hours conflicts
+        // Modified: Only check conflicts with approved or pending admin hours
         const adminHoursConflicts = await AdminHours.find({
           user: userId,
           term: termObjectId,
           isActive: true,
           'slots.day': slot.day,
-          'slots.status': { $in: ['pending', 'approved'] },
+          'slots.status': { $in: ['pending', 'approved'] }, // Only check pending and approved slots
           $or: [{
             $and: [
               { 'slots.startTime': { $lte: slot.startTime } },
@@ -102,16 +102,35 @@ class AdminHoursModel {
           }]
         });
 
-        if (adminHoursConflicts.length > 0) {
+        // Filter to only count conflicts with non-rejected slots
+        const actualConflicts = adminHoursConflicts.filter(ah => 
+          ah.slots.some(s => 
+            s.day === slot.day && 
+            s.status !== 'rejected' && 
+            ((s.startTime <= slot.startTime && s.endTime > slot.startTime) ||
+             (s.startTime < slot.endTime && s.endTime >= slot.endTime))
+          )
+        );
+
+        if (actualConflicts.length > 0) {
           throw new Error(`Admin hours conflict found for ${slot.day} at ${slot.startTime}-${slot.endTime}`);
         }
       }
 
-      // Find existing admin hours document
-      let adminHours = await AdminHours.findOne({
-        user: userId,
-        term: termObjectId
-      });
+      // Find approvers (Administrators and Deans) with debug logging
+      console.log('Finding approvers with new query...');
+      const approvers = await this.USER_MODEL.find({
+        role: { $in: ['Administrator', 'Dean'] },
+        isActive: { $ne: false }, // Add this to ensure we get active users
+        _id: { $ne: userId } // Exclude the requester
+      }).select('_id firstName lastName email role');
+
+      console.log('Found approvers:', JSON.stringify(approvers, null, 2));
+
+      // Check if we found any approvers
+      if (approvers.length === 0) {
+        console.warn('No eligible approvers found. Check user roles in the database.');
+      }
 
       // Determine if approval is needed
       const needsApproval = !(
@@ -119,6 +138,8 @@ class AdminHoursModel {
         role === 'Dean' || 
         (role === 'Dean' && userId === creatorId)
       );
+
+      console.log('Needs approval:', needsApproval);
 
       // Prepare new slots with status
       const preparedNewSlots = newSlots.map(slot => ({
@@ -128,6 +149,12 @@ class AdminHoursModel {
         approvalDate: !needsApproval ? new Date() : undefined,
         createdAt: new Date()
       }));
+
+      // Find existing admin hours document
+      let adminHours = await AdminHours.findOne({
+        user: userId,
+        term: termObjectId
+      });
 
       if (!adminHours) {
         // Create new document if none exists
@@ -152,9 +179,9 @@ class AdminHoursModel {
         );
       }
 
-      // Get populated result
+      // Get populated result with better population
       const populatedResult = await AdminHours.findById(adminHours._id)
-        .populate({
+        .populate([{
           path: 'user',
           select: 'firstName lastName department',
           model: 'Users',
@@ -163,7 +190,45 @@ class AdminHoursModel {
             model: 'Departments',
             select: 'departmentCode'
           }
-        });
+        }, {
+          path: 'createdBy',
+          select: 'firstName lastName',
+          model: 'Users'
+        }]);
+
+      // Send notifications to approvers if approval is needed
+      if (needsApproval && approvers.length > 0) {
+        console.log('Creating notifications for approvers...');
+        
+        // Format slots for notification message
+        const slotsDescription = newSlots.map(slot => 
+          `${slot.day} (${slot.startTime} - ${slot.endTime})`
+        ).join('\n');
+
+        // Calculate total hours
+        const totalHours = newSlots.reduce((acc, slot) => {
+          const start = moment(slot.startTime, 'h:mm A');
+          const end = moment(slot.endTime, 'h:mm A');
+          return acc + (end.diff(start, 'minutes') / 60);
+        }, 0).toFixed(1);
+
+        // Create notifications for each approver
+        for (const approver of approvers) {
+          console.log(`Creating notification for approver: ${approver._id}`);
+          
+          try {
+            await createNotification({
+              userId: approver._id,
+              title: 'Admin Hours Request Requires Review',
+              message: `${populatedResult.user.firstName} ${populatedResult.user.lastName} (${populatedResult.user.department.departmentCode}) has submitted new admin hours request.\n\nTime slots:\n${slotsDescription}\n\nTotal hours: ${totalHours}`,
+              type: 'info'
+            });
+            console.log(`Successfully created notification for approver: ${approver._id}`);
+          } catch (notifError) {
+            console.error(`Failed to create notification for approver ${approver._id}:`, notifError);
+          }
+        }
+      }
 
       // Trigger Pusher event
       await pusherServer.trigger('admin-hours', 'new-request', {
@@ -288,6 +353,58 @@ class AdminHoursModel {
     } catch (error) {
       console.error('Error in cancelAdminHours:', error);
       throw error;
+    }
+  }
+
+  async editAdminHours(adminHoursId, slotId, updatedData) {
+    try {
+      const AdminHours = await this.initModel();
+
+      // Find the admin hours document and the specific slot
+      const adminHours = await AdminHours.findOne({
+        _id: adminHoursId,
+        'slots._id': slotId,
+        'slots.status': 'pending' // Only allow editing pending slots
+      });
+
+      if (!adminHours) {
+        throw new Error('Admin hours record not found or slot is not in pending status');
+      }
+
+      // Update the specific slot
+      const result = await AdminHours.findOneAndUpdate(
+        { 
+          _id: adminHoursId,
+          'slots._id': slotId
+        },
+        {
+          $set: {
+            'slots.$.day': updatedData.day,
+            'slots.$.startTime': updatedData.startTime,
+            'slots.$.endTime': updatedData.endTime,
+          }
+        },
+        { new: true }
+      ).populate({
+        path: 'user',
+        select: 'firstName lastName department',
+        model: 'Users',
+        populate: {
+          path: 'department',
+          model: 'Departments',
+          select: 'departmentCode'
+        }
+      });
+
+      // Trigger Pusher event for updated request
+      await pusherServer.trigger('admin-hours', 'request-updated', {
+        request: JSON.parse(JSON.stringify(result))
+      });
+
+      return result;
+    } catch (error) {
+      console.error('Error editing admin hours:', error);
+      throw new Error('Failed to edit admin hours');
     }
   }
 
