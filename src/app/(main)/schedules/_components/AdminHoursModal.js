@@ -9,6 +9,7 @@ import {
   ClockIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  PlusIcon,
 } from "@heroicons/react/24/outline"
 import Select from "react-select"
 import moment from "moment"
@@ -29,7 +30,7 @@ const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
   label: day,
 }))
 
-const TIME_OPTIONS = Array.from({ length: 30 }, (_, i) => {
+const TIME_OPTIONS = Array.from({ length: 45 }, (_, i) => {
   const time = moment()
     .startOf("day")
     .add(7, "hours")
@@ -51,6 +52,7 @@ const calculateDuration = (startTime, endTime) => {
 const selectStyles = {
   control: (base) => ({
     ...base,
+    
     borderRadius: "0.5rem",
     borderColor: "#e2e8f0",
     boxShadow: "none",
@@ -119,14 +121,21 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
 
   useEffect(() => {
     if (isOpen && selectedUser && termId) {
-      setIsLoading(true)
-      loadExistingHours().finally(() => {
-        setIsLoading(false)
-      })
+      setIsLoading(true);
+      loadExistingHours()
+        .then(() => {
+          console.log('Initial admin hours loaded');
+        })
+        .catch(error => {
+          console.error('Error loading initial admin hours:', error);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
     } else if (!isOpen) {
-      resetForm()
+      resetForm();
     }
-  }, [isOpen, selectedUser, termId])
+  }, [isOpen, selectedUser, termId]);
 
   useEffect(() => {
     setTotalHours(calculateTotalHours(slots))
@@ -151,28 +160,34 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
   }, [isOpen, termId])
 
   useEffect(() => {
-    if (!isOpen || !selectedUser) return
+    if (!isOpen || !selectedUser) return;
 
-    const channel = pusherClient.subscribe("admin-hours")
+    const channel = pusherClient.subscribe("admin-hours");
 
-    channel.bind("request-updated", (data) => {
-      // Update existing slots if they match current user
+    // Handle new requests
+    channel.bind("new-request", (data) => {
       if (data.request.user._id === selectedUser._id) {
-        const updatedSlots = data.request.slots.map((slot) => ({
-          ...slot,
-          status: slot.status || "pending",
-          adminHoursId: data.request._id,
-        }))
-        setExistingSlots(updatedSlots)
+        handleRealTimeUpdate(data.request);
       }
-    })
+    });
 
-    // Cleanup subscription
+    // Handle request updates (approvals, rejections, edits)
+    channel.bind("request-updated", (data) => {
+      if (data.request.user._id === selectedUser._id) {
+        handleRealTimeUpdate(data.request);
+        // Clear editing state if the edited slot was updated
+        if (editingSlot && data.request.slots.some(slot => slot._id === editingSlot.slotId)) {
+          setEditingSlot(null);
+          setSlots([]);
+        }
+      }
+    });
+
     return () => {
-      channel.unbind_all()
-      pusherClient.unsubscribe("admin-hours")
-    }
-  }, [isOpen, selectedUser])
+      channel.unbind_all();
+      pusherClient.unsubscribe("admin-hours");
+    };
+  }, [isOpen, selectedUser, editingSlot]);
 
   if (!currentUser) {
     return null
@@ -231,32 +246,32 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
 
   const loadExistingHours = async () => {
     try {
-      const { hours, error } = await getAdminHours(selectedUser._id, termId)
-      if (error) throw new Error(error)
+      const { hours, error } = await getAdminHours(selectedUser._id, termId);
+      if (error) throw new Error(error);
 
       if (hours && hours.slots) {
         const activeSlots = hours.slots
-          .filter((slot) => ["pending", "approved", "rejected"].includes(slot.status))
-          .map((slot) => ({
+          .filter(slot => ["pending", "approved", "rejected"].includes(slot.status))
+          .map(slot => ({
             ...slot,
-            adminHoursId: hours._id,
+            adminHoursId: hours._id
           }))
-        setExistingSlots(activeSlots)
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        
+        setExistingSlots(activeSlots);
       } else {
-        setExistingSlots([])
+        setExistingSlots([]);
       }
-
-      setSlots([])
     } catch (error) {
-      console.error("Error loading admin hours:", error)
+      console.error("Error loading admin hours:", error);
       Swal.fire({
         icon: "error",
         title: "Error",
         text: "Failed to load existing admin hours",
         confirmButtonColor: "#4f46e5",
-      })
+      });
     }
-  }
+  };
 
   const handleAddSlot = () => {
     setSlots([...slots, { day: "", startTime: "", endTime: "" }])
@@ -290,87 +305,115 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
     setSlots(newSlots)
   }
 
-  const handleEdit = async (adminHoursId, slot) => {
+  const handleEdit = (adminHoursId, slot) => {
     setEditingSlot({
       adminHoursId,
       slotId: slot._id,
       day: slot.day,
       startTime: slot.startTime,
       endTime: slot.endTime,
-    })
+    });
 
-    // Add a single slot to the slots array for editing
     setSlots([
       {
         day: slot.day,
         startTime: slot.startTime,
         endTime: slot.endTime,
       },
-    ])
-  }
+    ]);
+  };
+
+  const handleRealTimeUpdate = (updatedRequest) => {
+    const newSlots = updatedRequest.slots.map(slot => ({
+      ...slot,
+      adminHoursId: updatedRequest._id
+    }));
+
+    setExistingSlots(prev => {
+      // Remove any slots that match the updated request's slots
+      const existingFiltered = prev.filter(existing => 
+        !newSlots.some(newSlot => 
+          newSlot._id === existing._id || 
+          newSlot.adminHoursId === existing.adminHoursId
+        )
+      );
+
+      // Combine and sort all slots
+      return [...newSlots, ...existingFiltered]
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    });
+  };
 
   const handleSave = async () => {
     try {
-      if (!validateTerm()) return
-
-      setIsLoading(true)
+      if (!validateTerm()) return;
+      setIsLoading(true);
 
       if (editingSlot) {
-        // Handle edit mode
         const response = await editAdminHours(
           editingSlot.adminHoursId,
           editingSlot.slotId,
-          slots[0] // We only allow editing one slot at a time
-        )
+          slots[0]
+        );
 
-        if (response.error) {
-          throw new Error(response.error)
-        }
+        if (response.error) throw new Error(response.error);
       } else {
         if (!selectedUser) {
-          throw new Error("Please select a user")
+          throw new Error("Please select a user");
         }
-
-        console.log("Using Term ID:", termId) // Debug log
 
         if (totalHours > maxHours) {
-          throw new Error(`Total hours cannot exceed ${maxHours}`)
+          throw new Error(`Total hours cannot exceed ${maxHours}`);
         }
 
-        const invalidSlots = slots.filter((slot) => !slot.day || !slot.startTime || !slot.endTime)
+        const invalidSlots = slots.filter((slot) => !slot.day || !slot.startTime || !slot.endTime);
         if (invalidSlots.length > 0) {
-          throw new Error("Please fill in all time slot details")
+          throw new Error("Please fill in all time slot details");
         }
 
-        const response = await saveAdminHours(selectedUser._id, termId, slots, currentUser._id, currentUser.role)
+        const response = await saveAdminHours(selectedUser._id, termId, slots, currentUser._id, currentUser.role);
+        if (response.error) throw new Error(response.error);
 
-        if (response.error) {
-          throw new Error(response.error)
+        // Update existing slots immediately with the new data
+        if (response.hours) {
+          const newSlots = response.hours.slots.map(slot => ({
+            ...slot,
+            adminHoursId: response.hours._id
+          }));
+          setExistingSlots(prev => {
+            const existingFiltered = prev.filter(existing => 
+              !newSlots.some(newSlot => 
+                newSlot._id === existing._id
+              )
+            );
+            return [...newSlots, ...existingFiltered]
+              .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          });
         }
       }
 
-      await loadExistingHours()
-      // Clear everything including user selection after successful save
-      resetForm(true)
+      // Clear the form
+      setSlots([]);
+      setEditingSlot(null);
 
       Swal.fire({
         icon: "success",
         title: "Success",
         text: editingSlot ? "Admin hours updated successfully" : "Admin hours saved successfully",
         confirmButtonColor: "#4f46e5",
-      })
+      });
     } catch (error) {
-      console.error("Save error:", error)
+      console.error("Save error:", error);
       Swal.fire({
         icon: "error",
         title: "Error",
         text: error.message,
         confirmButtonColor: "#4f46e5",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleCancelRequest = async (adminHoursId) => {
     try {
@@ -733,121 +776,152 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
                           </div>
                           <div className="p-6">
                             {slots.length > 0 ? (
-                              <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-gray-200 rounded-lg overflow-hidden">
-                                  <thead>
-                                    <tr>
-                                      <th className="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
-                                        Day
-                                      </th>
-                                      <th className="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
-                                        Start Time
-                                      </th>
-                                      <th className="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
-                                        End Time
-                                      </th>
-                                      <th className="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
-                                        Duration
-                                      </th>
-                                      <th className="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
-                                        Action
-                                      </th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="bg-white divide-y divide-gray-200">
-                                    {slots.map((slot, index) => (
-                                      <tr key={index} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-4 py-3">
-                                          <Select
-                                            options={DAYS}
-                                            value={DAYS.find((d) => d.value === slot.day)}
-                                            onChange={(option) => handleSlotChange(index, "day", option.value)}
-                                            className="w-full"
-                                            menuPlacement="auto"
-                                            styles={{
-                                              ...selectStyles,
-                                              container: (base) => ({
-                                                ...base,
-                                                width: "100%",
-                                                minWidth: "120px",
-                                              }),
-                                            }}
-                                          />
-                                        </td>
-                                        <td className="px-4 py-3">
-                                          <Select
-                                            options={TIME_OPTIONS}
-                                            value={TIME_OPTIONS.find((t) => t.value === slot.startTime)}
-                                            onChange={(option) => handleSlotChange(index, "startTime", option.value)}
-                                            className="w-full"
-                                            menuPlacement="auto"
-                                            styles={{
-                                              ...selectStyles,
-                                              container: (base) => ({
-                                                ...base,
-                                                width: "100%",
-                                                minWidth: "120px",
-                                              }),
-                                            }}
-                                          />
-                                        </td>
-                                        <td className="px-4 py-3">
-                                          <Select
-                                            options={TIME_OPTIONS}
-                                            value={TIME_OPTIONS.find((t) => t.value === slot.endTime)}
-                                            onChange={(option) => handleSlotChange(index, "endTime", option.value)}
-                                            className="w-full"
-                                            menuPlacement="auto"
-                                            styles={{
-                                              ...selectStyles,
-                                              container: (base) => ({
-                                                ...base,
-                                                width: "100%",
-                                                minWidth: "120px",
-                                              }),
-                                            }}
-                                          />
-                                        </td>
-                                        <td className="px-4 py-3 text-sm font-medium text-gray-900 text-center">
-                                          {slot.startTime && slot.endTime
-                                            ? `${calculateDuration(slot.startTime, slot.endTime)} hrs`
-                                            : "-"}
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                          <button
-                                            onClick={() => handleDeleteSlot(index)}
-                                            className="text-red-600 hover:text-red-800 transition-colors p-1 rounded-full hover:bg-red-50"
-                                          >
-                                            <TrashIcon className="h-5 w-5" />
-                                          </button>
-                                        </td>
+                              <div className="relative">
+                                <div className="overflow-x-auto">
+                                  <table className="w-full table-fixed">
+                                    <thead>
+                                      <tr>
+                                        <th className="w-[25%] px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                          Day
+                                        </th>
+                                        <th className="w-[25%] px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                          Start Time
+                                        </th>
+                                        <th className="w-[25%] px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                          End Time
+                                        </th>
+                                        <th className="w-[15%] px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                          Duration
+                                        </th>
+                                        <th className="w-[10%] px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                          Action
+                                        </th>
                                       </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                      {slots.map((slot, index) => (
+                                        <tr key={index} className="hover:bg-gray-50 transition-colors">
+                                          <td className="p-4">
+                                            <div className="relative">
+                                              <Select
+                                                options={DAYS}
+                                                value={DAYS.find((d) => d.value === slot.day)}
+                                                onChange={(option) => handleSlotChange(index, "day", option.value)}
+                                                className="z-[60]"
+                                                classNamePrefix="select"
+                                                menuPlacement="auto"
+                                                menuPortalTarget={document.body}
+                                                styles={{
+                                                  ...selectStyles,
+                                                  menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                                                  control: (base) => ({
+                                                    ...base,
+                                                    maxHeight: '42px',
+                                                    background: '#fff'
+                                                  })
+                                                }}
+                                              />
+                                            </div>
+                                          </td>
+                                          <td className="p-4">
+                                            <div className="relative">
+                                              <Select
+                                                options={TIME_OPTIONS}
+                                                value={TIME_OPTIONS.find((t) => t.value === slot.startTime)}
+                                                onChange={(option) => handleSlotChange(index, "startTime", option.value)}
+                                                className="z-[60]"
+                                                classNamePrefix="select"
+                                                menuPlacement="auto"
+                                                menuPortalTarget={document.body}
+                                                styles={{
+                                                  ...selectStyles,
+                                                  menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                                                  control: (base) => ({
+                                                    ...base,
+                                                    minHeight: '42px',
+                                                    background: '#fff'
+                                                  })
+                                                }}
+                                              />
+                                            </div>
+                                          </td>
+                                          <td className="p-4">
+                                            <div className="relative">
+                                              <Select
+                                                options={TIME_OPTIONS}
+                                                value={TIME_OPTIONS.find((t) => t.value === slot.endTime)}
+                                                onChange={(option) => handleSlotChange(index, "endTime", option.value)}
+                                                className="z-[60]"
+                                                classNamePrefix="select"
+                                                menuPlacement="auto"
+                                                menuPortalTarget={document.body}
+                                                styles={{
+                                                  ...selectStyles,
+                                                  menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                                                  control: (base) => ({
+                                                    ...base,
+                                                    minHeight: '42px',
+                                                    background: '#fff'
+                                                  })
+                                                }}
+                                              />
+                                            </div>
+                                          </td>
+                                          <td className="p-4 text-sm font-medium text-gray-900">
+                                            {slot.startTime && slot.endTime
+                                              ? `${calculateDuration(slot.startTime, slot.endTime)} hrs`
+                                              : "-"}
+                                          </td>
+                                          <td className="p-4 text-center">
+                                            <button
+                                              onClick={() => handleDeleteSlot(index)}
+                                              className="inline-flex items-center p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
+                                              title="Delete slot"
+                                            >
+                                              <TrashIcon className="h-5 w-5" />
+                                            </button>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
                               </div>
                             ) : (
-                              <div className="text-center py-6 text-gray-500">
-                                No time slots added yet. Click "Add New Row" to begin.
+                              <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                                <ClockIcon className="mx-auto h-12 w-12 text-gray-400" />
+                                <h3 className="mt-2 text-sm font-semibold text-gray-900">No time slots</h3>
+                                <p className="mt-1 text-sm text-gray-500">Add a new time slot to begin</p>
+                                <div className="mt-6">
+                                  <button
+                                    type="button"
+                                    onClick={handleAddSlot}
+                                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                                  >
+                                    <PlusIcon className="h-5 w-5 mr-2" aria-hidden="true" />
+                                    Add New Row
+                                  </button>
+                                </div>
                               </div>
                             )}
 
-                            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6">
-                              {!editingSlot && (
+                            {slots.length > 0 && (
+                              <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4 border-t border-gray-200 pt-6">
                                 <button
                                   type="button"
                                   onClick={handleAddSlot}
-                                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
                                 >
-                                  Add New Row
+                                  <PlusIcon className="h-5 w-5 mr-2" aria-hidden="true" />
+                                  Add Another Row
                                 </button>
-                              )}
-                              <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 rounded-lg">
-                                <span className="text-sm font-medium text-indigo-700">Total Admin Hours:</span>
-                                <span className="text-lg font-bold text-indigo-700">{totalHours}</span>
-                                <span className="text-sm text-indigo-500">/ {maxHours}</span>
+                                <div className="flex items-center gap-3 px-4 py-2 bg-indigo-50 rounded-lg">
+                                  <span className="text-sm font-medium text-indigo-700">Total Hours:</span>
+                                  <span className="text-lg font-bold text-indigo-700">{totalHours}</span>
+                                  <span className="text-sm text-indigo-500">/ {maxHours}</span>
+                                </div>
                               </div>
-                            </div>
+                            )}
                           </div>
                         </div>
                       </div>

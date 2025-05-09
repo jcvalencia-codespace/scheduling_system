@@ -300,9 +300,21 @@ export async function getFullTimeUsers() {
   }
 }
 
-export async function getAdminHourRequests(filter = 'pending') {
+export async function getAdminHourRequests(filter = 'pending', termId) {
   try {
-    const requests = await adminHoursModel.getRequests(filter);
+    // Enhanced termId validation
+    if (!termId || typeof termId !== 'string') {
+      console.error('Invalid or missing termId:', termId);
+      throw new Error('Valid Term ID is required');
+    }
+
+    // Ensure termId is a valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(termId)) {
+      console.error('Invalid ObjectId format for termId:', termId);
+      throw new Error('Invalid Term ID format');
+    }
+
+    const requests = await adminHoursModel.getRequests(filter, termId);
     return { requests: JSON.parse(JSON.stringify(requests)) };
   } catch (error) {
     console.error('Error fetching admin hour requests:', error);

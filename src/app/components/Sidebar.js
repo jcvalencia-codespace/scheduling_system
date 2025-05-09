@@ -51,6 +51,11 @@ const roleMenuItems = {
       icon: AcademicCapIcon
     },
     {
+      title: 'Admin Hours',
+      href: '/admin-hours',
+      icon: ClockIcon,
+    },
+    {
       title: 'Activity Logs',
       href: '/activity-logs',
       icon: ClipboardDocumentListIcon,

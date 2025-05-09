@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getAdminHourRequests, approveAdminHours } from '../schedules/_actions';
+import { getAdminHourRequests, approveAdminHours, getActiveTerm } from '../schedules/_actions';
 import useAuthStore from '@/store/useAuthStore';
 import moment from 'moment';
 import Swal from 'sweetalert2';
@@ -12,13 +12,13 @@ import AdminHoursSkeleton from './_components/Skeleton';
 export default function AdminHoursRequestPage() {
     const [requests, setRequests] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [activeTerm, setActiveTerm] = useState(null);
     const { user } = useAuthStore();
     const [filter, setFilter] = useState('pending'); // pending, approved, rejected, cancelled
 
     const setupPusherSubscription = () => {
         const channel = pusherClient.subscribe('admin-hours');
 
-        // Helper function to check if a request has slots matching current filter
         const hasMatchingSlots = (request) => {
             return request.slots.some(slot => slot.status === filter);
         };
@@ -30,16 +30,13 @@ export default function AdminHoursRequestPage() {
                 const existingIndex = currentRequests.findIndex(r => r._id === data.request._id);
                 
                 if (existingIndex >= 0) {
-                    // Only update if the request has slots matching the current filter
                     if (hasMatchingSlots(data.request)) {
                         currentRequests[existingIndex] = data.request;
                         return currentRequests;
                     }
-                    // Remove if no matching slots
                     return currentRequests.filter(r => r._id !== data.request._id);
                 }
                 
-                // Add new request if it has matching slots
                 if (hasMatchingSlots(data.request)) {
                     return [data.request, ...currentRequests];
                 }
@@ -54,10 +51,8 @@ export default function AdminHoursRequestPage() {
                 const currentRequests = [...prev];
                 const updatedRequest = data.request;
                 
-                // Remove any existing version of this request
                 const filteredRequests = currentRequests.filter(req => req._id !== updatedRequest._id);
                 
-                // Only add back if it has slots matching current filter
                 if (hasMatchingSlots(updatedRequest)) {
                     return [updatedRequest, ...filteredRequests];
                 }
@@ -92,18 +87,26 @@ export default function AdminHoursRequestPage() {
     const loadRequests = async () => {
         try {
             setIsLoading(true);
-            const { requests: adminHourRequests, error } = await getAdminHourRequests(filter);
+
+            const { term, error: termError } = await getActiveTerm();
+            if (termError) throw new Error(termError);
+            if (!term) throw new Error('No active term found');
+            
+            setActiveTerm(term);
+
+            // Ensure we're using term.id instead of term._id and it's a string
+            const termId = term.id?.toString() || term._id?.toString();
+            if (!termId) throw new Error('Invalid term ID');
+
+            const { requests: adminHourRequests, error } = await getAdminHourRequests(filter, termId);
             
             if (error) throw new Error(error);
             
-            // Filter requests to only include those with matching slot statuses
             const filteredRequests = adminHourRequests.filter(request => 
                 request.slots.some(slot => slot.status === filter)
             );
             
-            // Sort by most recent first
             const sortedRequests = filteredRequests.sort((a, b) => {
-                // Find the most recent slot for each request
                 const latestSlotA = a.slots.reduce((latest, slot) => 
                     (!latest || new Date(slot.createdAt) > new Date(latest.createdAt)) ? slot : latest
                 );
@@ -120,7 +123,7 @@ export default function AdminHoursRequestPage() {
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
-                text: 'Failed to load requests',
+                text: error.message || 'Failed to load requests',
                 confirmButtonColor: '#323E8F'
             });
         } finally {
@@ -152,7 +155,6 @@ export default function AdminHoursRequestPage() {
         }
     };
 
-    // Helper function to get status-specific messages
     const getStatusMessages = (status) => {
         const messages = {
             pending: {
@@ -181,7 +183,6 @@ export default function AdminHoursRequestPage() {
                 <div className="w-full bg-white rounded-xl shadow-lg overflow-hidden overflow-x border border-gray-200 p-6">
                     <h1 className="text-2xl font-bold mb-6 text-black">Admin Hours Requests</h1>
 
-                    {/* Filter Tabs */}
                     <div className="flex space-x-4 mb-6">
                         {['pending', 'approved', 'rejected', 'cancelled'].map((status) => (
                             <button
@@ -225,7 +226,7 @@ export default function AdminHoursRequestPage() {
                                     <tbody className="bg-white divide-y divide-gray-200">
                                         {requests.map((request) => (
                                             request.slots
-                                                .filter(slot => slot.status === filter) // Filter slots by current status
+                                                .filter(slot => slot.status === filter)
                                                 .map((slot) => (
                                                     <tr key={`${request._id}-${slot._id}`}>
                                                         <td className="px-6 py-4 whitespace-nowrap">
