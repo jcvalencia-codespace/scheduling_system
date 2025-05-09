@@ -1,127 +1,181 @@
-import { Document, Page, View, Text, StyleSheet, Image } from '@react-pdf/renderer';
-
-const styles = StyleSheet.create({
-  page: {
-    padding: 20,
-    backgroundColor: 'white',
-  },
-  header: {
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  // schoolName: {
-  //   fontSize: 14,
-  //   fontWeight: 'bold',
-  //   marginBottom: 2,
-  // },
-  title: {
-    fontSize: 14,
-    marginBottom: 3,
-    fontWeight: '900',
-    color: '#1a237e',
-  },
-  subtitle: {
-    fontSize: 8,
-    color: '#000',
-    marginBottom: 2,
-  },
-  table: {
-    display: 'table',
-    width: '100%',
-    borderStyle: 'solid',
-    borderWidth: 1,
-    borderColor: '#000',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    height: 15,
-    borderBottomWidth: 0, 
-    borderSpacing: 0,
-    borderCollapse: 'collapse',
-  },
-  tableCell: {
-    width: '14.28%',
-    padding: 0,
-    fontSize: 8,
-    borderRightWidth: 1,
-    borderRightColor: '#000',
-    borderBottomWidth: 1,
-    borderBottomColor: '#000',
-    textAlign: 'center',
-    margin: 0,
-  },
-  timeCell: {
-    width: '14.28%',
-    padding: 2,
-    fontSize: 9,
-    backgroundColor: '#f5f5f5',
-    borderRightWidth: 1,
-    borderRightColor: '#000',
-    borderBottomWidth: 1,
-    borderBottomColor: '#000',
-    textAlign: 'center',
-    justifyContent: 'center',
-  },
-  headerCell: {
-    width: '14.28%',
-    padding: 3,
-    fontSize: 8,
-    backgroundColor: '#1a237e',
-    color: 'white',
-    fontWeight: 'bold',
-    borderRightWidth: 1,
-    borderRightColor: '#000',
-    textAlign: 'center',
-    justifyContent: 'center',
-  },
-  scheduleCell: {
-    backgroundColor: '#FFD700',
-    borderBottomWidth: 0,
-    height: '100%',
-    padding: 0,
-    margin: 0,
-    borderStyle: 'solid',
-  },
-  lastScheduleCell: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#000000',
-    borderBottomStyle: 'solid'
-  },
-  scheduleContent: {
-    position: 'absolute', 
-    top: 0,
-    left: 0,
-    right: 0,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  scheduleText: {
-    fontSize: 8,
-    textAlign: 'center',
-    color: '#000000',
-    marginTop: 3,
-  },
-  timeRangeText: {
-    fontSize: 8,
-    textAlign: 'center',
-    color: '#000000',
-    marginTop: 3,
-    fontWeight: 'bold',
-  },
-  logo: {
-    width: 150,
-    marginBottom: 1,
-    alignSelf: 'center',
-  },
-});
+import { jsPDF } from "jspdf";
+import autoTable from 'jspdf-autotable';
 
 const SchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
-  // Filter schedules based on selectedSection
-  const filteredSchedules = schedules.filter(schedule => 
-    schedule.section?.sectionName === selectedSection
-  );
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    
+    // Center logo calculation
+    const pageWidth = doc.internal.pageSize.width;
+    const logoWidth = 40;
+    const logoX = (pageWidth - logoWidth) / 2;
+    
+    // Add centered logo with reduced size
+    doc.addImage('/logo-header.png', 'PNG', logoX, 5, logoWidth, 12);
+    
+    // Add header
+    doc.setFontSize(14);
+    doc.setTextColor(26, 35, 126);
+    doc.text('Class Schedule', doc.internal.pageSize.width / 2, 22, { align: 'center' });
+    
+    doc.setFontSize(8);
+    doc.setTextColor(0);
+    doc.text(`Schedule for: ${selectedSection}`, doc.internal.pageSize.width / 2, 28, { align: 'center' });
+    doc.text(`${activeTerm.term} - AY ${activeTerm.academicYear}`, doc.internal.pageSize.width / 2, 33, { align: 'center' });
+
+    // Generate time slots
+    const timeSlots = generateTimeSlots();
+    const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    
+    // Calculate rowspan for each schedule
+    const scheduleSpans = calculateScheduleSpans(timeSlots, weekDays);
+    
+    // Prepare table data with rowspans
+    const tableData = [];
+    timeSlots.forEach((time, timeIndex) => {
+      const row = [time];
+      
+      weekDays.forEach((day, dayIndex) => {
+        const schedule = getScheduleForTimeAndDay(time, day);
+        const slot = getSlotForTimeAndDay(schedule, time, day);
+        
+        // Check if this is a cell that should be displayed or skipped due to rowspan
+        const spanInfo = scheduleSpans[`${timeIndex}-${dayIndex}`];
+        
+        if (spanInfo && spanInfo.isStart) {
+          // This is the start of a schedule block
+          const content = [
+            `${spanInfo.slot.timeFrom} - ${spanInfo.slot.timeTo}`,
+            schedule.subject?.subjectCode || '',
+            spanInfo.slot.room?.roomCode || '',
+            schedule.faculty ? `${schedule.faculty.firstName?.[0]}.${schedule.faculty.lastName}` : ''
+          ].join('\n');
+          
+          row.push({ content, rowSpan: spanInfo.span });
+        } else if (spanInfo && !spanInfo.isStart) {
+          // This cell is covered by a rowspan, so we skip it
+          row.push({ content: '', rowSpan: 0 });
+        } else {
+          // Empty cell
+          row.push('');
+        }
+      });
+      
+      tableData.push(row);
+    });
+
+    // Calculate column widths - equal for all day columns
+    const pageWidthForTable = doc.internal.pageSize.width;
+    const leftMargin = 3; // Reduced left margin
+    const rightMargin = 3; // Reduced right margin
+    const timeColWidth = 18; // Time column width
+    const dayColWidth = (pageWidthForTable - timeColWidth - leftMargin - rightMargin) / weekDays.length; // More space for day columns
+    
+    const columnStyles = {
+      0: { cellWidth: timeColWidth }
+    };
+    
+    // Set equal width for all day columns
+    weekDays.forEach((_, index) => {
+      columnStyles[index + 1] = { cellWidth: dayColWidth };
+    });
+
+    // Draw table using autoTable plugin with adjusted settings
+    autoTable(doc, {
+      startY: 35,
+      margin: { left: leftMargin, right: rightMargin, top: 40 },
+      head: [['Time', ...weekDays]],
+      body: tableData,
+      theme: 'plain',
+      headStyles: {
+        fillColor: [26, 35, 126],
+        textColor: [255, 255, 255],
+        fontSize: 7,
+        fontStyle: 'bold',
+        lineWidth: 0.2,
+        lineColor: [0, 0, 0],
+        halign: 'center',
+        valign: 'middle'
+      },
+      bodyStyles: {
+        fontSize: 8,
+        lineWidth: 0.2,
+        lineColor: [0, 0, 0],
+        cellPadding: 1
+      },
+      columnStyles: columnStyles,
+      styles: {
+        cellPadding: 3,
+        valign: 'middle',
+        halign: 'center',
+        overflow: 'linebreak',
+        lineColor: [0, 0, 0]
+      },
+      didParseCell: function(data) {
+        // Style the header row consistently
+        if (data.section === 'head') {
+          data.cell.styles.fillColor = [26, 35, 126];
+          data.cell.styles.textColor = [255, 255, 255];
+          data.cell.styles.fontStyle = 'bold';
+        }
+        
+        // Style schedule cells
+        if (data.section === 'body' && data.column.index > 0) {
+          const timeIndex = data.row.index;
+          const dayIndex = data.column.index - 1;
+          const spanInfo = scheduleSpans[`${timeIndex}-${dayIndex}`];
+          
+          if (spanInfo && spanInfo.isStart) {
+            // This is a schedule cell
+            data.cell.styles.fillColor = [255, 215, 0]; // Gold background
+            data.cell.styles.lineWidth = 0.1;
+            data.cell.styles.lineColor = [0, 0, 0];
+          }
+        }
+      }
+    });
+
+    return doc;
+  };
+
+  // Calculate rowspans for each schedule block
+  const calculateScheduleSpans = (timeSlots, weekDays) => {
+    const spans = {};
+    
+    timeSlots.forEach((time, timeIndex) => {
+      weekDays.forEach((day, dayIndex) => {
+        const schedule = getScheduleForTimeAndDay(time, day);
+        const slot = getSlotForTimeAndDay(schedule, time, day);
+        
+        if (slot && isFirstTimeSlot(time, slot)) {
+          // Calculate how many time slots this schedule spans
+          let span = 0;
+          const startTime = new Date(`2000/01/01 ${slot.timeFrom}`).getTime();
+          const endTime = new Date(`2000/01/01 ${slot.timeTo}`).getTime();
+          
+          for (let i = timeIndex; i < timeSlots.length; i++) {
+            const slotTime = new Date(`2000/01/01 ${timeSlots[i]}`).getTime();
+            if (slotTime >= startTime && slotTime < endTime) {
+              span++;
+              
+              // Mark cells that are part of this span but not the start
+              if (i > timeIndex) {
+                spans[`${i}-${dayIndex}`] = { isStart: false };
+              }
+            }
+          }
+          
+          spans[`${timeIndex}-${dayIndex}`] = { 
+            isStart: true, 
+            span: span,
+            slot: slot
+          };
+        }
+      });
+    });
+    
+    return spans;
+  };
 
   const generateTimeSlots = () => {
     const slots = [];
@@ -145,11 +199,10 @@ const SchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
     return slots;
   };
 
-  const timeSlots = generateTimeSlots();
-  const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
   const getScheduleForTimeAndDay = (time, day) => {
-    return filteredSchedules.find(schedule => {
+    return schedules.filter(schedule => 
+      schedule.section?.sectionName === selectedSection
+    ).find(schedule => {
       return schedule.scheduleSlots.some(slot => {
         const scheduleStartTime = new Date(`2000/01/01 ${slot.timeFrom}`).getTime();
         const scheduleEndTime = new Date(`2000/01/01 ${slot.timeTo}`).getTime();
@@ -184,129 +237,7 @@ const SchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
     return slotStartTime === currentTimeDate;
   };
 
-  const isWithinScheduleTime = (time, schedule) => {
-    if (!schedule) return false;
-    
-    return schedule.scheduleSlots.some(slot => {
-      const scheduleStartTime = new Date(`2000/01/01 ${slot.timeFrom}`).getTime();
-      const scheduleEndTime = new Date(`2000/01/01 ${slot.timeTo}`).getTime();
-      const currentTime = new Date(`2000/01/01 ${time}`).getTime();
-      return currentTime >= scheduleStartTime && currentTime < scheduleEndTime;
-    });
-  };
-
-  const isLastTimeSlot = (currentTime, slot) => {
-    if (!slot || !slot.timeTo || !currentTime) return false;
-    
-    const slotEndTime = new Date(`2000/01/01 ${slot.timeTo}`).getTime();
-    const currentTimeDate = new Date(`2000/01/01 ${currentTime}`).getTime();
-    return slotEndTime === currentTimeDate;
-  };
-
-  const getScheduleDuration = (slot) => {
-    if (!slot) return 0;
-    const startTime = new Date(`2000/01/01 ${slot.timeFrom}`);
-    const endTime = new Date(`2000/01/01 ${slot.timeTo}`);
-    const diffMinutes = (endTime - startTime) / (1000 * 60);
-    return (diffMinutes / 20) * 15;
-  };
-
-  const getContentForTimeSlot = (schedule, slot, time, isFirstSlot) => {
-    if (!schedule || !slot) return null;
-
-    const slotStartTime = new Date(`2000/01/01 ${slot.timeFrom}`).getTime();
-    const currentTime = new Date(`2000/01/01 ${time}`).getTime();
-    const timeDiff = (currentTime - slotStartTime) / (1000 * 60);
-    const cellIndex = Math.floor(timeDiff / 20);
-
-    if (isFirstSlot) {
-      return (
-        <View style={styles.scheduleContent}>
-          <Text style={styles.timeRangeText}>
-            {`${slot.timeFrom} - ${slot.timeTo}`}
-          </Text>
-        </View>
-      );
-    } else if (cellIndex === 1) {
-      return (
-        <View style={styles.scheduleContent}>
-          <Text style={styles.scheduleText}>
-            {schedule.subject?.subjectCode || ''}
-          </Text>
-        </View>
-      );
-    } else if (cellIndex === 2) {
-      return (
-        <View style={styles.scheduleContent}>
-          <Text style={styles.scheduleText}>
-            {slot.room?.roomCode || ''}
-          </Text>
-        </View>
-      );
-    } else if (cellIndex === 3) {
-      return (
-        <View style={styles.scheduleContent}>
-          <Text style={styles.scheduleText}>
-            {schedule.faculty ? `${schedule.faculty.firstName?.[0]}.${schedule.faculty.lastName}` : ''}
-          </Text>
-        </View>
-      );
-    }
-    
-    return <View style={styles.scheduleContent} />;
-  };
-
-  return (
-    <Document>
-      <Page size="A4" orientation="portrait" style={styles.page}>
-        <View style={styles.header}>
-          <Image 
-            style={styles.logo}
-            src="/logo-header.png"
-          />
-          <Text style={styles.title}>Class Schedule</Text>
-          {activeTerm && (
-            <>
-              <Text style={styles.subtitle}>Schedule for: {selectedSection}</Text>
-              <Text style={styles.subtitle}>{activeTerm.term} - AY {activeTerm.academicYear}</Text>
-            </>
-          )}
-        </View>
-
-        <View style={styles.table}>
-          <View style={styles.tableRow}>
-            <Text style={styles.headerCell}>Time</Text>
-            {weekDays.map(day => (
-              <Text key={day} style={styles.headerCell}>{day}</Text>
-            ))}
-          </View>
-
-          {timeSlots.map((time, index) => (
-            <View key={index} style={styles.tableRow}>
-              <Text style={styles.timeCell}>{time}</Text>
-              {weekDays.map(day => {
-                const schedule = getScheduleForTimeAndDay(time, day);
-                const slot = getSlotForTimeAndDay(schedule, time, day);
-                const isFirstSlot = slot ? isFirstTimeSlot(time, slot) : false;
-                const isInSchedule = isWithinScheduleTime(time, schedule);
-                const isLastSlotOfSchedule = isLastTimeSlot(time, slot);
-
-                return (
-                  <View key={`${day}-${time}`} style={[
-                    styles.tableCell,
-                    isInSchedule && styles.scheduleCell,
-                    isLastSlotOfSchedule && styles.lastScheduleCell
-                  ]}>
-                    {isInSchedule && getContentForTimeSlot(schedule, slot, time, isFirstSlot)}
-                  </View>
-                );
-              })}
-            </View>
-          ))}
-        </View>
-      </Page>
-    </Document>
-  );
+  return generatePDF();
 };
 
 export default SchedulePDF;

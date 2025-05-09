@@ -1,10 +1,17 @@
 import { Dialog, Transition } from '@headlessui/react';
-import { Fragment } from 'react';
-import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
+import { Fragment, useEffect, useState } from 'react';
 import SchedulePDF from './SchedulePDF';
 
 export default function PreviewPDFModal({ isOpen, onClose, pdfProps }) {
   const { activeTerm, schedules, selectedSection } = pdfProps;
+  const [pdfUrl, setPdfUrl] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      const doc = SchedulePDF({ activeTerm, schedules, selectedSection });
+      setPdfUrl(doc.output('datauristring'));
+    }
+  }, [isOpen, activeTerm, schedules, selectedSection]);
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
@@ -38,25 +45,15 @@ export default function PreviewPDFModal({ isOpen, onClose, pdfProps }) {
                     Preview Schedule
                   </Dialog.Title>
                   <div className="flex gap-2">
-                    <PDFDownloadLink
-                      document={
-                        <SchedulePDF
-                          activeTerm={activeTerm}
-                          schedules={schedules}
-                          selectedSection={selectedSection}
-                        />
-                      }
-                      fileName={`Schedule_${selectedSection || 'All'}_${activeTerm?.term || ''}.pdf`}
+                    <button
+                      onClick={() => {
+                        const doc = SchedulePDF({ activeTerm, schedules, selectedSection });
+                        doc.save(`Schedule_${selectedSection || 'All'}_${activeTerm?.term || ''}.pdf`);
+                      }}
+                      className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
                     >
-                      {({ loading }) => (
-                        <button
-                          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-                          disabled={loading}
-                        >
-                          {loading ? 'Loading...' : 'Download PDF'}
-                        </button>
-                      )}
-                    </PDFDownloadLink>
+                      Download PDF
+                    </button>
                     <button
                       onClick={onClose}
                       className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
@@ -65,14 +62,13 @@ export default function PreviewPDFModal({ isOpen, onClose, pdfProps }) {
                     </button>
                   </div>
                 </div>
-                <div className="h-[800px] w-full"> {/* Increased height for better portrait view */}
-                  <PDFViewer width="100%" height="100%" style={{ border: 'none' }}>
-                    <SchedulePDF
-                      activeTerm={activeTerm}
-                      schedules={schedules}
-                      selectedSection={selectedSection}
-                    />
-                  </PDFViewer>
+                <div className="h-[800px] w-full">
+                  <iframe
+                    src={pdfUrl}
+                    width="100%"
+                    height="100%"
+                    style={{ border: 'none' }}
+                  />
                 </div>
               </Dialog.Panel>
             </Transition.Child>

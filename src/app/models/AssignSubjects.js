@@ -173,6 +173,7 @@ class AssignSubjectsModel {
       return assignments.map(assignment => ({
         _id: assignment._id.toString(),
         yearLevel: assignment.yearLevel,
+        academicYear: assignment.academicYear, // Include academicYear in response
         classId: assignment.classId ? {
           _id: assignment.classId._id.toString(),
           sectionName: assignment.classId.sectionName,
@@ -190,6 +191,7 @@ class AssignSubjectsModel {
         subjects: assignment.subjects.map(subj => ({
           _id: subj._id.toString(),
           term: subj.term,
+          hours: subj.hours, // Include hours in the response
           subject: subj.subject ? {
             _id: subj.subject._id.toString(),
             subjectCode: subj.subject.subjectCode,
@@ -249,17 +251,18 @@ class AssignSubjectsModel {
         classId: classId
       });
 
-      const subjectsWithTerm = data.subjects.map(subjectId => ({
-        subject: subjectId,
+      const subjectsWithTerm = data.subjects.map(subject => ({
+        subject: subject.subjectId,
         term: Number(data.term),
-        termId: data.termId // Add termId here
+        termId: data.termId,
+        hours: Number(subject.hours)
       }));
 
       const historyEntry = {
         updatedBy: userId,
         updatedAt: new Date(),
         action: existingAssignment ? 'updated' : 'created',
-        academicYear: data.academicYear // Add academicYear here
+        academicYear: data.academicYear
       };
 
       if (existingAssignment) {
@@ -269,7 +272,7 @@ class AssignSubjectsModel {
 
         await existingAssignment.updateOne({
           yearLevel: data.yearLevel,
-          academicYear: data.academicYear, // Add academicYear here
+          academicYear: data.academicYear,
           subjects: [...existingSubjects, ...subjectsWithTerm],
           $push: { updateHistory: historyEntry }
         });
@@ -279,7 +282,7 @@ class AssignSubjectsModel {
         return await this.models.AssignSubjects.create({
           yearLevel: data.yearLevel,
           classId: classId,
-          academicYear: data.academicYear, // Add academicYear here
+          academicYear: data.academicYear,
           subjects: subjectsWithTerm,
           updateHistory: [historyEntry]
         });
@@ -348,7 +351,7 @@ class AssignSubjectsModel {
 
       const validation = await this.checkExistingAssignments(
         data.classes[0],
-        data.subjects,
+        data.subjects.map(s => s.subjectId),
         data.term,
         id
       );
@@ -361,9 +364,10 @@ class AssignSubjectsModel {
         s => s.term !== Number(data.term)
       );
 
-      const newSubjects = data.subjects.map(subjectId => ({
-        subject: subjectId,
-        term: Number(data.term)
+      const newSubjects = data.subjects.map(subject => ({
+        subject: subject.subjectId,
+        term: Number(data.term),
+        hours: Number(subject.hours) // Add hours field
       }));
 
       const historyEntry = {
