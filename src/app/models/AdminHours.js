@@ -118,18 +118,54 @@ class AdminHoursModel {
       }
 
       // Find approvers (Administrators and Deans) with debug logging
-      console.log('Finding approvers with new query...');
-      const approvers = await this.USER_MODEL.find({
-        role: { $in: ['Administrator', 'Dean'] },
-        isActive: { $ne: false }, // Add this to ensure we get active users
-        _id: { $ne: userId } // Exclude the requester
-      }).select('_id firstName lastName email role');
+      console.log('Finding approvers for request from department:', user.department);
+      
+      let approvers;
+      
+      if (role === 'Faculty' || role === 'Program Chair') {
+        // For faculty and program chairs, get all admins and only the dean of their department
+        approvers = await this.USER_MODEL.find({
+          $or: [
+            { role: 'Administrator' },  // Get all administrators
+            {
+              role: 'Dean',
+              department: user.department // Only get dean from requester's department
+            }
+          ],
+          isActive: { $ne: false },
+          _id: { $ne: userId }
+        }).select('_id firstName lastName email role department');
 
-      console.log('Found approvers:', JSON.stringify(approvers, null, 2));
+        // Debug log each approver's details
+        approvers.forEach(approver => {
+          console.log('Approver found:', {
+            name: `${approver.firstName} ${approver.lastName}`,
+            role: approver.role,
+            department: approver.department,
+            matches: approver.role === 'Dean' ? 
+              approver.department.toString() === user.department.toString() : 
+              'N/A (Administrator)'
+          });
+        });
+      } else {
+        // For dean-level requests, only get administrators
+        approvers = await this.USER_MODEL.find({
+          role: 'Administrator',
+          isActive: { $ne: false },
+          _id: { $ne: userId }
+        }).select('_id firstName lastName email role');
+      }
+
+      // Debug logging
+      console.log('Approvers found:', approvers.map(a => ({
+        role: a.role,
+        department: a.department,
+        name: `${a.firstName} ${a.lastName}`
+      })));
 
       // Check if we found any approvers
       if (approvers.length === 0) {
-        console.warn('No eligible approvers found. Check user roles in the database.');
+        console.warn('No eligible approvers found. Check user roles and department assignments in the database.');
       }
 
       // Determine if approval is needed
@@ -200,6 +236,19 @@ class AdminHoursModel {
       if (needsApproval && approvers.length > 0) {
         console.log('Creating notifications for approvers...');
         
+        // Double-check department matching for deans before sending notifications
+        const validApprovers = approvers.filter(approver => {
+          if (approver.role === 'Administrator') return true;
+          if (approver.role === 'Dean') {
+            const isDeanOfDepartment = approver.department.toString() === user.department.toString();
+            console.log(`Dean ${approver.firstName} ${approver.lastName} department match:`, isDeanOfDepartment);
+            return isDeanOfDepartment;
+          }
+          return false;
+        });
+
+        console.log(`Filtered to ${validApprovers.length} valid approvers`);
+
         // Format slots for notification message
         const slotsDescription = newSlots.map(slot => 
           `${slot.day} (${slot.startTime} - ${slot.endTime})`
@@ -213,7 +262,7 @@ class AdminHoursModel {
         }, 0).toFixed(1);
 
         // Create notifications for each approver
-        for (const approver of approvers) {
+        for (const approver of validApprovers) {
           console.log(`Creating notification for approver: ${approver._id}`);
           
           try {
@@ -465,13 +514,14 @@ class AdminHoursModel {
     }
   }
 
-  async getRequests(filter = 'pending') {
+  async getRequests(filter = 'pending', termId) {
     try {
       await this.initModel();
       
       const requests = await this.MODEL.find({ 
         isActive: true,
-        'slots.status': filter
+        'slots.status': filter,
+        term: new mongoose.Types.ObjectId(termId)
       })
       .populate({
         path: 'user',
