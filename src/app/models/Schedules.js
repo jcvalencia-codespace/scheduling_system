@@ -599,6 +599,22 @@ export default class SchedulesModel {
         },
         {
           $lookup: {
+            from: 'courses',
+            localField: 'section.course',
+            foreignField: '_id',
+            as: 'course'
+          }
+        },
+        {
+          $lookup: {
+            from: 'departments',
+            localField: 'course.department',
+            foreignField: '_id',
+            as: 'department'
+          }
+        },
+        {
+          $lookup: {
             from: 'subjects',
             localField: 'subject',
             foreignField: '_id',
@@ -687,6 +703,9 @@ export default class SchedulesModel {
                   }
                 }
               }
+            },
+            department: {
+              $arrayElemAt: ['$department', 0]
             }
           }
         }

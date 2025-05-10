@@ -62,7 +62,6 @@ const roleMenuItems = {
       hasDropdown: true,
       subItems: [
         { title: 'Schedule History', href: '/activity-logs/schedule-history', icon: ListBulletIcon },
-        { title: 'Override History', href: '/activity-logs/override-history', icon: ListBulletIcon },
         { title: 'Archive', href: '/activity-logs/archive', icon: ListBulletIcon }
       ]
     },
@@ -106,7 +105,6 @@ const roleMenuItems = {
       hasDropdown: true,
       subItems: [
         { title: 'Schedule History', href: '/activity-logs/schedule-history', icon: ListBulletIcon },
-        { title: 'Override History', href: '/activity-logs/override-history', icon: ListBulletIcon },
         { title: 'Archive', href: '/activity-logs/archive', icon: ListBulletIcon }
       ]
     },
@@ -173,7 +171,6 @@ const roleMenuItems = {
       hasDropdown: true,
       subItems: [
         { title: 'Schedule History', href: '/activity-logs/schedule-history', icon: ListBulletIcon },
-        { title: 'Override History', href: '/activity-logs/override-history', icon: ListBulletIcon },
         { title: 'Archive', href: '/activity-logs/archive', icon: ListBulletIcon }
       ]
     },
