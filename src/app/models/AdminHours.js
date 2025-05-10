@@ -82,13 +82,13 @@ class AdminHoursModel {
           throw new Error(`Schedule conflict found for ${slot.day} at ${slot.startTime}-${slot.endTime}`);
         }
 
-        // Modified: Only check conflicts with approved or pending admin hours
+        // Modified: Add term filter to admin hours conflict check
         const adminHoursConflicts = await AdminHours.find({
           user: userId,
-          term: termObjectId,
+          term: termObjectId, // Ensure we only check conflicts within the same term
           isActive: true,
           'slots.day': slot.day,
-          'slots.status': { $in: ['pending', 'approved'] }, // Only check pending and approved slots
+          'slots.status': { $in: ['pending', 'approved'] },
           $or: [{
             $and: [
               { 'slots.startTime': { $lte: slot.startTime } },
@@ -102,8 +102,9 @@ class AdminHoursModel {
           }]
         });
 
-        // Filter to only count conflicts with non-rejected slots
+        // Filter to only count conflicts with non-rejected slots in the current term
         const actualConflicts = adminHoursConflicts.filter(ah => 
+          ah.term.toString() === termObjectId.toString() && // Double-check term matching
           ah.slots.some(s => 
             s.day === slot.day && 
             s.status !== 'rejected' && 
@@ -457,33 +458,53 @@ class AdminHoursModel {
     }
   }
 
-  async getFullTimeUsers() {
+  async getFullTimeUsers(userRole, userDepartment) {
     try {
       await connectDB();
-      console.log('DB connection established');
       
       const User = mongoose.models.User || mongoose.model('User', require('../../../db/schema').UserSchema);
-      console.log('User model initialized');
 
-      // Use lowercase for collection name to match MongoDB collection
-      const users = await User.aggregate([
-        {
-          $match: {
-            employmentType: 'full-time',  // Match exact string from schema enum
-            role: { $ne: 'Administrator' }
+      // Base match conditions
+      const matchConditions = {
+        employmentType: 'full-time',
+        isActive: { $ne: false },
+        role: { $ne: 'Administrator' } // Exclude all administrators by default
+      };
+
+      if (userRole === 'Dean' && userDepartment) {
+        // For Deans: Show only their department's users and themselves
+        matchConditions['$or'] = [
+          // Include dean's own account
+          {
+            _id: new mongoose.Types.ObjectId(userDepartment._id),
+            role: 'Dean'
+          },
+          // Include department's faculty and program chairs
+          {
+            department: new mongoose.Types.ObjectId(userDepartment),
+            role: { $in: ['Faculty', 'Program Chair'] }
           }
-        },
+        ];
+      } else if (userRole === 'Administrator') {
+        // For Admins: Show all deans, program chairs, and faculty
+        matchConditions['role'] = { 
+          $in: ['Dean', 'Program Chair', 'Faculty']
+        };
+      }
+
+      console.log('User query conditions:', JSON.stringify(matchConditions, null, 2));
+
+      const users = await User.aggregate([
+        { $match: matchConditions },
         {
           $lookup: {
-            from: 'departments',  // Use lowercase collection name
+            from: 'departments',
             localField: 'department',
             foreignField: '_id',
             as: 'departmentInfo'
           }
         },
-        {
-          $unwind: '$departmentInfo'
-        },
+        { $unwind: '$departmentInfo' },
         {
           $project: {
             _id: 1,
@@ -491,25 +512,18 @@ class AdminHoursModel {
             lastName: 1,
             role: 1,
             department: {
+              _id: '$departmentInfo._id',
               departmentCode: '$departmentInfo.departmentCode'
             }
           }
         },
-        {
-          $sort: {
-            lastName: 1,
-            firstName: 1
-          }
-        }
+        { $sort: { role: 1, lastName: 1, firstName: 1 } }
       ]);
 
-      console.log('Full-time users found:', users.length);
-      console.log('Sample user:', users[0]);
-
+      console.log(`Found ${users.length} eligible users`);
       return users;
     } catch (error) {
       console.error('Error in getFullTimeUsers:', error);
-      console.error('Error details:', error.stack);
       throw new Error('Failed to fetch users: ' + error.message);
     }
   }
