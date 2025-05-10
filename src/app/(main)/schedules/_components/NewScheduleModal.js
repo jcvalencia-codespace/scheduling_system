@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useState, useMemo } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { getScheduleFormData, createSchedule, getActiveTerm, updateSchedule, getFacultyLoad } from '../_actions';
 import Swal from 'sweetalert2';
@@ -16,7 +16,9 @@ export default function NewScheduleModal({
   onScheduleCreated,
   editMode = false,
   scheduleData = null,
-  selectedSection = '' // Add this line
+  selectedSection = '',
+  selectedRoom = null,
+  selectedFaculty = null // Add this prop
 }) {
   const { user } = useAuthStore();
   const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -230,21 +232,78 @@ export default function NewScheduleModal({
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    if (isOpen && selectedSection && formData.sections.length > 0) {
-      // Find the section object that matches the selected section name
-      const sectionObject = formData.sections.find(
-        section => section.sectionName === selectedSection
-      );
-      
-      if (sectionObject) {
-        setSelectedValues(prev => ({
-          ...prev,
-          section: sectionObject._id
-        }));
+  const roomOptions = useMemo(() => {
+    if (!formData.rooms.length) return [];
+
+    // Group rooms by department
+    const groupedRooms = formData.rooms.reduce((acc, room) => {
+      const deptName = room.department?.departmentName || 'Other Rooms';
+      if (!acc[deptName]) {
+        acc[deptName] = [];
+      }
+      acc[deptName].push({
+        value: room._id,
+        label: `${room.roomCode} - ${room.roomName || room.name} (${room.capacity} capacity)`
+      });
+      return acc;
+    }, {});
+
+    // Sort rooms within each group
+    Object.keys(groupedRooms).forEach(dept => {
+      groupedRooms[dept].sort((a, b) => a.label.localeCompare(b.label));
+    });
+
+    // Create array of group objects
+    let options = Object.entries(groupedRooms).map(([department, rooms]) => ({
+      label: department,
+      options: rooms
+    }));
+
+    // If user is Dean or Program Chair, move their department to the top
+    if (user?.department && (user?.role === 'Dean' || user?.role === 'Program Chair')) {
+      const userDeptName = formData.rooms.find(
+        room => room.department?._id === user.department
+      )?.department?.departmentName;
+
+      if (userDeptName) {
+        options = [
+          ...options.filter(group => group.label === userDeptName),
+          ...options.filter(group => group.label !== userDeptName)
+        ];
       }
     }
-  }, [isOpen, selectedSection, formData.sections]);
+
+    return options;
+  }, [formData.rooms, user]);
+
+  useEffect(() => {
+    if (isOpen) {
+      // Set initial values
+      if (selectedRoom) {
+        setSelectedValues(prev => ({
+          ...prev,
+          room: selectedRoom._id
+        }));
+      }
+      if (selectedFaculty) {
+        setSelectedValues(prev => ({
+          ...prev,
+          faculty: selectedFaculty._id
+        }));
+      }
+      if (selectedSection && formData.sections.length > 0) {
+        const sectionObject = formData.sections.find(
+          section => section.sectionName === selectedSection
+        );
+        if (sectionObject) {
+          setSelectedValues(prev => ({
+            ...prev,
+            section: sectionObject._id
+          }));
+        }
+      }
+    }
+  }, [isOpen, selectedRoom, selectedFaculty, selectedSection, formData.sections]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -268,11 +327,6 @@ export default function NewScheduleModal({
   const subjectOptions = formData.subjects.map(subject => ({
     value: subject._id,
     label: subject.displayName
-  }));
-
-  const roomOptions = formData.rooms.map(room => ({
-    value: room._id,
-    label: `${room.roomCode} - ${room.roomName || room.name} (${room.capacity} capacity)`
   }));
 
   const dayOptions = weekDays.map(day => ({
@@ -552,7 +606,7 @@ export default function NewScheduleModal({
         timeTo: formatTimeValue(selectedValues.timeTo),
         isActive: true,
         userId: user._id,
-        force: true,
+        force: true, // Add force flag to override conflicts
         pairedSchedule: selectedValues.isPaired ? {
           ...pairedSchedule,
           timeFrom: formatTimeValue(pairedSchedule.timeFrom),
@@ -561,6 +615,7 @@ export default function NewScheduleModal({
         } : null
       };
 
+      // Execute the update/create with force flag
       const response = editMode
         ? await updateSchedule(scheduleData.id || scheduleData._id, scheduleData)
         : await createSchedule(scheduleData);
@@ -578,7 +633,10 @@ export default function NewScheduleModal({
 
       onClose();
       clearForm();
-      onScheduleCreated();
+      // Call onScheduleCreated with the room ID
+      if (selectedRoom?._id) {
+        onScheduleCreated(selectedRoom._id);
+      }
     } catch (error) {
       console.error('Error in override:', error);
       await Swal.fire({
@@ -868,10 +926,26 @@ export default function NewScheduleModal({
                             <label className="block text-sm font-medium text-black mb-1">Room</label>
                             <Select
                               name="room"
-                              value={roomOptions.find(option => option.value === selectedValues.room)}
+                              value={roomOptions.flatMap(group => group.options).find(option => option.value === selectedValues.room)}
                               onChange={(option) => handleSelectChange(option, { name: 'room' })}
                               options={roomOptions}
-                              styles={customStyles}
+                              styles={{
+                                ...customStyles,
+                                group: (base) => ({
+                                  ...base,
+                                  paddingTop: 8,
+                                  paddingBottom: 8
+                                }),
+                                groupHeading: (base) => ({
+                                  ...base,
+                                  color: '#323E8F',
+                                  fontWeight: 600,
+                                  fontSize: '0.875rem',
+                                  textTransform: 'uppercase',
+                                  padding: '8px 12px',
+                                  backgroundColor: '#f8fafc'
+                                })
+                              }}
                               className="text-black"
                               placeholder="Select a Room"
                               menuPlacement="top"
@@ -920,10 +994,26 @@ export default function NewScheduleModal({
                                 <label className="block text-sm font-medium text-black mb-1">Room</label>
                                 <Select
                                   name="room"
-                                  value={roomOptions.find(option => option.value === pairedSchedule.room)}
+                                  value={roomOptions.flatMap(group => group.options).find(option => option.value === pairedSchedule.room)}
                                   onChange={(option) => handlePairedScheduleChange(option, { name: 'room' })}
                                   options={roomOptions}
-                                  styles={customStyles}
+                                  styles={{
+                                    ...customStyles,
+                                    group: (base) => ({
+                                      ...base,
+                                      paddingTop: 8,
+                                      paddingBottom: 8
+                                    }),
+                                    groupHeading: (base) => ({
+                                      ...base,
+                                      color: '#323E8F',
+                                      fontWeight: 600,
+                                      fontSize: '0.875rem',
+                                      textTransform: 'uppercase',
+                                      padding: '8px 12px',
+                                      backgroundColor: '#f8fafc'
+                                    })
+                                  }}
                                   className="text-black"
                                   placeholder="Select a Room"
                                   isClearable

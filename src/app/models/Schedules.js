@@ -333,6 +333,70 @@ export default class SchedulesModel {
       }).populate(['faculty', 'scheduleSlots.room', 'subject', 'section']);
 
       for (const existingSchedule of conflictingSchedules) {
+        if (existingSchedule.isPaired) {
+          let remainingSlots = [];
+          let needsUpdate = false;
+
+          for (const existingSlot of existingSchedule.scheduleSlots) {
+            let isSlotOverlapped = false;
+
+            // Check if this slot is overlapped
+            if (slot.days.some(day => existingSlot.days.includes(day))) {
+              const newTimeFrom = moment(slot.timeFrom, 'h:mm A');
+              const newTimeTo = moment(slot.timeTo, 'h:mm A');
+              const existingTimeFrom = moment(existingSlot.timeFrom, 'h:mm A');
+              const existingTimeTo = moment(existingSlot.timeTo, 'h:mm A');
+
+              const isCompleteOverlap = newTimeFrom.isSameOrBefore(existingTimeFrom) && 
+                                        newTimeTo.isSameOrAfter(existingTimeTo);
+
+              if (isCompleteOverlap) {
+                isSlotOverlapped = true;
+                needsUpdate = true;
+              }
+            }
+
+            // Keep slot if not overlapped
+            if (!isSlotOverlapped) {
+              remainingSlots.push(existingSlot);
+            }
+          }
+
+          // If we need to update the schedule
+          if (needsUpdate) {
+            // If only one slot remains, update to non-paired schedule
+            const updateData = {
+              scheduleSlots: remainingSlots,
+              isPaired: remainingSlots.length > 1,
+              $push: {
+                updateHistory: {
+                  updatedBy: scheduleData.userId,
+                  updatedAt: new Date(),
+                  action: remainingSlots.length > 1 ? 'partial paired slot removed' : 'converted to non-paired'
+                }
+              }
+            };
+
+            await Schedules.findByIdAndUpdate(existingSchedule._id, updateData);
+
+            // Notify faculty if assigned
+            if (existingSchedule.faculty) {
+              await createNotification({
+                userId: existingSchedule.faculty._id,
+                title: 'Schedule Modified',
+                message: remainingSlots.length > 1 
+                  ? 'One of your paired schedule slots has been removed due to a conflict.'
+                  : 'Your paired schedule has been converted to a regular schedule due to a conflict.',
+                type: 'warning',
+                relatedSchedule: existingSchedule._id
+              });
+            }
+
+            continue; // Skip to next schedule after handling paired schedule
+          }
+        }
+
+        // Handle non-paired schedules as before
         let modified = false;
         const newScheduleSlots = [];
 
@@ -343,18 +407,36 @@ export default class SchedulesModel {
             const existingTimeFrom = moment(existingSlot.timeFrom, 'h:mm A');
             const existingTimeTo = moment(existingSlot.timeTo, 'h:mm A');
 
-            // Check for complete overlap
-            const isCompleteOverride = (
-              // Case 1: Same start and end time
-              (newTimeFrom.isSame(existingTimeFrom) && newTimeTo.isSame(existingTimeTo)) ||
-              // Case 2: New schedule contains entire existing schedule
-              (newTimeFrom.isSameOrBefore(existingTimeFrom) && newTimeTo.isSameOrAfter(existingTimeTo))
-            );
+            // Check if existing schedule is completely overlapped
+            const isCompleteOverlap = newTimeFrom.isSameOrBefore(existingTimeFrom) && 
+                                      newTimeTo.isSameOrAfter(existingTimeTo);
 
-            if (isCompleteOverride) {
+            if (isCompleteOverlap) {
+              // Deactivate the completely overlapped schedule
+              await Schedules.findByIdAndUpdate(existingSchedule._id, {
+                isActive: false,
+                $push: {
+                  updateHistory: {
+                    updatedBy: scheduleData.userId,
+                    updatedAt: new Date(),
+                    action: 'deactivated due to complete overlap'
+                  }
+                }
+              });
+
+              // Create notification for faculty if assigned
+              if (existingSchedule.faculty) {
+                await createNotification({
+                  userId: existingSchedule.faculty._id,
+                  title: 'Schedule Removed Due to Complete Overlap',
+                  message: `Your schedule for ${existingSchedule.subject.subjectCode} has been removed due to complete overlap with a new schedule.`,
+                  type: 'warning',
+                  relatedSchedule: existingSchedule._id
+                });
+              }
+              
               modified = true;
-              // Don't add this slot as it's completely overlapped
-              continue;
+              break;
             }
 
             // Handle partial overlaps
@@ -394,32 +476,18 @@ export default class SchedulesModel {
           }
         }
 
-        // Update the schedule if modifications were made
-        if (modified) {
-          if (newScheduleSlots.length > 0) {
-            await Schedules.findByIdAndUpdate(existingSchedule._id, {
-              $set: { scheduleSlots: newScheduleSlots },
-              $push: {
-                updateHistory: {
-                  updatedBy: scheduleData.userId,
-                  updatedAt: new Date(),
-                  action: 'trimmed'
-                }
+        // Only update if modified and not completely overlapped
+        if (modified && newScheduleSlots.length > 0) {
+          await Schedules.findByIdAndUpdate(existingSchedule._id, {
+            $set: { scheduleSlots: newScheduleSlots },
+            $push: {
+              updateHistory: {
+                updatedBy: scheduleData.userId,
+                updatedAt: new Date(),
+                action: 'trimmed'
               }
-            });
-          } else {
-            // Only deactivate if there are no valid slots remaining
-            await Schedules.findByIdAndUpdate(existingSchedule._id, {
-              $set: { isActive: false },
-              $push: {
-                updateHistory: {
-                  updatedBy: scheduleData.userId,
-                  updatedAt: new Date(),
-                  action: 'replaced'
-                }
-              }
-            });
-          }
+            }
+          });
 
           // Only send notification if faculty exists
           if (existingSchedule.faculty) {
@@ -715,6 +783,109 @@ export default class SchedulesModel {
     } catch (error) {
       console.error('Schedules fetch error:', error);
       throw new Error('Failed to fetch schedules');
+    }
+  }
+
+  static async getRoomSchedules(roomId, query = {}) {
+    try {
+      if (!roomId) {
+        throw new Error('Room ID is required');
+      }
+
+      const roomObjectId = new mongoose.Types.ObjectId(roomId);
+
+      const schedules = await Schedules.aggregate([
+        {
+          $match: {
+            isActive: true,
+            'scheduleSlots.room': roomObjectId
+          }
+        },
+        { $unwind: '$scheduleSlots' },
+        {
+          $match: {
+            'scheduleSlots.room': roomObjectId
+          }
+        },
+        {
+          $lookup: {
+            from: 'terms',
+            localField: 'term',
+            foreignField: '_id',
+            as: 'term'
+          }
+        },
+        {
+          $lookup: {
+            from: 'sections',
+            localField: 'section',
+            foreignField: '_id',
+            as: 'section'
+          }
+        },
+        {
+          $lookup: {
+            from: 'subjects',
+            localField: 'subject',
+            foreignField: '_id',
+            as: 'subject'
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'faculty',
+            foreignField: '_id',
+            as: 'facultyData'
+          }
+        },
+        {
+          $lookup: {
+            from: 'rooms',
+            localField: 'scheduleSlots.room',
+            foreignField: '_id',
+            as: 'roomsData'
+          }
+        },
+        { $unwind: '$term' },
+        { $unwind: '$section' },
+        { $unwind: '$subject' },
+        {
+          $group: {
+            _id: '$_id',
+            term: { $first: '$term' },
+            section: { $first: '$section' },
+            subject: { $first: '$subject' },
+            faculty: {
+              $first: {
+                $cond: {
+                  if: { $eq: [{ $size: '$facultyData' }, 0] },
+                  then: null,
+                  else: {
+                    _id: { $arrayElemAt: ['$facultyData._id', 0] },
+                    firstName: { $arrayElemAt: ['$facultyData.firstName', 0] },
+                    lastName: { $arrayElemAt: ['$facultyData.lastName', 0] }
+                  }
+                }
+              }
+            },
+            scheduleSlots: {
+              $push: {
+                days: '$scheduleSlots.days',
+                timeFrom: '$scheduleSlots.timeFrom',
+                timeTo: '$scheduleSlots.timeTo',
+                room: { $arrayElemAt: ['$roomsData', 0] },
+                scheduleType: '$scheduleSlots.scheduleType'
+              }
+            }
+          }
+        }
+      ]);
+
+      return schedules;
+    } catch (error) {
+      console.error('Error fetching room schedules:', error);
+      throw new Error('Failed to fetch room schedules');
     }
   }
 

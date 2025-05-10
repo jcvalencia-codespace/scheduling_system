@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect } from "react";
+import Select from 'react-select';
 
 export default function ScheduleHistoryFilter({
   history,
@@ -20,7 +21,44 @@ export default function ScheduleHistoryFilter({
   isProgramChair,
   userDepartment
 }) {
-  const academicYears = [...new Set(history.map(item => item.academicYear))].sort().reverse();
+  const academicYears = [...new Set(history.map(item => item.academicYear))]
+    .sort()
+    .reverse()
+    .map(year => ({ value: year, label: year }));
+
+  const departmentOptions = departments.map(dept => ({
+    value: dept._id,
+    label: dept.departmentName
+  }));
+
+  const courseOptions = courses.map(course => ({
+    value: course.courseCode,
+    label: course.courseCode
+  }));
+
+  const termOptions = [
+    { value: '', label: 'All Terms' },
+    ...activeTerms.map(term => ({
+      value: term.id,
+      label: `Term ${term.term}`
+    }))
+  ];
+
+  const customStyles = {
+    control: (base) => ({
+      ...base,
+      backgroundColor: 'white',
+      borderColor: '#E5E7EB',
+      '&:hover': {
+        borderColor: '#6366F1'
+      }
+    }),
+    menu: (base) => ({
+      ...base,
+      backgroundColor: 'white',
+      zIndex: 50
+    })
+  };
 
   const handleFilter = () => {
     console.log('Filter values:', {
@@ -74,65 +112,43 @@ export default function ScheduleHistoryFilter({
 
   return (
     <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-black">
-      <select
-        value={selectedAcademicYear}
-        onChange={(e) => {
-          setSelectedAcademicYear(e.target.value);
-        }}
-        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-      >
-        <option key="all-years" value="">All Academic Years</option>
-        {academicYears.map((year) => (
-          <option key={`year-${year}`} value={year}>{year}</option>
-        ))}
-      </select>
+      <Select
+        value={selectedAcademicYear ? { value: selectedAcademicYear, label: selectedAcademicYear } : null}
+        onChange={(option) => setSelectedAcademicYear(option ? option.value : '')}
+        options={[{ value: '', label: 'All Academic Years' }, ...academicYears]}
+        isClearable
+        placeholder="Select Academic Year"
+        styles={customStyles}
+      />
 
-      <select
-        value={selectedDepartment}
-        onChange={(e) => {
-          setSelectedDepartment(e.target.value);
-        }}
-        disabled={isDean || isProgramChair}
-        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50"
-      >
-        <option key="all-departments" value="">All Departments</option>
-        {departments.map((dept) => (
-          <option key={`dept-${dept._id}`} value={dept._id}>
-            {dept.departmentName}
-          </option>
-        ))}
-      </select>
+      <Select
+        value={selectedDepartment ? departmentOptions.find(opt => opt.value === selectedDepartment) : null}
+        onChange={(option) => setSelectedDepartment(option ? option.value : '')}
+        options={[{ value: '', label: 'All Departments' }, ...departmentOptions]}
+        isDisabled={isDean || isProgramChair}
+        isClearable
+        placeholder="Select Department"
+        styles={customStyles}
+      />
 
-      <select
-        value={selectedCourse}
-        onChange={(e) => {
-          setSelectedCourse(e.target.value);
-        }}
-        disabled={isDean || isProgramChair}
-        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white disabled:opacity-50"
-      >
-        <option key="all-courses" value="">All Courses</option>
-        {courses.map((course) => (
-          <option key={`course-${course._id}`} value={course.courseCode}>
-            {course.courseCode}
-          </option>
-        ))}
-      </select>
+      <Select
+        value={selectedCourse ? courseOptions.find(opt => opt.value === selectedCourse) : null}
+        onChange={(option) => setSelectedCourse(option ? option.value : '')}
+        options={[{ value: '', label: 'All Courses' }, ...courseOptions]}
+        isDisabled={isProgramChair}
+        isClearable
+        placeholder="Select Course"
+        styles={customStyles}
+      />
 
-      <select
-        value={selectedTerm}
-        onChange={(e) => {
-          setSelectedTerm(e.target.value);
-        }}
-        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-      >
-        <option value="">All Terms</option>
-        {activeTerms.map((term) => (
-          <option key={`term-${term.id}`} value={term.id}>
-            Term {term.term}
-          </option>
-        ))}
-      </select>
+      <Select
+        value={selectedTerm ? termOptions.find(opt => opt.value === selectedTerm) : null}
+        onChange={(option) => setSelectedTerm(option ? option.value : '')}
+        options={termOptions}
+        isClearable
+        placeholder="Select Term"
+        styles={customStyles}
+      />
     </div>
   );
 }
