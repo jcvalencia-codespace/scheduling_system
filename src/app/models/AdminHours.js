@@ -514,14 +514,73 @@ class AdminHoursModel {
     }
   }
 
-  async getRequests(filter = 'pending', termId) {
+  async getRequests(filter = 'pending', termId, userRole, userDepartment) {
     try {
       await this.initModel();
       
-      const requests = await this.MODEL.find({ 
+      // Base query conditions
+      const baseQuery = { 
         isActive: true,
-        'slots.status': filter,
         term: new mongoose.Types.ObjectId(termId)
+      };
+
+      if (userRole === 'Dean' && userDepartment) {
+        // For deans, add department filter at the query level
+        const requests = await this.MODEL.aggregate([
+          { 
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: '_id',
+              as: 'userInfo'
+            }
+          },
+          { $unwind: '$userInfo' },
+          { 
+            $lookup: {
+              from: 'departments',
+              localField: 'userInfo.department',
+              foreignField: '_id',
+              as: 'departmentInfo'
+            }
+          },
+          { $unwind: '$departmentInfo' },
+          {
+            $match: {
+              ...baseQuery,
+              'userInfo.department': new mongoose.Types.ObjectId(userDepartment),
+              'slots.status': filter
+            }
+          },
+          {
+            $addFields: {
+              user: {
+                _id: '$userInfo._id',
+                firstName: '$userInfo.firstName',
+                lastName: '$userInfo.lastName',
+                department: {
+                  _id: '$departmentInfo._id',
+                  departmentCode: '$departmentInfo.departmentCode'
+                }
+              }
+            }
+          },
+          {
+            $project: {
+              userInfo: 0,
+              departmentInfo: 0
+            }
+          }
+        ]).sort({ createdAt: -1 });
+
+        console.log('Requests for Dean:', requests);
+        return requests;
+      }
+
+      // For administrators, fetch all requests
+      return await this.MODEL.find({
+        ...baseQuery,
+        'slots.status': filter
       })
       .populate({
         path: 'user',
@@ -534,8 +593,6 @@ class AdminHoursModel {
         }
       })
       .sort({ createdAt: -1 });
-      
-      return requests;
     } catch (error) {
       console.error('Error fetching admin hour requests:', error);
       throw new Error('Failed to fetch admin hour requests');
