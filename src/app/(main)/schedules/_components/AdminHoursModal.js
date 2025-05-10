@@ -52,7 +52,7 @@ const calculateDuration = (startTime, endTime) => {
 const selectStyles = {
   control: (base) => ({
     ...base,
-    
+
     borderRadius: "0.5rem",
     borderColor: "#e2e8f0",
     boxShadow: "none",
@@ -216,33 +216,56 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
 
   const loadAvailableUsers = async () => {
     try {
-      setIsLoading(true)
-      console.log("Fetching users...")
-      const { users, error } = await getFullTimeUsers()
+      setIsLoading(true);
 
-      if (error) {
-        console.error("Error from API:", error)
-        throw new Error(error)
+      // Validate user role and department for deans
+      if (isDean && !currentUser.department) {
+        throw new Error('Dean must have an assigned department to view users');
       }
 
-      console.log("Fetched users:", users)
-      if (!users || users.length === 0) {
-        console.log("No users returned from API")
-      }
+      const { users, error } = await getFullTimeUsers(
+        currentUser.role,
+        currentUser.department
+      );
 
-      setAvailableUsers(users || [])
+      if (error) throw new Error(error);
+
+      // Additional client-side filtering
+      const filteredUsers = users.filter(user => {
+        // For Dean: Include own account and department's faculty/program chairs
+        if (isDean) {
+          return (
+            // Include dean's own account
+            (user._id === currentUser._id) ||
+            // Include department members (faculty and program chairs)
+            (user.department?._id && 
+             user.department._id.toString() === currentUser.department.toString() &&
+             ['Faculty', 'Program Chair'].includes(user.role))
+          );
+        }
+        
+        // For Admin: Include all non-admin users
+        if (isAdmin) {
+          return !['Administrator'].includes(user.role);
+        }
+
+        return true;
+      });
+
+      console.log(`Filtered to ${filteredUsers.length} available users for ${currentUser.role}`);
+      setAvailableUsers(filteredUsers);
     } catch (error) {
-      console.error("Error loading users:", error)
+      console.error("Error loading users:", error);
       Swal.fire({
         icon: "error",
         title: "Error",
         text: "Failed to load available users: " + error.message,
         confirmButtonColor: "#4f46e5",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const loadExistingHours = async () => {
     try {
@@ -257,7 +280,7 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
             adminHoursId: hours._id
           }))
           .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        
+
         setExistingSlots(activeSlots);
       } else {
         setExistingSlots([]);
@@ -331,9 +354,9 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
 
     setExistingSlots(prev => {
       // Remove any slots that match the updated request's slots
-      const existingFiltered = prev.filter(existing => 
-        !newSlots.some(newSlot => 
-          newSlot._id === existing._id || 
+      const existingFiltered = prev.filter(existing =>
+        !newSlots.some(newSlot =>
+          newSlot._id === existing._id ||
           newSlot.adminHoursId === existing.adminHoursId
         )
       );
@@ -381,8 +404,8 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
             adminHoursId: response.hours._id
           }));
           setExistingSlots(prev => {
-            const existingFiltered = prev.filter(existing => 
-              !newSlots.some(newSlot => 
+            const existingFiltered = prev.filter(existing =>
+              !newSlots.some(newSlot =>
                 newSlot._id === existing._id
               )
             );
@@ -645,14 +668,14 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
                           options={availableUsers.map((user) => ({
                             value: user,
                             label: `${user.lastName}, ${user.firstName}${user.department ? ` (${user.department.departmentCode})` : ""} - ${user.role}`,
-                        }))}
+                          }))}
                           onChange={handleUserChange}
                           value={
                             selectedUser
                               ? {
-                                  value: selectedUser,
-                                  label: `${selectedUser.lastName}, ${selectedUser.firstName}${selectedUser.department ? ` (${selectedUser.department.departmentCode})` : ""}`,
-                                }
+                                value: selectedUser,
+                                label: `${selectedUser.lastName}, ${selectedUser.firstName}${selectedUser.department ? ` (${selectedUser.department.departmentCode})` : ""}`,
+                              }
                               : null
                           }
                           isLoading={isLoading}
@@ -716,13 +739,12 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
                                             </td>
                                             <td className="px-4 py-3">
                                               <span
-                                                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                                                  slot.status === "approved"
+                                                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${slot.status === "approved"
                                                     ? "bg-green-100 text-green-800"
                                                     : slot.status === "rejected"
                                                       ? "bg-red-100 text-red-800"
                                                       : "bg-yellow-100 text-yellow-800"
-                                                }`}
+                                                  }`}
                                               >
                                                 {slot.status.charAt(0).toUpperCase() + slot.status.slice(1)}
                                               </span>
