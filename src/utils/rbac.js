@@ -15,7 +15,8 @@ export const rolePermissions = {
     '/term',
     '/feedback',
     '/chats',
-    '/admin-hours'
+    '/admin-hours',
+    '/settings'
   ],
   'Program Chair': [
     '/schedules',

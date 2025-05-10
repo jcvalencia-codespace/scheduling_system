@@ -15,7 +15,9 @@ import Swal from 'sweetalert2';
 import { getDepartmentById } from '../(main)/maintenance/departments/_actions';
 import NotificationModal from './NotificationModal';
 
+
 export default function TopBar() {
+
   const { theme, setTheme } = useTheme();
   const { toggleSidebar } = useSidebar();
   const pathname = usePathname();
@@ -91,21 +93,19 @@ export default function TopBar() {
             <div className="flex items-center rounded-full bg-gray-100 p-1 dark:bg-gray-800">
               <button
                 onClick={() => setTheme('light')}
-                className={`rounded-full p-2 ${
-                  theme === 'light'
+                className={`rounded-full p-2 ${theme === 'light'
                     ? 'bg-white text-[#323E8F] shadow-sm dark:bg-gray-700 dark:text-[#323E8F]'
                     : 'text-gray-500 dark:text-gray-400'
-                }`}
+                  }`}
               >
                 <SunIcon className="h-5 w-5" />
               </button>
               <button
                 onClick={() => setTheme('dark')}
-                className={`rounded-full p-2 ${
-                  theme === 'dark'
+                className={`rounded-full p-2 ${theme === 'dark'
                     ? 'bg-white text-[#323E8F] shadow-sm dark:bg-gray-700 dark:text-[#323E8F]'
                     : 'text-gray-500 dark:text-gray-400'
-                }`}
+                  }`}
               >
                 <MoonIcon className="h-5 w-5" />
               </button>
@@ -113,7 +113,7 @@ export default function TopBar() {
 
             {/* Notifications */}
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setShowNotifications(!showNotifications)}
                 className="relative rounded-full bg-gray-100 p-2 text-gray-500 hover:text-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
               >
@@ -149,9 +149,8 @@ export default function TopBar() {
                         <div
                           key={notification._id}
                           onClick={() => handleNotificationClick(notification)}
-                          className={`px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer border-b border-gray-100 dark:border-gray-700/50 ${
-                            !notification.isRead ? 'bg-blue-50 dark:bg-blue-900/10' : ''
-                          }`}
+                          className={`px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer border-b border-gray-100 dark:border-gray-700/50 ${!notification.isRead ? 'bg-blue-50 dark:bg-blue-900/10' : ''
+                            }`}
                         >
                           <div className="flex items-start space-x-3">
                             {getNotificationIcon(notification.type)}
@@ -185,7 +184,7 @@ export default function TopBar() {
                             background: '#10B981',
                             color: '#ffffff'
                           });
-                          
+
                           Toast.fire({
                             icon: 'success',
                             title: 'Notifications cleared successfully'
@@ -203,7 +202,7 @@ export default function TopBar() {
 
             {/* Profile Dropdown */}
             <div className="relative">
-              <button 
+              <button
                 className="flex items-center space-x-3"
                 onClick={() => setShowDropdown(!showDropdown)}
               >
@@ -233,6 +232,12 @@ export default function TopBar() {
                       {departmentDetails?.departmentCode || 'Loading...'}
                     </p>
                   </div>
+                  <button
+                    onClick={() => router.push('/settings')}
+                    className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    Settings
+                  </button>
                   <button
                     onClick={handleLogout}
                     className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700"
