@@ -21,27 +21,13 @@ export async function getActiveTerm() {
   }
 }
 
-export async function getUpdateHistory() {
+export async function getUpdateHistory(startDate = null, endDate = null, academicYear = null, courseId = null) {
   try {
-    await connectDB();
-    const activeTerm = await getActiveTerm();
-    
-    const history = await archiveModel.getUpdateHistory(
-      activeTerm.startDate,
-      activeTerm.endDate,
-      activeTerm.academicYear
-    );
-    
-    if (!Array.isArray(history)) {
-      throw new Error('Invalid history data format');
-    }
-
-    revalidatePath('/activity-logs/archive');
-    
+    const history = await archiveModel.getUpdateHistory(startDate, endDate, academicYear, courseId);
     return history;
   } catch (error) {
-    console.error('Server error in getUpdateHistory:', error);
-    throw new Error(error.message || 'Failed to fetch update history');
+    console.error('Error in getUpdateHistory action:', error);
+    return { error: 'Failed to fetch update history' };
   }
 }
 

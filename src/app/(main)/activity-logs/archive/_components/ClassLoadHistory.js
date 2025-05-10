@@ -83,7 +83,9 @@ export default function ClassLoadHistory({ history, filters, activeTerm }) {
                   <span className="font-medium">{entry.updatedBy.name}</span>
                   <span className="text-xs text-gray-500">{entry.updatedBy.email}</span>
                   <span className="text-xs text-gray-500">
-                    {entry.updatedBy.role} {entry.updatedBy.course ? `- ${entry.updatedBy.course}` : ''}
+                    {entry.updatedBy.role}
+                    {entry.updatedBy.role !== 'Administrator' && entry.updatedBy.course !== 'N/A' && 
+                      ` - ${entry.updatedBy.course}`}
                   </span>
                 </div>
               </div>
@@ -145,7 +147,9 @@ export default function ClassLoadHistory({ history, filters, activeTerm }) {
                     <span className="font-medium">{entry.updatedBy.name}</span>
                     <span className="text-gray-500 text-xs">{entry.updatedBy.email}</span>
                     <span className="text-gray-500 text-xs">
-                      {entry.updatedBy.role} {entry.updatedBy.course ? `- ${entry.updatedBy.course}` : ''}
+                      {entry.updatedBy.role}
+                      {entry.updatedBy.role !== 'Administrator' || entry.updatedBy.role !== 'Program Chair' || entry.updatedBy.role !== 'Dean' && entry.updatedBy.course !== 'N/A' &&
+                        ` - ${entry.updatedBy.course}`}
                     </span>
                   </div>
                 </td>

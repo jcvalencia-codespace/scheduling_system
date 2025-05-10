@@ -198,38 +198,94 @@ export default function SchedulePage() {
     })
   }
 
-  // Replace the getUniqueSections function with a role-aware version
+  // Update the getUniqueSections function
   const getUniqueSections = () => {
-    if (!availableSections || !user) return []
+    if (!availableSections || !user?.role) return []
 
-    let filteredSections = []
+    try {
+      let filteredSections = []
 
-    // If user is a Dean, filter sections by their department
-    if (user.role === "Dean") {
-      filteredSections = availableSections
-        .filter((section) => section.course?.department?._id === user.department)
+      switch (user.role) {
+        case "Dean":
+          filteredSections = availableSections.filter(
+            (section) => section.course?.department?._id === user.department
+          )
+          break
+        case "Program Chair":
+          filteredSections = availableSections.filter(
+            (section) => section.course?._id === user.course
+          )
+          break
+        default:
+          filteredSections = availableSections
+      }
+
+      return filteredSections
         .map((section) => section.sectionName)
+        .filter(Boolean) // Remove any undefined/null values
         .sort()
+    } catch (error) {
+      console.error("Error in getUniqueSections:", error)
+      return []
     }
-    // If user is a Program Chair, filter sections by their course
-    else if (user.role === "Program Chair") {
-      filteredSections = availableSections
-        .filter((section) => section.course?._id === user.course)
-        .map((section) => section.sectionName)
-        .sort()
-    }
-    // For other roles, return all sections
-    else {
-      filteredSections = availableSections.map((section) => section.sectionName).sort()
-    }
-
-    return filteredSections
   }
 
   const sectionOptions = getUniqueSections().map((section) => ({
     value: section,
     label: section,
   }))
+
+  const sectionSelectComponent = (
+    <div className="w-[300px]">
+      {typeof window !== "undefined" && user?.role && (
+        <NoSSRSelect
+          instanceId="section-select"
+          value={sectionOptions.find((option) => option.value === selectedSection)}
+          onChange={(option) => setSelectedSection(option?.value || "")}
+          options={sectionOptions}
+          className="w-full"
+          classNamePrefix="react-select"
+          placeholder={
+            getUniqueSections().length === 0
+              ? `No sections available${
+                  user?.role === "Dean"
+                    ? " for your department"
+                    : user?.role === "Program Chair"
+                    ? " for your course"
+                    : ""
+                }`
+              : "Select a Section"
+          }
+          styles={{
+            menu: (base) => ({
+              ...base,
+              zIndex: 9999,
+            }),
+            control: (base, state) => ({
+              ...base,
+              borderColor: state.isFocused ? "#3b82f6" : "#e5e7eb",
+              boxShadow: state.isFocused ? "0 0 0 1px #3b82f6" : "none",
+              "&:hover": {
+                borderColor: "#3b82f6",
+              },
+            }),
+            option: (base, state) => ({
+              ...base,
+              backgroundColor: state.isSelected
+                ? "#323E8F"
+                : state.isFocused
+                ? "#e5e7eb"
+                : "transparent",
+              color: state.isSelected ? "white" : "#111827",
+              "&:active": {
+                backgroundColor: "#323E8F",
+              },
+            }),
+          }}
+        />
+      )}
+    </div>
+  )
 
   const handleEventClick = (info) => {
     setSelectedSchedule(info.event.extendedProps.schedule)
@@ -417,53 +473,7 @@ export default function SchedulePage() {
             <label className="text-sm font-medium text-gray-600 whitespace-nowrap">
               View Schedule of Section:
             </label>
-            <div className="w-[300px]">
-              {typeof window !== "undefined" && (
-                <NoSSRSelect
-                  instanceId="section-select"
-                  value={sectionOptions.find((option) => option.value === selectedSection)}
-                  onChange={(option) => setSelectedSection(option?.value || "")}
-                  options={sectionOptions}
-                  className="w-full"
-                  classNamePrefix="react-select"
-                  placeholder={
-                    getUniqueSections().length === 0
-                      ? user?.role === "Dean"
-                        ? "No sections available for your department"
-                        : user?.role === "Program Chair"
-                        ? "No sections available for your course"
-                        : "No sections available"
-                      : "Select a Section"
-                  }
-                  styles={{
-                    menu: (base) => ({
-                      ...base,
-                      zIndex: 9999,
-                    }),
-                    control: (base, state) => ({
-                      ...base,
-                      borderColor: state.isFocused ? "#3b82f6" : "#e5e7eb",
-                      boxShadow: state.isFocused ? "0 0 0 1px #3b82f6" : "none",
-                      "&:hover": {
-                        borderColor: "#3b82f6",
-                      },
-                    }),
-                    option: (base, state) => ({
-                      ...base,
-                      backgroundColor: state.isSelected
-                        ? "#323E8F"
-                        : state.isFocused
-                        ? "#e5e7eb"
-                        : "transparent",
-                      color: state.isSelected ? "white" : "#111827",
-                      "&:active": {
-                        backgroundColor: "#323E8F",
-                      },
-                    }),
-                  }}
-                />
-              )}
-            </div>
+            {sectionSelectComponent}
           </div>
 
           {/* Top Buttons */}

@@ -10,9 +10,8 @@ export const rolePermissions = {
     '/entry/sections',
     '/entry/class-load',
     '/logs',
-    '/logs/schedule-history',
-    '/logs/override-history',
-    '/logs/archive',
+    '/activity-logs/schedule-history',
+    '/activity-logs/archive',
     '/term',
     '/feedback',
     '/chats',
@@ -25,9 +24,8 @@ export const rolePermissions = {
     '/entry/sections',
     '/entry/class-load',
     '/logs',
-    '/logs/schedule-history',
-    '/logs/override-history',
-    '/logs/archive',
+    '/activity-logs/schedule-history',
+    '/activity-logs/archive',
     '/term',
     '/feedback',
     '/chats'
@@ -136,7 +134,7 @@ export const menuItems = [
     subItems: [
       { 
         title: 'Schedule History',
-        href: '/logs/schedule-history',
+        href: '/activity-logs/schedule-history',
         icon: 'ListBulletIcon',
         roles: ['Administrator', 'Dean', 'Program Chair']
       },
