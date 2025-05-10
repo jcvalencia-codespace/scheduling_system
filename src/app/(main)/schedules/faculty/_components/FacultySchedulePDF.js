@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import autoTable from 'jspdf-autotable';
+import logoImage from '../_assets/logo-header.png';
 
 const FacultySchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
   const generatePDF = () => {
@@ -11,7 +12,7 @@ const FacultySchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
     const logoX = (pageWidth - logoWidth) / 2;
     
     // Add centered logo with reduced size
-    doc.addImage('/logo-header.png', 'PNG', logoX, 5, logoWidth, 12);
+    doc.addImage(logoImage.src, 'PNG', logoX, 5, logoWidth, 12);
     
     // Add header
     doc.setFontSize(14);
@@ -45,9 +46,9 @@ const FacultySchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
           const content = [
             `${spanInfo.slot.timeFrom} - ${spanInfo.slot.timeTo}`,
             schedule.subject?.subjectCode || '',
-            schedule.subject?.subjectName || '',
-            `Section: ${schedule.section?.sectionName || 'N/A'}`,
-            `Room: ${spanInfo.slot.room?.roomCode || 'N/A'}`,
+            // schedule.subject?.subjectName || '',
+            `${schedule.section?.sectionName || 'N/A'}`,
+            `${spanInfo.slot.room?.roomCode || 'N/A'}`,
           ].join('\n');
           
           row.push({ content, rowSpan: spanInfo.span });

@@ -1,33 +1,30 @@
 import { jsPDF } from "jspdf";
 import autoTable from 'jspdf-autotable';
+import logoImage from '../_assets/logo-header.png';
 
-const FacultySchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
+const RoomSchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
   const generatePDF = () => {
     const doc = new jsPDF();
     
-    // Center logo calculation
+    // Add logo and center it
     const pageWidth = doc.internal.pageSize.width;
     const logoWidth = 40;
     const logoX = (pageWidth - logoWidth) / 2;
+    doc.addImage(logoImage.src, 'PNG', logoX, 5, logoWidth, 12);
     
-    // Add centered logo with reduced size
-    doc.addImage('/logo-header.png', 'PNG', logoX, 5, logoWidth, 12);
-    
-    // Add header
-    doc.setFontSize(14);
+    // Add header text directly without logo
+    doc.setFontSize(16);
     doc.setTextColor(26, 35, 126);
-    doc.text('Faculty Schedule', doc.internal.pageSize.width / 2, 22, { align: 'center' });
+    doc.text('Room Schedule', doc.internal.pageSize.width / 2, 20, { align: 'center' });
     
-    doc.setFontSize(8);
+    doc.setFontSize(10);
     doc.setTextColor(0);
-    doc.text(`Faculty: ${selectedSection}`, doc.internal.pageSize.width / 2, 28, { align: 'center' });
-    doc.text(`${activeTerm.term} - AY ${activeTerm.academicYear}`, doc.internal.pageSize.width / 2, 33, { align: 'center' });
+    doc.text(`Room: ${selectedSection}`, doc.internal.pageSize.width / 2, 27, { align: 'center' });
+    doc.text(`${activeTerm.term} - AY ${activeTerm.academicYear}`, doc.internal.pageSize.width / 2, 32, { align: 'center' });
 
-    // Generate time slots
+    // Prepare and generate table
     const timeSlots = generateTimeSlots();
     const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    
-    // Calculate rowspan for each schedule
     const scheduleSpans = calculateScheduleSpans(timeSlots, weekDays);
     
     // Prepare table data with rowspans
@@ -42,13 +39,7 @@ const FacultySchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
         const spanInfo = scheduleSpans[`${timeIndex}-${dayIndex}`];
         
         if (spanInfo && spanInfo.isStart) {
-          const content = [
-            `${spanInfo.slot.timeFrom} - ${spanInfo.slot.timeTo}`,
-            schedule.subject?.subjectCode || '',
-            schedule.subject?.subjectName || '',
-            `Section: ${schedule.section?.sectionName || 'N/A'}`,
-            `Room: ${spanInfo.slot.room?.roomCode || 'N/A'}`,
-          ].join('\n');
+          const content = generateTableContent(schedule, spanInfo.slot);
           
           row.push({ content, rowSpan: spanInfo.span });
         } else if (spanInfo && !spanInfo.isStart) {
@@ -61,9 +52,9 @@ const FacultySchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
       tableData.push(row);
     });
 
-    // Use the same table styling as SchedulePDF
+    // Add table with adjusted starting position
     autoTable(doc, {
-      startY: 35,
+      startY: 37, // Adjusted to account for added logo
       margin: { left: 3, right: 3, top: 40 },
       head: [['Time', ...weekDays]],
       body: tableData,
@@ -223,7 +214,26 @@ const FacultySchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
     return styles;
   };
 
+  const generateTableContent = (schedule, slot) => {
+    if (!schedule || !slot) return '';
+    
+    // Handle sections display
+    const sectionDisplay = schedule.section 
+      ? Array.isArray(schedule.section)
+        ? schedule.section.map(s => s.sectionName).join(', ')
+        : schedule.section.sectionName
+      : 'N/A';
+
+    return [
+      `${slot.timeFrom} - ${slot.timeTo}`,
+      schedule.subject?.subjectCode || '',
+      // schedule.subject?.subjectName || '',
+      `${sectionDisplay}`,
+      `${schedule.faculty ? `${schedule.faculty.firstName?.[0]}. ${schedule.faculty.lastName}` : 'TBA'}`,
+    ].join('\n');
+  };
+
   return generatePDF();
 };
 
-export default FacultySchedulePDF;
+export default RoomSchedulePDF;
