@@ -40,15 +40,14 @@ export default function ArchivePage() {
     }
   }, [user]); // Only depend on user, not user.role or user.course
 
-  // Move loadData inside useEffect to avoid closure issues
   const loadData = async () => {
     try {
       setIsLoading(true);
       const termData = await getActiveTerm();
       setActiveTerm(termData);
 
-      // If Program Chair, only fetch their course's history
-      if (user?.role === 'Program Chair') {
+      // Add null check for user
+      if (user?.role === 'Program Chair' && user?.course) {
         console.log('Program Chair Course Details:', {
           role: user.role,
           courseId: user.course,
@@ -65,7 +64,7 @@ export default function ArchivePage() {
         
         setClassHistory(Array.isArray(classData) ? classData : []);
       } else {
-        // For other roles, fetch all data
+        // For other roles or when user data is not available
         const [classData, subjectData, sectionData, roomData] = await Promise.all([
           getUpdateHistory(),
           getSubjectHistory(),
@@ -109,8 +108,8 @@ export default function ArchivePage() {
     setActiveAccordion(activeAccordion === accordionId ? null : accordionId);
   };
 
-  // Only show class load history for Program Chair
-  const isProgramChair = user.role === 'Program Chair';
+  // Add null check for user.role
+  const isProgramChair = user?.role === 'Program Chair';
 
   return (
     <div className="min-h-screen bg-gray-50 px-2 sm:px-4 md:px-6 lg:px-8 py-4 md:py-8">
@@ -164,8 +163,8 @@ export default function ArchivePage() {
             </div>
           </div>
 
-          {/* Other sections - Only shown if not Program Chair */}
-          {!isProgramChair && (
+          {/* Other sections - Only shown if not Program Chair and user exists */}
+          {user && !isProgramChair && (
             <>
               {/* Subjects History Dropdown */}
               <div className="bg-white shadow rounded-lg overflow-hidden">

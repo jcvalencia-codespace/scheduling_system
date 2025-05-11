@@ -27,10 +27,13 @@ export default function ScheduleHistoryPage() {
   const [selectedTerm, setSelectedTerm] = useState("");
 
   useEffect(() => {
-    fetchHistory();
-    fetchDepartments();
-    fetchAllCourses();
-  }, []); // Initial data load
+    // Only fetch data when user is available
+    if (user) {
+      fetchHistory();
+      fetchDepartments();
+      fetchAllCourses();
+    }
+  }, [user]); // Add user as dependency
 
   const fetchHistory = async () => {
     setIsLoading(true);
@@ -50,10 +53,10 @@ export default function ScheduleHistoryPage() {
     try {
       const response = await getDepartments();
       if (!response.error) {
-        if (user.role === 'Dean' || user.role === 'Program Chair') {
-          // For both Dean and Program Chair, only set their department
-          setDepartments([response.departments.find(d => d._id === user.department)]);
-          setSelectedDepartment(user.department); // Auto-select their department
+        if (user?.role === 'Dean' || user?.role === 'Program Chair') {
+          const userDepartment = response.departments.find(d => d._id === user.department);
+          setDepartments(userDepartment ? [userDepartment] : []);
+          setSelectedDepartment(user.department || "");
         } else {
           setDepartments(response.departments);
         }
@@ -67,23 +70,18 @@ export default function ScheduleHistoryPage() {
     try {
       let response;
       
-      if (user.role === 'Program Chair') {
-        console.log('Program Chair fetching course:', {
-          userId: user._id,
-          courseId: user.course,
-          department: user.department
-        });
+      if (!user) return;
+
+      if (user.role === 'Program Chair' && user.department) {
         response = await getCourses(user.department);
         if (!response.error) {
           const programChairCourse = response.courses.find(c => c._id === user.course);
-          console.log('Found Program Chair course:', programChairCourse);
           if (programChairCourse) {
             setCourses([programChairCourse]);
-            setSelectedCourse(programChairCourse.courseCode); // Use courseCode for schedule history filtering
-            console.log('Setting selected course:', programChairCourse.courseCode);
+            setSelectedCourse(programChairCourse.courseCode);
           }
         }
-      } else if (user.role === 'Dean') {
+      } else if (user.role === 'Dean' && user.department) {
         response = await getCourses(user.department);
         if (!response.error) {
           setCourses(response.courses.filter(course => 
@@ -102,6 +100,8 @@ export default function ScheduleHistoryPage() {
   };
 
   const applyFilters = () => {
+    if (!history) return;
+    
     const filtered = history.filter(item => {
       const matchesYear = !selectedAcademicYear || 
         item.academicYear === selectedAcademicYear;
@@ -122,6 +122,11 @@ export default function ScheduleHistoryPage() {
     
     setFilteredHistory(filtered);
   };
+
+  // Add default values for user-dependent props
+  const isDean = user?.role === 'Dean';
+  const isProgramChair = user?.role === 'Program Chair';
+  const userDepartment = user?.department || '';
 
   return (
     <div className="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
@@ -150,15 +155,15 @@ export default function ScheduleHistoryPage() {
         activeTerms={activeTerms}
         selectedTerm={selectedTerm}
         setSelectedTerm={setSelectedTerm}
-        isDean={user.role === 'Dean'}
-        isProgramChair={user.role === 'Program Chair'} // Add isProgramChair prop
-        userDepartment={user.department}
+        isDean={isDean}
+        isProgramChair={isProgramChair}
+        userDepartment={userDepartment}
       />
 
       <ScheduleHistoryTable
         history={filteredHistory}
         isLoading={isLoading}
-        currentUser={user}
+        currentUser={user || {}}
       />
     </div>
   );
