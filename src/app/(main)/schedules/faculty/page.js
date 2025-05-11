@@ -23,12 +23,15 @@ import Swal from 'sweetalert2'
 
 import { ScheduleSkeleton, CalendarSkeleton } from '../_components/Skeleton'
 
+// Add this import at the top with other imports
+import { getAdminHours } from '../_actions'
+
 const NoSSRSelect = dynamic(() => import('react-select'), {
   ssr: false,
 })
 
 // Create a wrapped Select component to handle client-side rendering
-const SelectWrapper = ({ value, onChange, options, isDisabled, placeholder }) => {
+const SelectWrapper = ({ value, onChange, options, isDisabled, placeholder, isLoading }) => {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -50,6 +53,7 @@ const SelectWrapper = ({ value, onChange, options, isDisabled, placeholder }) =>
       onChange={onChange}
       options={options}
       isDisabled={isDisabled}
+      isLoading={isLoading}
       className="w-full"
       classNamePrefix="react-select"
       placeholder={placeholder}
@@ -98,6 +102,10 @@ export default function SchedulePage() {
   const pathname = usePathname();
   const [availableFaculty, setAvailableFaculty] = useState([])
   const [selectedFaculty, setSelectedFaculty] = useState("")
+  // Add this with other state declarations
+  const [adminHours, setAdminHours] = useState([]);
+  const [isFacultyLoading, setIsFacultyLoading] = useState(true);
+  const [filteredFacultyOptions, setFilteredFacultyOptions] = useState([]);
 
   const formatDate = (dateStr) => {
     return moment(dateStr).format('MMMM D, YYYY')
@@ -141,31 +149,54 @@ export default function SchedulePage() {
   const fetchFacultySchedules = async (facultyId) => {
     setIsLoading(true);
     try {
-      const response = await getFacultySchedules(facultyId);
-      if (response.error) {
-        throw new Error(response.error);
+      const [scheduleResponse, adminHoursResponse] = await Promise.all([
+        getFacultySchedules(facultyId),
+        getAdminHours(facultyId, activeTerm?.id)
+      ]);
+
+      if (scheduleResponse.error) {
+        throw new Error(scheduleResponse.error);
       }
-      setSchedules(response.schedules);
+
+      // Combine regular schedules with admin hours
+      const regularSchedules = scheduleResponse.schedules || [];
+      const adminHours = adminHoursResponse.hours?.slots || [];
+
+      setSchedules(regularSchedules);
+      setAdminHours(adminHours); // Add this state
+
     } catch (error) {
-      console.error('Error fetching faculty schedules:', error);
+      console.error('Error fetching schedules:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
   const fetchAllFaculty = async () => {
+    setIsFacultyLoading(true);
     try {
       const departmentId = user?.role === 'Dean' ? user.department : null;
       const response = await getAllFaculty(departmentId, user);
-      
+
       if (response.error) {
         throw new Error(response.error);
       }
+
       setAvailableFaculty(response.faculty);
+      // Create filtered options after data is received
+      const options = response.faculty.map(faculty => ({
+        value: faculty._id,
+        label: `${faculty.firstName} ${faculty.lastName}`
+      }));
+      setFilteredFacultyOptions(options);
     } catch (error) {
       console.error('Error fetching faculty:', error);
+      setFilteredFacultyOptions([]);
+    } finally {
+      setIsFacultyLoading(false);
     }
   }
+
 
   useEffect(() => {
     if (selectedFaculty) {
@@ -176,14 +207,23 @@ export default function SchedulePage() {
   }, [selectedFaculty])
 
   useEffect(() => {
-    const events = convertSchedulesToEvents(schedules)
-    setCalendarEvents(events)
-  }, [schedules])
+    const events = convertSchedulesToEvents(schedules);
+    setCalendarEvents(events);
+  }, [schedules, adminHours]); // Add adminHours as dependency
 
+
+  // Modify the convertSchedulesToEvents function
   const convertSchedulesToEvents = (schedules) => {
     if (!activeTerm) return [];
 
-    return schedules.flatMap((schedule) => {
+    let events = [];
+
+    // Convert regular schedules to events
+    events = schedules.flatMap((schedule) => {
+      const sectionNames = Array.isArray(schedule.section)
+        ? schedule.section.map((section) => section.sectionName).join(", ")
+        : schedule.section?.sectionName || 'N/A'
+
       return schedule.scheduleSlots.flatMap((slot) => {
         return slot.days.map((day) => {
           const dayMap = {
@@ -211,7 +251,7 @@ export default function SchedulePage() {
 
           return {
             id: `${schedule._id}-${day}`,
-            title: `${schedule.subject.subjectCode} - ${slot.room.roomCode}`,
+            title: `${schedule.subject.subjectCode} - ${slot.room.roomCode}\n${sectionNames}`,
             start: `${dateStr}T${startTime}`,
             end: `${dateStr}T${endTime}`,
             extendedProps: {
@@ -230,12 +270,64 @@ export default function SchedulePage() {
         })
       })
     })
-  }
+
+    // Convert admin hours to events
+    const adminEvents = adminHours
+      .filter(slot => slot.status === 'approved') // Only show approved admin hours
+      .map(slot => {
+        const dayMap = {
+          Sunday: 0,
+          Monday: 1,
+          Tuesday: 2,
+          Wednesday: 3,
+          Thursday: 4,
+          Friday: 5,
+          Saturday: 6,
+        };
+
+        const dayNumber = dayMap[slot.day];
+        const today = moment();
+        const thisWeek = moment(today);
+        thisWeek.day(dayNumber);
+        const dateStr = thisWeek.format('YYYY-MM-DD');
+
+        return {
+          id: `admin-${slot._id}`,
+          title: `Admin Hours\n${slot.startTime} - ${slot.endTime}`,
+          start: `${dateStr}T${moment(slot.startTime, 'h:mm A').format('HH:mm:ss')}`,
+          end: `${dateStr}T${moment(slot.endTime, 'h:mm A').format('HH:mm:ss')}`,
+          backgroundColor: "#579980", // Different color for admin hours
+          borderColor: "#488b73",
+          extendedProps: {
+            isAdminHours: true,
+            adminHours: slot
+          }
+        };
+      });
+
+    return [...events, ...adminEvents];
+  };
 
   const handleEventClick = (info) => {
-    setSelectedSchedule(info.event.extendedProps.schedule)
-    setIsViewScheduleModalOpen(true)
-  }
+    if (info.event.extendedProps.isAdminHours) {
+      // Format admin hours data to match schedule structure
+      const adminHoursData = {
+        ...info.event.extendedProps.adminHours,
+        isAdminHours: true,
+        timeFrom: info.event.extendedProps.adminHours.startTime,
+        timeTo: info.event.extendedProps.adminHours.endTime,
+        term: activeTerm,
+        faculty: availableFaculty.find(f => f._id === selectedFaculty)
+      };
+      setSelectedSchedule(adminHoursData);
+      setIsViewScheduleModalOpen(true);
+      return;
+    }
+
+    // Existing logic for regular schedules
+    setSelectedSchedule(info.event.extendedProps.schedule);
+    setIsViewScheduleModalOpen(true);
+  };
 
   const handlePrintClick = () => {
     if (!selectedFaculty) {
@@ -253,12 +345,9 @@ export default function SchedulePage() {
   const canCreateSchedule = user?.role === "Dean" || user?.role === "Administrator" || user?.role === "Program Chair"
   const canSeeTabNav = user?.role !== "Faculty"
 
-  const facultyOptions = user?.role === 'Faculty' 
+  const facultyOptions = user?.role === 'Faculty'
     ? [{ value: user._id, label: `${user.firstName} ${user.lastName}` }]
-    : availableFaculty.map(faculty => ({
-        value: faculty._id,
-        label: `${faculty.firstName} ${faculty.lastName}`
-      }))
+    : filteredFacultyOptions
 
   return (
     <div className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-slate-50 to-slate-100">
@@ -401,11 +490,11 @@ export default function SchedulePage() {
               <SelectWrapper
                 value={facultyOptions.find(option => option.value === selectedFaculty)}
                 onChange={(option) => setSelectedFaculty(option?.value)}
-                options={facultyOptions}
-                isDisabled={user?.role === 'Faculty'}
-                placeholder="Select a Faculty"
+                options={isFacultyLoading ? [] : facultyOptions}
+                isDisabled={user?.role === 'Faculty' || isFacultyLoading}
+                placeholder={isFacultyLoading ? "Loading faculty..." : "Select a Faculty"}
+                isLoading={isFacultyLoading}
               />
-
             </div>
           </div>
 
@@ -455,7 +544,7 @@ export default function SchedulePage() {
             </button>
             <span className="tooltiptext">Set Admin Hours</span>
           </div>
-          
+
           {canCreateSchedule && (
             <div className="tooltip">
               <button
@@ -484,7 +573,7 @@ export default function SchedulePage() {
             <ScheduleSkeleton />
           ) : activeTerm ? (
             <>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Schedules</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Faculty Schedules AY - {activeTerm.academicYear} ({activeTerm.term})</h2>
               <p className="mt-0.5 text-sm text-gray-800">
                 {formatDate(activeTerm.startDate)} - {formatDate(activeTerm.endDate)}
               </p>
@@ -566,7 +655,7 @@ export default function SchedulePage() {
           pdfProps={{
             activeTerm,
             schedules: schedules, // Pass the full schedule array
-            selectedSection: user?.role === 'Faculty' 
+            selectedSection: user?.role === 'Faculty'
               ? `${user.firstName} ${user.lastName}`
               : availableFaculty.find(f => f._id === selectedFaculty)
                 ? `${availableFaculty.find(f => f._id === selectedFaculty).firstName} ${availableFaculty.find(f => f._id === selectedFaculty).lastName}`
@@ -599,6 +688,33 @@ export default function SchedulePage() {
 }
 
 function renderEventContent(eventInfo) {
+  const isAdminHours = eventInfo.event.extendedProps.isAdminHours;
+
+  if (isAdminHours) {
+    const adminHours = eventInfo.event.extendedProps.adminHours;
+    return (
+      <div
+        style={{
+          fontSize: "0.75rem",
+          padding: "0.25rem",
+          height: "100%",
+          overflow: "hidden",
+        }}
+      >
+        <div className="mb-2">{adminHours.startTime} - {adminHours.endTime}</div>
+        <div
+          style={{ fontWeight: "900", fontSize: "0.85rem" }}
+        >
+          Admin Hours
+        </div>
+        <div style={{ fontSize: "0.75rem" }}>
+          {adminHours.day}
+        </div>
+      </div>
+    );
+  }
+
+  // Existing rendering logic for regular schedules
   const schedule = eventInfo.event.extendedProps.schedule;
 
   return (
@@ -623,6 +739,13 @@ function renderEventContent(eventInfo) {
         style={{ fontWeight: "400", fontSize: "0.65rem" }}
       >
         {schedule.subject?.subjectName || 'N/A'}
+      </div>
+
+      <div
+        className="mb-1"
+        style={{ fontWeight: "700", fontSize: "0.85rem" }}
+      >
+        {schedule.section?.sectionName || 'N/A'}
       </div>
 
       <div className="mb-1"
