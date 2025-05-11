@@ -1,6 +1,5 @@
 import { jsPDF } from "jspdf";
 import autoTable from 'jspdf-autotable';
-import logoImage from '../_assets/logo-header.png';
 
 const SchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
   const generatePDF = () => {
@@ -11,9 +10,21 @@ const SchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
     const logoWidth = 40;
     const logoX = (pageWidth - logoWidth) / 2;
     
-    // Add centered logo with reduced size
-    doc.addImage(logoImage.src, 'PNG', logoX, 5, logoWidth, 12);
+    // Load and add image using base64 string
+    const logo = new Image();
+    logo.src = '/logo-header.png'; // Update this path to match where you place the image in public folder
     
+    // Convert image to data URL and add to PDF
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    logo.onload = () => {
+      canvas.width = logo.width;
+      canvas.height = logo.height;
+      ctx.drawImage(logo, 0, 0);
+      const dataUrl = canvas.toDataURL('image/png');
+      doc.addImage(dataUrl, 'PNG', logoX, 5, logoWidth, 12);
+    };
+
     // Add header
     doc.setFontSize(14);
     doc.setTextColor(26, 35, 126);
