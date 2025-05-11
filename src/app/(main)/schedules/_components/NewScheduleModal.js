@@ -1,23 +1,28 @@
 'use client';
 
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useState, useMemo } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { getScheduleFormData, createSchedule, getActiveTerm, updateSchedule } from '../_actions';
+import { getScheduleFormData, createSchedule, getActiveTerm, updateSchedule, getFacultyLoad } from '../_actions';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
 import useAuthStore from '@/store/useAuthStore';
 import ScheduleModalSkeleton from './Skeleton';
 import { XCircleIcon } from '@heroicons/react/24/outline';
 import ConflictAlert from './ConflictAlert';
+import { useAccessSettings } from '@/app/hooks/useAccessSettings';
 
 export default function NewScheduleModal({
   isOpen,
   onClose,
   onScheduleCreated,
   editMode = false,
-  scheduleData = null
+  scheduleData = null,
+  selectedSection = '',
+  selectedRoom = null,
+  selectedFaculty = null // Add this prop
 }) {
   const { user } = useAuthStore();
+  const { isMultipleSectionsEnabled, isFacultyDropdownEnabled } = useAccessSettings();
   const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   const studentTypes = [
@@ -142,6 +147,55 @@ export default function NewScheduleModal({
     return `${formattedHours}:${minutes} ${period}`;
   };
 
+  const [facultyLoad, setFacultyLoad] = useState({
+    employmentType: 'N/A',
+    totalHours: 0,
+    teachingHours: 0,
+    adminHours: 0
+  });
+
+  useEffect(() => {
+    const loadFacultyData = async () => {
+      if (selectedValues.faculty && termInfo?._id) {
+        const loadData = await getFacultyLoad(selectedValues.faculty, termInfo._id);
+        setFacultyLoad(loadData);
+      } else {
+        // Clear faculty load if no faculty selected or no term
+        setFacultyLoad({
+          employmentType: 'N/A',
+          totalHours: 0,
+          teachingHours: 0,
+          adminHours: 0
+        });
+      }
+    };
+
+    loadFacultyData();
+  }, [selectedValues.faculty, termInfo?._id]);
+
+  const capitalizeFirstLetter = (string) => {
+    if (!string) return 'N/A';
+    return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
+  };
+
+  const getFacultyLoadDisplay = () => {
+    const employmentType = facultyLoad.employmentType?.toLowerCase();
+    const isFullTime = employmentType === 'full-time';
+    const maxHours = isFullTime ? 40 : 24;
+    const teachingHours = facultyLoad.teachingHours || 0;
+    const adminHours = isFullTime ? maxHours - teachingHours : 0;
+    const subjectCodes = facultyLoad.subjectCodes || [];
+
+    return {
+      employmentType: capitalizeFirstLetter(facultyLoad.employmentType),
+      teachingHours,
+      adminHours,
+      totalHours: maxHours,
+      subjectCodes,
+      subjectCount: subjectCodes.length
+    };
+  };
+
   useEffect(() => {
     async function fetchData() {
       try {
@@ -180,6 +234,79 @@ export default function NewScheduleModal({
     }
   }, [isOpen]);
 
+  const roomOptions = useMemo(() => {
+    if (!formData.rooms.length) return [];
+
+    // Group rooms by department
+    const groupedRooms = formData.rooms.reduce((acc, room) => {
+      const deptName = room.department?.departmentName || 'Other Rooms';
+      if (!acc[deptName]) {
+        acc[deptName] = [];
+      }
+      acc[deptName].push({
+        value: room._id,
+        label: `${room.roomCode} - ${room.roomName || room.name} (${room.capacity} capacity)`
+      });
+      return acc;
+    }, {});
+
+    // Sort rooms within each group
+    Object.keys(groupedRooms).forEach(dept => {
+      groupedRooms[dept].sort((a, b) => a.label.localeCompare(b.label));
+    });
+
+    // Create array of group objects
+    let options = Object.entries(groupedRooms).map(([department, rooms]) => ({
+      label: department,
+      options: rooms
+    }));
+
+    // If user is Dean or Program Chair, move their department to the top
+    if (user?.department && (user?.role === 'Dean' || user?.role === 'Program Chair')) {
+      const userDeptName = formData.rooms.find(
+        room => room.department?._id === user.department
+      )?.department?.departmentName;
+
+      if (userDeptName) {
+        options = [
+          ...options.filter(group => group.label === userDeptName),
+          ...options.filter(group => group.label !== userDeptName)
+        ];
+      }
+    }
+
+    return options;
+  }, [formData.rooms, user]);
+
+  useEffect(() => {
+    if (isOpen) {
+      // Set initial values
+      if (selectedRoom) {
+        setSelectedValues(prev => ({
+          ...prev,
+          room: selectedRoom._id
+        }));
+      }
+      if (selectedFaculty) {
+        setSelectedValues(prev => ({
+          ...prev,
+          faculty: selectedFaculty._id
+        }));
+      }
+      if (selectedSection && formData.sections.length > 0) {
+        const sectionObject = formData.sections.find(
+          section => section.sectionName === selectedSection
+        );
+        if (sectionObject) {
+          setSelectedValues(prev => ({
+            ...prev,
+            section: sectionObject._id
+          }));
+        }
+      }
+    }
+  }, [isOpen, selectedRoom, selectedFaculty, selectedSection, formData.sections]);
+
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setSelectedValues(prev => ({
@@ -202,11 +329,6 @@ export default function NewScheduleModal({
   const subjectOptions = formData.subjects.map(subject => ({
     value: subject._id,
     label: subject.displayName
-  }));
-
-  const roomOptions = formData.rooms.map(room => ({
-    value: room._id,
-    label: `${room.roomCode} - ${room.roomName || room.name} (${room.capacity} capacity)`
   }));
 
   const dayOptions = weekDays.map(day => ({
@@ -232,7 +354,7 @@ export default function NewScheduleModal({
   const handleSelectChange = (selectedOption, { name }) => {
     setSelectedValues(prev => ({
       ...prev,
-      [name]: name === 'section' && selectedValues.isMultipleSections 
+      [name]: name === 'section' && selectedValues.isMultipleSections
         ? (Array.isArray(selectedOption) ? selectedOption.map(opt => opt.value) : [])
         : (selectedOption ? selectedOption.value : '')
     }));
@@ -372,16 +494,16 @@ export default function NewScheduleModal({
     const getMinutesBetween = (timeFrom, timeTo) => {
       const [fromTime, fromPeriod] = timeFrom.split(' ');
       const [toTime, toPeriod] = timeTo.split(' ');
-      
+
       let [fromHour, fromMinute] = fromTime.split(':').map(Number);
       let [toHour, toMinute] = toTime.split(':').map(Number);
-      
+
       // Convert to 24-hour format
       if (fromPeriod === 'PM' && fromHour !== 12) fromHour += 12;
       if (fromPeriod === 'AM' && fromHour === 12) fromHour = 0;
       if (toPeriod === 'PM' && toHour !== 12) toHour += 12;
       if (toPeriod === 'AM' && toHour === 12) toHour = 0;
-      
+
       const minutes = (toHour * 60 + toMinute) - (fromHour * 60 + fromMinute);
       return minutes > 0 ? minutes : minutes + (24 * 60); // Handle overnight schedules
     };
@@ -430,20 +552,20 @@ export default function NewScheduleModal({
     const getMinutesBetween = (timeFrom, timeTo) => {
       const [fromTime, fromPeriod] = timeFrom.split(' ');
       const [toTime, toPeriod] = timeTo.split(' ');
-      
+
       let [fromHour, fromMinute] = fromTime.split(':').map(Number);
       let [toHour, toMinute] = toTime.split(':').map(Number);
-      
+
       // Convert to 24-hour format
       if (fromPeriod === 'PM' && fromHour !== 12) fromHour += 12;
       if (fromPeriod === 'AM' && fromHour === 12) fromHour = 0;
       if (toPeriod === 'PM' && toHour !== 12) toHour += 12;
       if (toPeriod === 'AM' && toHour === 12) toHour = 0;
-      
+
       return (toHour * 60 + toMinute) - (fromHour * 60 + fromMinute);
     };
 
-    return selectedValues.timeFrom && selectedValues.timeTo ? 
+    return selectedValues.timeFrom && selectedValues.timeTo ?
       getMinutesBetween(selectedValues.timeFrom, selectedValues.timeTo) : 0;
   };
 
@@ -457,9 +579,9 @@ export default function NewScheduleModal({
             <div class="text-left">
               <p class="mb-2">The following schedules have less than 2 hours duration:</p>
               <ul class="list-disc pl-5">
-                ${durationCheck.affectedSchedules.map(schedule => 
-                  `<li>${schedule.type}: ${schedule.details}</li>`
-                ).join('')}
+                ${durationCheck.affectedSchedules.map(schedule =>
+            `<li>${schedule.type}: ${schedule.details}</li>`
+          ).join('')}
               </ul>
               <p class="mt-2 text-red-600">Are you sure you want to proceed?</p>
             </div>
@@ -486,7 +608,7 @@ export default function NewScheduleModal({
         timeTo: formatTimeValue(selectedValues.timeTo),
         isActive: true,
         userId: user._id,
-        force: true,
+        force: true, // Add force flag to override conflicts
         pairedSchedule: selectedValues.isPaired ? {
           ...pairedSchedule,
           timeFrom: formatTimeValue(pairedSchedule.timeFrom),
@@ -495,6 +617,7 @@ export default function NewScheduleModal({
         } : null
       };
 
+      // Execute the update/create with force flag
       const response = editMode
         ? await updateSchedule(scheduleData.id || scheduleData._id, scheduleData)
         : await createSchedule(scheduleData);
@@ -512,7 +635,10 @@ export default function NewScheduleModal({
 
       onClose();
       clearForm();
-      onScheduleCreated();
+      // Call onScheduleCreated with the room ID
+      if (selectedRoom?._id) {
+        onScheduleCreated(selectedRoom._id);
+      }
     } catch (error) {
       console.error('Error in override:', error);
       await Swal.fire({
@@ -592,19 +718,69 @@ export default function NewScheduleModal({
                   ) : (
                     <>
                       <div className="bg-[#1a237e] p-4 rounded-lg mb-6">
-                        <div className="space-y-1 text-white">
-                          <div className="flex gap-2">
-                            <span className="font-medium">Academic Year:</span>
-                            <span>{termInfo?.academicYear || schoolYear}</span>
+                        <div className="grid grid-cols-1 gap-4">
+                          <div className="space-y-1 text-white">
+                            <div className="flex gap-2">
+                              <span className="font-medium">Academic Year:</span>
+                              <span>{termInfo?.academicYear || schoolYear}</span>
+                            </div>
+                            <div className="flex gap-2">
+                              <span className="font-medium">Term:</span>
+                              <span className="term-display">{termInfo?.term || 'Loading...'}</span>
+                            </div>
                           </div>
-                          <div className="flex gap-2">
-                            <span className="font-medium">Term:</span>
-                            <span className="term-display">{termInfo?.term || 'Loading...'}</span>
-                          </div>
+                          {selectedValues.faculty && (
+                            <div className="space-y-2 text-white">
+                              <div className="flex flex-col gap-2">
+                                <hr />
+                                <div className="flex gap-2">
+                                  <span className="text-lg font-bold">Selected Faculty Load Information</span>
+                                </div>
+                                <ul className="list-disc list-inside space-y-1 pl-4">
+                                  <li>
+                                    <span className="font-medium">Employment Type:</span>
+                                    <span className="ml-2">{getFacultyLoadDisplay().employmentType}</span>
+                                  </li>
+                                  <li>
+                                    <span className="font-medium">Total Teaching Hours:</span>
+                                    <span className="ml-2">
+                                      {getFacultyLoadDisplay().subjectCount} subject(s), {getFacultyLoadDisplay().teachingHours} hrs
+                                      {getFacultyLoadDisplay().subjectCodes.length > 0 && (
+                                        <span className="ml-2">[{getFacultyLoadDisplay().subjectCodes.join(', ')}]</span>
+                                      )}
+                                    </span>
+                                  </li>
+                                  {getFacultyLoadDisplay().employmentType.toLowerCase() === 'full-time' && (
+                                    <li>
+                                      <span className="font-medium">Total Admin Hours:</span>
+                                      <span className="ml-2">{getFacultyLoadDisplay().adminHours} hrs</span>
+                                    </li>
+                                  )}
+                                  <li>
+                                    <span className="font-medium">Maximum Load:</span>
+                                    <span className="ml-2">{getFacultyLoadDisplay().totalHours} hrs</span>
+                                  </li>
+                                </ul>
+                              </div>
+                            </div>
+
+                          )}
                         </div>
                       </div>
 
                       <div className="flex gap-6 mb-6">
+                        {isMultipleSectionsEnabled && (
+                          <label className="flex items-center gap-2 text-black">
+                            <input
+                              type="checkbox"
+                              name="isMultipleSections"
+                              checked={selectedValues.isMultipleSections}
+                              onChange={handleInputChange}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span>Multiple Sections</span>
+                          </label>
+                        )}
                         <label className="flex items-center gap-2 text-black">
                           <input
                             type="checkbox"
@@ -614,16 +790,6 @@ export default function NewScheduleModal({
                             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
                           <span>Pairing Schedule</span>
-                        </label>
-                        <label className="flex items-center gap-2 text-black">
-                          <input
-                            type="checkbox"
-                            name="isMultipleSections"
-                            checked={selectedValues.isMultipleSections}
-                            onChange={handleInputChange}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <span>Multiple Sections</span>
                         </label>
                       </div>
 
@@ -645,7 +811,7 @@ export default function NewScheduleModal({
                             <label className="block text-sm font-medium text-black mb-1">Section</label>
                             <Select
                               name="section"
-                              value={selectedValues.isMultipleSections 
+                              value={selectedValues.isMultipleSections
                                 ? sectionOptions.filter(option => selectedValues.section?.includes(option.value))
                                 : sectionOptions.find(option => option.value === selectedValues.section)
                               }
@@ -660,19 +826,21 @@ export default function NewScheduleModal({
                             />
                           </div>
 
-                          <div>
-                            <label className="block text-sm font-medium text-black mb-1">Faculty</label>
-                            <Select
-                              name="faculty"
-                              value={facultyOptions.find(option => option.value === selectedValues.faculty)}
-                              onChange={(option) => handleSelectChange(option, { name: 'faculty' })}
-                              options={facultyOptions}
-                              styles={customStyles}
-                              className="text-black "
-                              placeholder="Select a Faculty"
-                              isClearable
-                            />
-                          </div>
+                          {isFacultyDropdownEnabled && (
+                            <div>
+                              <label className="block text-sm font-medium text-black mb-1">Faculty</label>
+                              <Select
+                                name="faculty"
+                                value={facultyOptions.find(option => option.value === selectedValues.faculty)}
+                                onChange={(option) => handleSelectChange(option, { name: 'faculty' })}
+                                options={facultyOptions}
+                                styles={customStyles}
+                                className="text-black"
+                                placeholder="Select a Faculty"
+                                isClearable
+                              />
+                            </div>
+                          )}
 
                           <div>
                             <label className="block text-sm font-medium text-black mb-1">Subject</label>
@@ -764,10 +932,26 @@ export default function NewScheduleModal({
                             <label className="block text-sm font-medium text-black mb-1">Room</label>
                             <Select
                               name="room"
-                              value={roomOptions.find(option => option.value === selectedValues.room)}
+                              value={roomOptions.flatMap(group => group.options).find(option => option.value === selectedValues.room)}
                               onChange={(option) => handleSelectChange(option, { name: 'room' })}
                               options={roomOptions}
-                              styles={customStyles}
+                              styles={{
+                                ...customStyles,
+                                group: (base) => ({
+                                  ...base,
+                                  paddingTop: 8,
+                                  paddingBottom: 8
+                                }),
+                                groupHeading: (base) => ({
+                                  ...base,
+                                  color: '#323E8F',
+                                  fontWeight: 600,
+                                  fontSize: '0.875rem',
+                                  textTransform: 'uppercase',
+                                  padding: '8px 12px',
+                                  backgroundColor: '#f8fafc'
+                                })
+                              }}
                               className="text-black"
                               placeholder="Select a Room"
                               menuPlacement="top"
@@ -816,10 +1000,26 @@ export default function NewScheduleModal({
                                 <label className="block text-sm font-medium text-black mb-1">Room</label>
                                 <Select
                                   name="room"
-                                  value={roomOptions.find(option => option.value === pairedSchedule.room)}
+                                  value={roomOptions.flatMap(group => group.options).find(option => option.value === pairedSchedule.room)}
                                   onChange={(option) => handlePairedScheduleChange(option, { name: 'room' })}
                                   options={roomOptions}
-                                  styles={customStyles}
+                                  styles={{
+                                    ...customStyles,
+                                    group: (base) => ({
+                                      ...base,
+                                      paddingTop: 8,
+                                      paddingBottom: 8
+                                    }),
+                                    groupHeading: (base) => ({
+                                      ...base,
+                                      color: '#323E8F',
+                                      fontWeight: 600,
+                                      fontSize: '0.875rem',
+                                      textTransform: 'uppercase',
+                                      padding: '8px 12px',
+                                      backgroundColor: '#f8fafc'
+                                    })
+                                  }}
                                   className="text-black"
                                   placeholder="Select a Room"
                                   isClearable

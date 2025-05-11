@@ -10,12 +10,14 @@ import {
   ChevronRightIcon,
   ChevronUpDownIcon,
 } from '@heroicons/react/24/outline';
+import { XMarkIcon } from '@heroicons/react/24/solid';
 import { getSubjects, removeSubject } from './_actions';
 import AddEditSubjectForm from './_components/AddEditSubjectForm';
 import Swal from 'sweetalert2';
 import { useLoading } from '../../../context/LoadingContext';
 import useAuthStore from '@/store/useAuthStore';
 import Filter from './_components/filter';
+import NoData from '@/app/components/NoData';
 
 export default function SubjectsPage() {
   const { user } = useAuthStore();
@@ -246,29 +248,34 @@ export default function SubjectsPage() {
 
         <div className="mt-8">
           <div className="flex flex-col sm:flex-row justify-between space-y-3 sm:space-y-0 sm:space-x-4 mb-4">
-            <div className="flex-1 max-w-sm">
-              <label htmlFor="search" className="sr-only">
-                Search
-              </label>
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <MagnifyingGlassIcon
-                    className="h-5 w-5 text-gray-400"
-                    aria-hidden="true"
-                  />
-                </div>
-                <input
-                  type="text"
-                  name="search"
-                  id="search"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="block w-full rounded-md border-0 py-1.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
-                  placeholder="Search subjects..."
-                />
-              </div>
+          <div className="flex-1 max-w-sm">
+          <div className="relative rounded-md shadow-sm">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+              <MagnifyingGlassIcon
+                className="h-5 w-5 text-gray-400"
+                aria-hidden="true"
+              />
             </div>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="block w-full rounded-md border-0 py-2 pl-10 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
+              placeholder="Search subjects..."
+            />
+            {searchTerm && (
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </div>
+            )}
           </div>
+        </div>
+      </div>
 
           <Filter 
             filters={filters}
@@ -320,40 +327,54 @@ export default function SubjectsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 bg-white">
-                      {paginatedSubjects.map((subject) => (
-                        <tr key={subject.subjectCode}>
-                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                            {subject.subjectCode}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                            {subject.subjectName}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                            {subject.lectureHours} / {subject.labHours}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                            {subject.department?.departmentCode && subject.department?.departmentName 
-                              ? `${subject.department.departmentCode} ` 
-                              : 'N/A'}
-                          </td>
-                          <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                            <button
-                              onClick={() => handleEdit(subject)}
-                              className="text-[#323E8F] hover:text-[#35408E] mr-4"
-                            >
-                              <PencilSquareIcon className="h-5 w-5" />
-                              <span className="sr-only">Edit</span>
-                            </button>
-                            <button
-                              onClick={() => handleDelete(subject.subjectCode)}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              <TrashIcon className="h-5 w-5" />
-                              <span className="sr-only">Delete</span>
-                            </button>
+                      {filteredSubjects.length === 0 ? (
+                        <tr>
+                          <td colSpan="5">
+                            <NoData 
+                              message={searchTerm ? "No matching subjects" : "No subjects yet"} 
+                              description={searchTerm 
+                                ? "Try adjusting your search term" 
+                                : "Add a subject to get started"
+                              }
+                            />
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        paginatedSubjects.map((subject) => (
+                          <tr key={subject.subjectCode}>
+                            <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                              {subject.subjectCode}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                              {subject.subjectName}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                              {subject.lectureHours} / {subject.labHours}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                              {subject.department?.departmentCode && subject.department?.departmentName 
+                                ? `${subject.department.departmentCode} ` 
+                                : 'N/A'}
+                            </td>
+                            <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                              <button
+                                onClick={() => handleEdit(subject)}
+                                className="text-[#323E8F] hover:text-[#35408E] mr-4"
+                              >
+                                <PencilSquareIcon className="h-5 w-5" />
+                                <span className="sr-only">Edit</span>
+                              </button>
+                              <button
+                                onClick={() => handleDelete(subject.subjectCode)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                <TrashIcon className="h-5 w-5" />
+                                <span className="sr-only">Delete</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>

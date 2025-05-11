@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { login, requestOTP, resendOTP } from '../_actions';
 import useAuthStore from '@/store/useAuthStore';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -24,6 +25,8 @@ export default function LoginPage() {
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [verifyStatus, setVerifyStatus] = useState('idle'); // 'idle', 'verifying', 'redirecting'
   const [resendLoading, setResendLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -37,7 +40,7 @@ export default function LoginPage() {
     e.preventDefault();
     setAlertMessage('');
     setAlertType('');
-    
+
     // If in initial stage, validate email and password
     if (formStage === 'initial') {
       setVerifyLoading(true);
@@ -47,15 +50,15 @@ export default function LoginPage() {
         setVerifyLoading(false);
         return;
       }
-      
+
       // Move to OTP stage
       try {
         const otpFormData = new FormData();
         otpFormData.append('email', formData.email);
         otpFormData.append('password', formData.password);
-        
+
         const response = await requestOTP(otpFormData);
-        
+
         if (response.error) {
           setAlertMessage(response.error);
           setAlertType('error');
@@ -64,7 +67,7 @@ export default function LoginPage() {
         }
 
         setFormStage('otp');
-        setAlertMessage('OTP sent successfully (Check Email)');
+        setAlertMessage('OTP has been sent successfully. (Check your email inbox or spam folder.)');
         setAlertType('success');
       } catch (err) {
         setAlertMessage('An error occurred while requesting OTP');
@@ -84,7 +87,7 @@ export default function LoginPage() {
 
     try {
       const response = await login(loginFormData);
-      
+
       if (response.error) {
         setAlertMessage(response.error);
         setAlertType('error');
@@ -135,9 +138,9 @@ export default function LoginPage() {
     try {
       const otpFormData = new FormData();
       otpFormData.append('email', formData.email);
-      
+
       const response = await resendOTP(otpFormData);
-      
+
       if (response.error) {
         setAlertMessage(response.error);
         setAlertType('error');
@@ -232,15 +235,24 @@ export default function LoginPage() {
                         <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                       </svg>
                     </label>
-                    <input
-                      type="password"
-                      name="password"
-                      value={formData.password}
-                      onChange={handleChange}
-                      required
-                      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#323E8F] text-black placeholder-gray-500"
-                      placeholder="Enter your password"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        name="password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        required
+                        className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[#323E8F] text-black placeholder-gray-500"
+                        placeholder="Enter your password"
+                      />
+                      <button
+                        type="button"
+                        className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 hover:text-gray-700"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                      </button>
+                    </div>
                   </div>
                 </>
               )}
@@ -251,7 +263,7 @@ export default function LoginPage() {
                     <label className="flex items-center text-gray-700 text-sm font-medium mb-2">
                       <span className="mr-2">OTP Code</span>
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" className="h-4 w-4" fill="currentColor">
-                      <path d="M336 352c97.2 0 176-78.8 176-176S433.2 0 336 0S160 78.8 160 176c0 18.7 2.9 36.8 8.3 53.7L7 391c-4.5 4.5-7 10.6-7 17l0 80c0 13.3 10.7 24 24 24l80 0c13.3 0 24-10.7 24-24l0-40 40 0c13.3 0 24-10.7 24-24l0-40 40 0c6.4 0 12.5-2.5 17-7l33.3-33.3c16.9 5.4 35 8.3 53.7 8.3zM376 96a40 40 0 1 1 0 80 40 40 0 1 1 0-80z"/>
+                        <path d="M336 352c97.2 0 176-78.8 176-176S433.2 0 336 0S160 78.8 160 176c0 18.7 2.9 36.8 8.3 53.7L7 391c-4.5 4.5-7 10.6-7 17l0 80c0 13.3 10.7 24 24 24l80 0c13.3 0 24-10.7 24-24l0-40 40 0c13.3 0 24-10.7 24-24l0-40 40 0c6.4 0 12.5-2.5 17-7l33.3-33.3c16.9 5.4 35 8.3 53.7 8.3zM376 96a40 40 0 1 1 0 80 40 40 0 1 1 0-80z"/>
                       </svg>
                     </label>
                     <input
@@ -272,8 +284,8 @@ export default function LoginPage() {
                         disabled={verifyLoading || verifyStatus !== 'idle'}
                       >
                         {verifyStatus === 'verifying' ? 'Verifying...' :
-                         verifyStatus === 'redirecting' ? 'Redirecting...' :
-                         verifyLoading ? 'Processing...' : 'Verify OTP'}
+                          verifyStatus === 'redirecting' ? 'Redirecting...' :
+                            verifyLoading ? 'Processing...' : 'Verify OTP'}
                       </button>
                       <button
                         type="button"
@@ -318,10 +330,10 @@ export default function LoginPage() {
             </div>
           </form>
           <div className="text-right mt-2">
-              <Link href="/forgot-password" className="text-blue-500 hover:text-blue-600 text-sm">
-                Forgot Password?
-              </Link>
-            </div>
+            <Link href="/forgot-password" className="text-blue-500 hover:text-blue-600 text-sm">
+              Forgot Password?
+            </Link>
+          </div>
           <div className="mt-4 text-center text-xs text-gray-500">
             <div className="text-align max-w-sm mx-auto">
               <p>All rights reserved. The trademarks and logos of National University® are used with permission from National University Inc. for educational purposes only. Unauthorized use is strictly prohibited.</p>

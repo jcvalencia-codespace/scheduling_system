@@ -117,7 +117,56 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
       onClose();
     }
   };
-
+  const customStyles = {
+    control: (base, state) => ({
+      ...base,
+      minHeight: '38px',
+      backgroundColor: 'white',
+      borderColor: state.isFocused ? '#323E8F' : '#E5E7EB',
+      borderRadius: '0.375rem',
+      boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+      '&:hover': {
+        borderColor: '#323E8F'
+      },
+      '&:focus': {
+        borderColor: '#323E8F',
+        boxShadow: '0 0 0 1px #323E8F'
+      }
+    }),
+    placeholder: (base) => ({
+      ...base,
+      color: '#6B7280',
+    }),
+    option: (base, state) => ({
+      ...base,
+      backgroundColor: state.isSelected ? '#323E8F' : state.isFocused ? '#EFF6FF' : 'white',
+      color: state.isSelected ? 'white' : 'black',
+      cursor: 'pointer',
+      padding: '8px 12px',
+    }),
+    menu: (base) => ({
+      ...base,
+      zIndex: 100,
+    }),
+    menuList: (base) => ({
+      ...base,
+      maxHeight: '160px',
+      overflowY: 'auto',
+      '&::-webkit-scrollbar': {
+        width: '8px'
+      },
+      '&::-webkit-scrollbar-track': {
+        background: '#f1f1f1'
+      },
+      '&::-webkit-scrollbar-thumb': {
+        background: '#888',
+        borderRadius: '4px'
+      },
+      '&::-webkit-scrollbar-thumb:hover': {
+        background: '#555'
+      }
+    })
+  };
   return (
     <Transition.Root show={show} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={handleClose}>
@@ -260,18 +309,12 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
                               classNamePrefix="select"
                               placeholder="Select a department..."
                               isSearchable
+                              isClearable
+                              menuPlacement="top"
+                              styles={customStyles}
+                              // isLoading={departments.length === 0}
                               required
-                              styles={{
-                                menu: (provided) => ({
-                                  ...provided,
-                                  zIndex: 9999
-                                }),
-                                menuPortal: (provided) => ({
-                                  ...provided,
-                                  zIndex: 9999
-                                })
-                              }}
-                              menuPlacement="auto"
+                              
                             />
                           </div>
                         </div>

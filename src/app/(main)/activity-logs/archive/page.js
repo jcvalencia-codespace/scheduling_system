@@ -9,6 +9,7 @@ import SubjectHistory from './_components/SubjectHistory';
 import SectionHistory from './_components/SectionHistory';
 import RoomHistory from './_components/RoomHistory';
 import HistoryFilter from './_components/HistoryFilter';
+import useAuthStore from "@/store/useAuthStore";
 
 export default function ArchivePage() {
   const [classHistory, setClassHistory] = useState([]);
@@ -23,15 +24,47 @@ export default function ArchivePage() {
     month: '',
     showAllDates: false
   });
+  const { user } = useAuthStore();
   const [activeAccordion, setActiveAccordion] = useState(null);
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setIsLoading(true);
-        const termData = await getActiveTerm();
-        setActiveTerm(termData);
+    // Only run loadData if user is available
+    if (user) {
+      loadData();
+    }
+    
+    // Load saved filters from localStorage
+    const savedFilters = localStorage.getItem('archiveFilters');
+    if (savedFilters) {
+      setFilters(JSON.parse(savedFilters));
+    }
+  }, [user]); // Only depend on user, not user.role or user.course
 
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      const termData = await getActiveTerm();
+      setActiveTerm(termData);
+
+      // Add null check for user
+      if (user?.role === 'Program Chair' && user?.course) {
+        console.log('Program Chair Course Details:', {
+          role: user.role,
+          courseId: user.course,
+          department: user.department,
+          name: `${user.firstName} ${user.lastName}`
+        });
+        
+        const classData = await getUpdateHistory(null, null, null, user.course);
+        console.log('Class Load History Response:', {
+          received: classData,
+          count: Array.isArray(classData) ? classData.length : 0,
+          courseFiltered: !!user.course
+        });
+        
+        setClassHistory(Array.isArray(classData) ? classData : []);
+      } else {
+        // For other roles or when user data is not available
         const [classData, subjectData, sectionData, roomData] = await Promise.all([
           getUpdateHistory(),
           getSubjectHistory(),
@@ -43,21 +76,13 @@ export default function ArchivePage() {
         setSubjectHistory(Array.isArray(subjectData) ? subjectData : []);
         setSectionHistory(Array.isArray(sectionData) ? sectionData : []);
         setRoomHistory(Array.isArray(roomData) ? roomData : []);
-      } catch (error) {
-        console.error('Error loading data:', error);
-      } finally {
-        setIsLoading(false);
       }
-    };
-
-    // Load saved filters from localStorage
-    const savedFilters = localStorage.getItem('archiveFilters');
-    if (savedFilters) {
-      setFilters(JSON.parse(savedFilters));
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setIsLoading(false);
     }
-    
-    loadData();
-  }, []);
+  };
 
   const handleFilterChange = (type, value) => {
     const newFilters = {
@@ -83,6 +108,9 @@ export default function ArchivePage() {
     setActiveAccordion(activeAccordion === accordionId ? null : accordionId);
   };
 
+  // Add null check for user.role
+  const isProgramChair = user?.role === 'Program Chair';
+
   return (
     <div className="min-h-screen bg-gray-50 px-2 sm:px-4 md:px-6 lg:px-8 py-4 md:py-8">
       <div className="max-w-7xl mx-auto pb-20"> {/* Increased bottom padding */}
@@ -103,7 +131,7 @@ export default function ArchivePage() {
         </div>
 
         <div className="space-y-4 md:space-y-6">
-          {/* Class Load History Dropdown */}
+          {/* Class Load History Dropdown - Always shown */}
           <div className="bg-white shadow rounded-lg overflow-hidden">
             <div className="p-4 md:p-6 border-b border-gray-200 flex items-center justify-between bg-white">
               <div>
@@ -135,101 +163,106 @@ export default function ArchivePage() {
             </div>
           </div>
 
-          {/* Subjects History Dropdown */}
-          <div className="bg-white shadow rounded-lg overflow-hidden">
-            <div className="p-4 md:p-6 border-b border-gray-200 flex items-center justify-between bg-white">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Subject Update History</h2>
-                <p className="mt-1 text-sm text-gray-500">View detailed history of all changes made to subjects</p>
-              </div>
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => handleAccordionClick('subjects')}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
-                >
-                  {activeAccordion === 'subjects' ? (
-                    <ChevronUpIcon className="h-5 w-5 text-gray-500" />
-                  ) : (
-                    <ChevronDownIcon className="h-5 w-5 text-gray-500" />
-                  )}
-                </button>
-              </div>
-            </div>
+          {/* Other sections - Only shown if not Program Chair and user exists */}
+          {user && !isProgramChair && (
+            <>
+              {/* Subjects History Dropdown */}
+              <div className="bg-white shadow rounded-lg overflow-hidden">
+                <div className="p-4 md:p-6 border-b border-gray-200 flex items-center justify-between bg-white">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900">Subject Update History</h2>
+                    <p className="mt-1 text-sm text-gray-500">View detailed history of all changes made to subjects</p>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <button
+                      onClick={() => handleAccordionClick('subjects')}
+                      className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
+                    >
+                      {activeAccordion === 'subjects' ? (
+                        <ChevronUpIcon className="h-5 w-5 text-gray-500" />
+                      ) : (
+                        <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+                      )}
+                    </button>
+                  </div>
+                </div>
 
-            <div className={`transition-all duration-300 ease-in-out ${
-              activeAccordion === 'subjects' ? 'max-h-full opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
-            }`}>
-              <SubjectHistory 
-                history={subjectHistory} 
-                filters={filters}
-                activeTerm={activeTerm}
-              />
-            </div>
-          </div>
-
-          {/* Sections History Dropdown */}
-          <div className="bg-white shadow rounded-lg overflow-hidden">
-            <div className="p-4 md:p-6 border-b border-gray-200 flex items-center justify-between bg-white">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Section Update History</h2>
-                <p className="mt-1 text-sm text-gray-500">View detailed history of all changes made to sections</p>
+                <div className={`transition-all duration-300 ease-in-out ${
+                  activeAccordion === 'subjects' ? 'max-h-full opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
+                }`}>
+                  <SubjectHistory 
+                    history={subjectHistory} 
+                    filters={filters}
+                    activeTerm={activeTerm}
+                  />
+                </div>
               </div>
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => handleAccordionClick('sections')}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
-                >
-                  {activeAccordion === 'sections' ? (
-                    <ChevronUpIcon className="h-5 w-5 text-gray-500" />
-                  ) : (
-                    <ChevronDownIcon className="h-5 w-5 text-gray-500" />
-                  )}
-                </button>
-              </div>
-            </div>
 
-            <div className={`transition-all duration-300 ease-in-out ${
-              activeAccordion === 'sections' ? 'max-h-full opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
-            }`}>
-              <SectionHistory 
-                history={sectionHistory} 
-                filters={filters}
-                activeTerm={activeTerm}
-              />
-            </div>
-          </div>
+              {/* Sections History Dropdown */}
+              <div className="bg-white shadow rounded-lg overflow-hidden">
+                <div className="p-4 md:p-6 border-b border-gray-200 flex items-center justify-between bg-white">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900">Section Update History</h2>
+                    <p className="mt-1 text-sm text-gray-500">View detailed history of all changes made to sections</p>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <button
+                      onClick={() => handleAccordionClick('sections')}
+                      className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
+                    >
+                      {activeAccordion === 'sections' ? (
+                        <ChevronUpIcon className="h-5 w-5 text-gray-500" />
+                      ) : (
+                        <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+                      )}
+                    </button>
+                  </div>
+                </div>
 
-          {/* Rooms History Dropdown */}
-          <div className="bg-white shadow rounded-lg overflow-hidden">
-            <div className="p-4 md:p-6 border-b border-gray-200 flex items-center justify-between bg-white">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Room Update History</h2>
-                <p className="mt-1 text-sm text-gray-500">View detailed history of all changes made to rooms</p>
+                <div className={`transition-all duration-300 ease-in-out ${
+                  activeAccordion === 'sections' ? 'max-h-full opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
+                }`}>
+                  <SectionHistory 
+                    history={sectionHistory} 
+                    filters={filters}
+                    activeTerm={activeTerm}
+                  />
+                </div>
               </div>
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => handleAccordionClick('rooms')}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
-                >
-                  {activeAccordion === 'rooms' ? (
-                    <ChevronUpIcon className="h-5 w-5 text-gray-500" />
-                  ) : (
-                    <ChevronDownIcon className="h-5 w-5 text-gray-500" />
-                  )}
-                </button>
-              </div>
-            </div>
 
-            <div className={`transition-all duration-300 ease-in-out ${
-              activeAccordion === 'rooms' ? 'max-h-full opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
-            }`}>
-              <RoomHistory 
-                history={roomHistory} 
-                filters={filters}
-                activeTerm={activeTerm}
-              />
-            </div>
-          </div>
+              {/* Rooms History Dropdown */}
+              <div className="bg-white shadow rounded-lg overflow-hidden">
+                <div className="p-4 md:p-6 border-b border-gray-200 flex items-center justify-between bg-white">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900">Room Update History</h2>
+                    <p className="mt-1 text-sm text-gray-500">View detailed history of all changes made to rooms</p>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <button
+                      onClick={() => handleAccordionClick('rooms')}
+                      className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
+                    >
+                      {activeAccordion === 'rooms' ? (
+                        <ChevronUpIcon className="h-5 w-5 text-gray-500" />
+                      ) : (
+                        <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className={`transition-all duration-300 ease-in-out ${
+                  activeAccordion === 'rooms' ? 'max-h-full opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
+                }`}>
+                  <RoomHistory 
+                    history={roomHistory} 
+                    filters={filters}
+                    activeTerm={activeTerm}
+                  />
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

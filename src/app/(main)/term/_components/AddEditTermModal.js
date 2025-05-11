@@ -3,10 +3,78 @@
 import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import Select from 'react-select';
 import { addTerm, editTerm } from '../_actions';
 import Swal from 'sweetalert2';
 
 export default function AddEditTermModal({ open, setOpen, title, selectedTerm, onSuccess, terms }) {
+  const customStyles = {
+    control: (base, state) => ({
+      ...base,
+      minHeight: '38px',
+      backgroundColor: 'white',
+      borderColor: state.isFocused ? '#323E8F' : '#E5E7EB',
+      borderRadius: '0.375rem',
+      boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+      '&:hover': {
+        borderColor: '#323E8F'
+      },
+      '&:focus': {
+        borderColor: '#323E8F',
+        boxShadow: '0 0 0 1px #323E8F'
+      }
+    }),
+    placeholder: (base) => ({
+      ...base,
+      color: '#6B7280',
+    }),
+    option: (base, state) => ({
+      ...base,
+      backgroundColor: state.isSelected 
+        ? '#323E8F' 
+        : state.isFocused 
+          ? '#EFF6FF' 
+          : 'white',
+      color: state.isDisabled 
+        ? '#9CA3AF' 
+        : state.isSelected 
+          ? 'white' 
+          : 'black',
+      cursor: state.isDisabled ? 'not-allowed' : 'pointer',
+      padding: '8px 12px',
+      opacity: state.isDisabled ? 0.6 : 1,
+      '&::after': state.isDisabled ? {
+        content: '"(Already Added)"',
+        marginLeft: '8px',
+        color: '#9CA3AF',
+        fontSize: '0.875rem',
+        fontStyle: 'italic'
+      } : {}
+    }),
+    menu: (base) => ({
+      ...base,
+      zIndex: 100,
+    }),
+    menuList: (base) => ({
+      ...base,
+      maxHeight: '100px',
+      overflowY: 'auto',
+      '&::-webkit-scrollbar': {
+        width: '8px'
+      },
+      '&::-webkit-scrollbar-track': {
+        background: '#f1f1f1'
+      },
+      '&::-webkit-scrollbar-thumb': {
+        background: '#888',
+        borderRadius: '4px'
+      },
+      '&::-webkit-scrollbar-thumb:hover': {
+        background: '#555'
+      }
+    })
+  };
+
   const [formData, setFormData] = useState({
     academicYear: '',
     term: '',
@@ -15,10 +83,8 @@ export default function AddEditTermModal({ open, setOpen, title, selectedTerm, o
   });
   const [error, setError] = useState('');
 
-  // Add state to track existing terms
   const [existingTerms, setExistingTerms] = useState([]);
 
-  // Update useEffect to track existing terms, excluding the currently selected term
   useEffect(() => {
     if (terms) {
       const existingTermNumbers = terms
@@ -28,16 +94,13 @@ export default function AddEditTermModal({ open, setOpen, title, selectedTerm, o
     }
   }, [terms, selectedTerm]);
 
-  // Reset form when modal opens/closes or when selectedTerm changes
   useEffect(() => {
-    // Reset form data and error
     if (selectedTerm) {
-      // Convert dates from YYYY-MM-DD to the format expected by the date input
       setFormData({
         academicYear: selectedTerm.academicYear,
         term: selectedTerm.term,
-        startDate: selectedTerm.startDate, // Keep as YYYY-MM-DD for date input
-        endDate: selectedTerm.endDate, // Keep as YYYY-MM-DD for date input
+        startDate: selectedTerm.startDate,
+        endDate: selectedTerm.endDate,
       });
     } else {
       setFormData({
@@ -50,7 +113,6 @@ export default function AddEditTermModal({ open, setOpen, title, selectedTerm, o
     setError('');
   }, [selectedTerm]);
 
-  // Clear form when modal closes
   useEffect(() => {
     if (!open) {
       setFormData({
@@ -65,25 +127,19 @@ export default function AddEditTermModal({ open, setOpen, title, selectedTerm, o
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(''); // Clear any existing errors
+    setError('');
     try {
-      // Parse dates handling both MM/DD/YYYY and YYYY-MM-DD formats
       const parseDate = (dateStr) => {
         if (!dateStr) return null;
-        
-        // Check if date is already in YYYY-MM-DD format
         if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
           const [year, month, day] = dateStr.split('-');
           return new Date(year, month - 1, day);
         }
-        
-        // Parse MM/DD/YYYY format
         const parts = dateStr.split('/');
         if (parts.length !== 3) {
           setError('Invalid date format. Please use MM/DD/YYYY');
           return null;
         }
-        
         const [month, day, year] = parts;
         return new Date(year, month - 1, day);
       };
@@ -98,37 +154,32 @@ export default function AddEditTermModal({ open, setOpen, title, selectedTerm, o
 
       const startDate = parseDate(formData.startDate);
       const endDate = parseDate(formData.endDate);
-      
-      // Validate dates are valid
+
       if (!startDate || !endDate || isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
         setError('Invalid date format');
         return;
       }
 
-      // Compare dates without time components
       const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
       const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-      
+
       if (startDateOnly >= endDateOnly) {
         setError('End date must be after start date');
         return;
       }
 
-      // Check for overlapping terms
-      const existingTerms = terms.filter(term => 
-        // Exclude current term when editing
+      const existingTerms = terms.filter(term =>
         selectedTerm ? term.id !== selectedTerm.id : true
       );
 
       for (const term of existingTerms) {
         const termStart = parseDate(term.startDate);
         const termEnd = parseDate(term.endDate);
-        
-        // Check if either the start or end date falls within another term's range
+
         const overlap = (
-          (startDate >= termStart && startDate <= termEnd) || // New start date overlaps
-          (endDate >= termStart && endDate <= termEnd) ||     // New end date overlaps
-          (startDate <= termStart && endDate >= termEnd)      // New term completely encompasses existing term
+          (startDate >= termStart && startDate <= termEnd) ||
+          (endDate >= termStart && endDate <= termEnd) ||
+          (startDate <= termStart && endDate >= termEnd)
         );
 
         if (overlap) {
@@ -139,7 +190,6 @@ export default function AddEditTermModal({ open, setOpen, title, selectedTerm, o
 
       const formDataToSend = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
-        // Convert dates to ISO format for sending to server
         if (key === 'startDate' || key === 'endDate') {
           const date = parseDate(value);
           formDataToSend.append(key, date.toISOString().split('T')[0]);
@@ -157,7 +207,6 @@ export default function AddEditTermModal({ open, setOpen, title, selectedTerm, o
         return;
       }
 
-      // Reset form data
       setFormData({
         academicYear: '',
         term: '',
@@ -167,7 +216,7 @@ export default function AddEditTermModal({ open, setOpen, title, selectedTerm, o
 
       onSuccess?.();
       setOpen(false);
-      
+
       Swal.fire({
         icon: 'success',
         title: 'Success',
@@ -180,27 +229,27 @@ export default function AddEditTermModal({ open, setOpen, title, selectedTerm, o
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  const handleChange = (selectedOption, actionMeta) => {
+    const { name } = actionMeta;
+    const value = selectedOption ? selectedOption.value : '';
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
   };
 
-  // Generate academic year options (current year - 1 to current year + 5)
   const currentYear = new Date().getFullYear();
-  const academicYears = [];
+  const academicYearOptions = [];
   for (let i = -1; i <= 5; i++) {
     const year = currentYear + i;
-    academicYears.push(`${year}-${year + 1}`);
+    const yearString = `${year}-${year + 1}`;
+    academicYearOptions.push({ value: yearString, label: yearString });
   }
 
-  // Generate available terms for dropdown
-  const availableTerms = ['Term 1', 'Term 2', 'Term 3'].map(term => ({
+  const termOptions = ['Term 1', 'Term 2', 'Term 3'].map(term => ({
     value: term,
     label: term,
-    disabled: !selectedTerm && existingTerms.includes(term)
+    isDisabled: !selectedTerm && existingTerms.includes(term)
   }));
 
   return (
@@ -261,21 +310,21 @@ export default function AddEditTermModal({ open, setOpen, title, selectedTerm, o
                         >
                           Academic Year
                         </label>
-                        <select
-                          id="academicYear"
+                        <Select
                           name="academicYear"
-                          value={formData.academicYear}
-                          onChange={handleChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black"
+                          value={academicYearOptions.find(option => option.value === formData.academicYear)}
+                          onChange={(option, action) => handleChange(option, { ...action, name: 'academicYear' })}
+                          options={academicYearOptions}
+                          isClearable
+                          isSearchable
+                          styles={customStyles}
+                          className="mt-1"
+                          classNamePrefix="select"
+                          placeholder="Select Academic Year"
                           required
-                        >
-                          <option value="">Select Academic Year</option>
-                          {academicYears.map((year) => (
-                            <option key={year} value={year}>
-                              {year}
-                            </option>
-                          ))}
-                        </select>
+                          // menuPlacement="top"  // This will make the menu appear above the input
+                          maxMenuHeight={80}
+                        />
                       </div>
 
                       <div>
@@ -285,50 +334,56 @@ export default function AddEditTermModal({ open, setOpen, title, selectedTerm, o
                         >
                           Select Term
                         </label>
-                        <select
-                          id="term"
+                        <Select
                           name="term"
-                          value={formData.term}
-                          onChange={handleChange}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black disabled:bg-gray-100 disabled:text-gray-500"
+                          value={termOptions.find(option => option.value === formData.term)}
+                          onChange={(option, action) => handleChange(option, { ...action, name: 'term' })}
+                          options={termOptions}
+                          isClearable
+                          isSearchable
+                          styles={customStyles}
+                          className="mt-1"
+                          classNamePrefix="select"
+                          placeholder="Select Term"
+                          isDisabled={!!selectedTerm}
                           required
-                          disabled={!!selectedTerm}
-                        >
-                          <option value="">Select Term</option>
-                          {availableTerms.map((term) => (
-                            <option 
-                              key={term.value} 
-                              value={term.value}
-                              disabled={term.disabled}
-                            >
-                              {term.label} {term.disabled ? '(Already Added)' : ''}
-                            </option>
-                          ))}
-                        </select>
+                          maxMenuHeight={80}
+                          menuPlacement="top" 
+                        />
                       </div>
 
                       {formData.term && (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
                             {formData.term} Dates
                           </label>
-                          <div className="mt-2">
-                            <input
-                              type="date"
-                              name="startDate"
-                              value={formData.startDate}
-                              onChange={handleChange}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black"
-                              required
-                            />
-                            <input
-                              type="date"
-                              name="endDate"
-                              value={formData.endDate}
-                              onChange={handleChange}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black"
-                              required
-                            />
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-500 mb-1">
+                                Start Date
+                              </label>
+                              <input
+                                type="date"
+                                name="startDate"
+                                value={formData.startDate}
+                                onChange={(e) => setFormData((prev) => ({ ...prev, startDate: e.target.value }))}
+                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black"
+                                required
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-500 mb-1">
+                                End Date
+                              </label>
+                              <input
+                                type="date"
+                                name="endDate"
+                                value={formData.endDate}
+                                onChange={(e) => setFormData((prev) => ({ ...prev, endDate: e.target.value }))}
+                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm text-black"
+                                required
+                              />
+                            </div>
                           </div>
                         </div>
                       )}

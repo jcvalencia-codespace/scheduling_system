@@ -36,12 +36,16 @@ const UserSchema = new Schema({
   department: {
     type: Schema.Types.ObjectId,
     ref: 'departments',
-    required: true
+    required: function() {
+      return this.role !== 'Administrator';
+    }
   },
   course: {
     type: Schema.Types.ObjectId,
     ref: 'courses',
-    required: true
+    required: function() {
+      return this.role !== 'Administrator';
+    }
   },
   employmentType: {
     type: String,
@@ -393,6 +397,11 @@ const AssignSubjectsSchema = new Schema({
       type: Schema.Types.ObjectId,
       ref: 'Terms',
       required: true
+    },
+    hours: {  // Add hours field
+      type: Number,
+      required: true,
+      min: 1
     }
   }],
   isActive: {
@@ -521,7 +530,97 @@ const ScheduleSchema = new Schema({
   timestamps: true,
   collection: 'schedules'
 });
-// Add this to your existing schema.js file
+
+const AdminHourSchema = new Schema({
+  user: {
+    type: Schema.Types.ObjectId,
+    ref: 'Users',
+    required: true
+  },
+  term: {
+    type: Schema.Types.ObjectId,
+    ref: 'Terms',
+    required: true
+  },
+  slots: [{
+    _id: {
+      type: Schema.Types.ObjectId,
+      auto: true
+    },
+    day: {
+      type: String,
+      required: true,
+      enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    },
+    startTime: {
+      type: String,
+      required: true
+    },
+    endTime: {
+      type: String,
+      required: true
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected', 'cancelled'],
+      default: 'pending'
+    },
+    rejectionReason: String,
+    approvedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Users'
+    },
+    approvalDate: Date,
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  needsApproval: {
+    type: Boolean,
+    default: true,
+  },
+  approvedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'Users'
+  },
+  approvalDate: Date,
+  rejectionReason: String,
+  createdBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'Users',
+    required: true
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  updateHistory: [{
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+      required: true
+    },
+    action: {
+      type: String,
+      enum: ['created', 'updated', 'deleted', 'approved', 'rejected'],
+      required: true
+    },
+    academicYear: {
+      type: String,
+      required: true
+    }
+  }]
+}, {
+  timestamps: true,
+  collection: 'adminHours'
+});
+
 const NotificationSchema = new Schema({
   userId: {
     type: Schema.Types.ObjectId,
@@ -618,6 +717,39 @@ const ChatSchema = new Schema({
 ChatSchema.index({ participants: 1, lastMessage: -1 });
 ChatSchema.index({ 'messages.sender': 1, 'messages.createdAt': -1 });
 
+const AccessSettingsSchema = new Schema({
+  role: {
+    type: String,
+    required: true,
+    enum: ['Dean', 'Program Chair'],
+    unique: true
+  },
+  settings: {
+    showMultipleSections: {
+      type: Boolean,
+      default: true
+    },
+    showFacultyDropdown: {
+      type: Boolean,
+      default: true
+    }
+  },
+  updateHistory: [{
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }]
+}, {
+  timestamps: true,
+  collection: 'accessSettings'
+});
+
 export {
   UserSchema,
   SubjectSchema,
@@ -629,6 +761,8 @@ export {
   FeedbackSchema,
   AssignSubjectsSchema,
   ScheduleSchema,
+  AdminHourSchema,
   NotificationSchema,
-  ChatSchema
+  ChatSchema,
+  AccessSettingsSchema
 };

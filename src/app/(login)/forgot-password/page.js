@@ -2,7 +2,11 @@
 
 import { useState } from 'react';
 import { requestPasswordReset, verifyOTP, verifyOTPAndResetPassword } from '../_actions';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import {
+  ArrowLeftIcon, 
+  EyeIcon,
+  EyeSlashIcon,
+} from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -13,6 +17,8 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     otp: '',
@@ -45,7 +51,7 @@ export default function ForgotPasswordPage() {
         if (result.error) {
           setError(result.error);
         } else {
-          setSuccess('OTP has been sent to your email');
+          setSuccess('OTP has been sent successfully. (Check your email inbox or spam folder.)');
           setFormStage('otp');
         }
       } else if (formStage === 'otp') {
@@ -53,7 +59,7 @@ export default function ForgotPasswordPage() {
         const formDataObj = new FormData();
         formDataObj.append('email', formData.email);
         formDataObj.append('otp', formData.otp);
-        
+
         const result = await verifyOTP(formData.email, formData.otp);
         if (result.error) {
           setError(result.error);
@@ -127,13 +133,13 @@ export default function ForgotPasswordPage() {
           </div>
 
           {error && (
-            <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded relative">
+            <div className="mb-4 bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded-lg relative">
               {error}
             </div>
           )}
 
           {success && (
-            <div className="mb-4 bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded relative">
+            <div className="mb-4 bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg relative">
               {success}
             </div>
           )}
@@ -200,13 +206,20 @@ export default function ForgotPasswordPage() {
                     <input
                       id="newPassword"
                       name="newPassword"
-                      type="password"
+                      type={showNewPassword ? "text" : "password"}
                       required
                       value={formData.newPassword}
                       onChange={handleChange}
                       className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#323E8F] focus:border-[#323E8F] sm:text-sm text-black"
                       placeholder="Enter new password"
                     />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 hover:text-gray-700"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                    >
+                      {showNewPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                    </button>
                   </div>
                 </div>
 
@@ -221,13 +234,20 @@ export default function ForgotPasswordPage() {
                     <input
                       id="confirmPassword"
                       name="confirmPassword"
-                      type="password"
+                      type={showConfirmPassword ? "text" : "password"}
                       required
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#323E8F] focus:border-[#323E8F] sm:text-sm text-black"
                       placeholder="Confirm new password"
                     />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500 hover:text-gray-700"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    >
+                      {showConfirmPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                    </button>
                   </div>
                 </div>
               </>

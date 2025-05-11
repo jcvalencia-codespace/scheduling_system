@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { addUser, editUser, getDepartments, getCoursesByDepartment } from '../_actions';
+import { addUser, editUser, getDepartments, getAllCourses } from '../_actions';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
 import { FullFormSkeleton, CourseDropdownSkeleton } from './Skeleton';
@@ -24,26 +24,16 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
   const [formData, setFormData] = useState(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [departments, setDepartments] = useState([]);
+  const [allCourses, setAllCourses] = useState([]);
   const [courses, setCourses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  // Add this state to track course loading
-  const [isLoadingCourses, setIsLoadingCourses] = useState(false);
 
   useEffect(() => {
-    // Fetch departments when modal opens
     if (show) {
       fetchDepartments();
+      fetchAllCourses();
     }
   }, [show]);
-
-  useEffect(() => {
-    // Fetch courses when department changes
-    if (formData.department) {
-      fetchCourses(formData.department);
-    } else {
-      setCourses([]);
-    }
-  }, [formData.department]);
 
   useEffect(() => {
     if (user) {
@@ -54,16 +44,10 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
         email: user.email,
         password: '',
         role: user.role,
-        // Use the actual IDs from the populated objects
         department: user.department?._id || '',
         course: user.course?._id || '',
         employmentType: user.employmentType
       });
-
-      // If there's a department, fetch its courses
-      if (user.department?._id) {
-        fetchCourses(user.department._id);
-      }
     } else {
       setFormData(initialFormState);
     }
@@ -84,23 +68,12 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
     setIsLoading(false);
   };
 
-
-
-  // Update fetchCourses function
-  const fetchCourses = async (departmentId) => {
-    setIsLoadingCourses(true);
-    const result = await getCoursesByDepartment(departmentId);
+  const fetchAllCourses = async () => {
+    const result = await getAllCourses();
     if (result.courses) {
+      setAllCourses(result.courses);
       setCourses(result.courses);
-    } else {
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Failed to fetch courses',
-        confirmButtonColor: '#323E8F'
-      });
     }
-    setIsLoadingCourses(false);
   };
 
   const handleSubmit = async (e) => {
@@ -154,12 +127,52 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
       setIsSubmitting(false);
     }
   };
-  // Modify handleChange to handle react-select changes
+
   const handleSelectChange = (selectedOption, { name }) => {
-    setFormData(prev => ({
-      ...prev,
-      [name]: selectedOption ? selectedOption.value : ''
-    }));
+    if (name === 'role' && selectedOption?.value === 'Administrator') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: selectedOption.value,
+        department: '',
+        course: '',
+        employmentType: 'full-time'
+      }));
+    } else if (name === 'department') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: selectedOption ? selectedOption.value : '',
+        course: '' // Clear course when department changes
+      }));
+      if (selectedOption) {
+        // Filter courses based on selected department
+        const filteredCourses = allCourses.filter(
+          course => course.department?._id === selectedOption.value
+        );
+        setCourses(filteredCourses);
+      } else {
+        // Show all courses when no department is selected
+        setCourses(allCourses);
+      }
+    } else if (name === 'course' && selectedOption) {
+      const selectedCourse = allCourses.find(c => c._id === selectedOption.value);
+      if (selectedCourse?.department?._id) {
+        setFormData(prev => ({
+          ...prev,
+          [name]: selectedOption.value,
+          department: selectedCourse.department._id
+        }));
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          [name]: selectedOption.value
+        }));
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: selectedOption ? selectedOption.value : ''
+      }));
+    }
   };
 
   const handleChange = (e) => {
@@ -176,6 +189,7 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
       onClose();
     }
   };
+
   const formatDepartmentOptions = () => {
     return departments.map(dept => ({
       value: dept._id,
@@ -184,9 +198,14 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
   };
 
   const formatCourseOptions = () => {
-    return courses.map(course => ({
+    // Show filtered courses if department is selected, otherwise show all courses
+    const coursesToShow = formData.department 
+      ? allCourses.filter(course => course.department?._id === formData.department)
+      : allCourses;
+    
+    return coursesToShow.map(course => ({
       value: course._id,
-      label: course.courseTitle
+      label: `${course.courseCode} - ${course.courseTitle}`
     }));
   };
 
@@ -202,15 +221,14 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
     { value: 'part-time', label: 'Part-Time' }
   ];
 
-  // Update the customStyles object
   const customStyles = {
     control: (base, state) => ({
       ...base,
       minHeight: '42px',
       backgroundColor: 'white',
       borderColor: state.isFocused ? '#323E8F' : '#E5E7EB',
-      borderRadius: '0.375rem', // rounded-md
-      boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)', // shadow-sm
+      borderRadius: '0.375rem',
+      boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
       '&:hover': {
         borderColor: '#323E8F'
       },
@@ -236,8 +254,8 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
     }),
     menuList: (base) => ({
       ...base,
-      maxHeight: '200px', // Set maximum height
-      overflowY: 'auto', // Enable vertical scrolling
+      maxHeight: '200px',
+      overflowY: 'auto',
       '&::-webkit-scrollbar': {
         width: '8px'
       },
@@ -253,6 +271,7 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
       }
     })
   };
+
   return (
     <Transition.Root show={show} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={handleClose}>
@@ -403,56 +422,53 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
                               />
                             </div>
 
-                            <div>
-                              <label htmlFor="department" className="block text-sm font-medium text-gray-700">
-                                Department
-                              </label>
-                              <Select
-                                id="department"
-                                name="department"
-                                options={formatDepartmentOptions()}
-                                value={formatDepartmentOptions().find(option => option.value === formData.department) || null}
-                                onChange={(option) => handleSelectChange(option, { name: 'department' })}
-                                isDisabled={isSubmitting}
-                                className="mt-1 text-black"
-                                classNamePrefix="select"
-                                placeholder="Select Department"
-                                isClearable={true}
-                                styles={customStyles}
-                                maxMenuHeight={200}
-                                menuPlacement="top"
-                                isRequired
-                              />
-                            </div>
-
-
-                            <div>
-                              <label htmlFor="course" className="block text-sm font-medium text-gray-700">
-                                Course
-                              </label>
-                              {isLoadingCourses ? (
-                                <div className="mt-1">
-                                  <CourseDropdownSkeleton />
+                            {formData.role !== 'Administrator' && (
+                              <>
+                                <div>
+                                  <label htmlFor="department" className="block text-sm font-medium text-gray-700">
+                                    Department
+                                  </label>
+                                  <Select
+                                    id="department"
+                                    name="department"
+                                    options={formatDepartmentOptions()}
+                                    value={formatDepartmentOptions().find(option => option.value === formData.department) || null}
+                                    onChange={(option) => handleSelectChange(option, { name: 'department' })}
+                                    isDisabled={isSubmitting}
+                                    className="mt-1 text-black"
+                                    classNamePrefix="select"
+                                    placeholder="Select Department"
+                                    isClearable={true}
+                                    styles={customStyles}
+                                    maxMenuHeight={200}
+                                    menuPlacement="top"
+                                    isRequired
+                                  />
                                 </div>
-                              ) : (
-                                <Select
-                                  id="course"
-                                  name="course"
-                                  options={formatCourseOptions()}
-                                  value={formatCourseOptions().find(option => option.value === formData.course) || null}
-                                  onChange={(option) => handleSelectChange(option, { name: 'course' })}
-                                  isDisabled={isSubmitting || !formData.department}
-                                  className="mt-1 text-black"
-                                  classNamePrefix="select"
-                                  placeholder="Select Course"
-                                  isClearable={true}
-                                  styles={customStyles}
-                                  maxMenuHeight={200}
-                                  menuPlacement="top"
-                                  isRequired
-                                />
-                              )}
-                            </div>
+
+                                <div>
+                                  <label htmlFor="course" className="block text-sm font-medium text-gray-700">
+                                    Course
+                                  </label>
+                                  <Select
+                                    id="course"
+                                    name="course"
+                                    options={formatCourseOptions()}
+                                    value={formatCourseOptions().find(option => option.value === formData.course) || null}
+                                    onChange={(option) => handleSelectChange(option, { name: 'course' })}
+                                    isDisabled={isSubmitting}
+                                    className="mt-1 text-black"
+                                    classNamePrefix="select"
+                                    placeholder="Select Course"
+                                    isClearable={true}
+                                    styles={customStyles}
+                                    maxMenuHeight={200}
+                                    menuPlacement="top"
+                                    isRequired
+                                  />
+                                </div>
+                              </>
+                            )}
 
                             <div>
                               <label htmlFor="employmentType" className="block text-sm font-medium text-gray-700">
@@ -464,11 +480,11 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
                                 options={employmentTypeOptions}
                                 value={employmentTypeOptions.find(option => option.value === formData.employmentType)}
                                 onChange={(option) => handleSelectChange(option, { name: 'employmentType' })}
-                                isDisabled={isSubmitting}
+                                isDisabled={isSubmitting || formData.role === 'Administrator'}
                                 className="mt-1 text-black"
                                 classNamePrefix="select"
                                 placeholder="Select Employment Type"
-                                isClearable={true}
+                                isClearable={!formData.role === 'Administrator'}
                                 styles={customStyles}
                                 maxMenuHeight={200}
                                 menuPlacement="top"

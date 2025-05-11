@@ -107,7 +107,11 @@ export async function updateAssignment(id, data, userId) {
     await AssignSubjectsModel.updateAssignmentById(id, {
       ...data,
       termId: activeTerm._id,
-      academicYear: activeTerm.academicYear
+      academicYear: activeTerm.academicYear,
+      subjects: data.subjectAssignments.map(assignment => ({
+        subjectId: assignment.subjectId,
+        hours: assignment.hours
+      }))
     }, userId);
     return { success: true, message: 'Assignment updated successfully' };
   } catch (error) {
@@ -127,7 +131,10 @@ export async function createAssignment(data, userId) {
         term: Number(data.term),
         termId: activeTerm._id,
         academicYear: activeTerm.academicYear,
-        subjects: data.subjects
+        subjects: data.subjectAssignments.map(assignment => ({
+          subjectId: assignment.subjectId,
+          hours: assignment.hours
+        }))
       }, userId);
     }
     return { success: true, message: 'Subjects assigned successfully' };
@@ -227,3 +234,13 @@ export async function getSectionsByDepartment(departmentId = null) {
     return [];
   }
 }
+
+export const getSubjectAssignments = async () => {
+  try {
+    const assignments = await AssignSubjectsModel.fetchAssignments();
+    return { success: true, assignments };
+  } catch (error) {
+    console.error('Error fetching subject assignments:', error);
+    return { success: false, assignments: [] };
+  }
+};

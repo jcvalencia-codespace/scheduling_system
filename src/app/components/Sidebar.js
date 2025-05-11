@@ -19,6 +19,7 @@ import {
   BuildingLibraryIcon,
   UsersIcon,
   ListBulletIcon,
+  ClockIcon,
   BookOpenIcon,
   XMarkIcon,
   ArrowLeftOnRectangleIcon,
@@ -50,13 +51,17 @@ const roleMenuItems = {
       icon: AcademicCapIcon
     },
     {
+      title: 'Admin Hours',
+      href: '/admin-hours',
+      icon: ClockIcon,
+    },
+    {
       title: 'Activity Logs',
       href: '/activity-logs',
       icon: ClipboardDocumentListIcon,
       hasDropdown: true,
       subItems: [
         { title: 'Schedule History', href: '/activity-logs/schedule-history', icon: ListBulletIcon },
-        { title: 'Override History', href: '/activity-logs/override-history', icon: ListBulletIcon },
         { title: 'Archive', href: '/activity-logs/archive', icon: ListBulletIcon }
       ]
     },
@@ -100,7 +105,6 @@ const roleMenuItems = {
       hasDropdown: true,
       subItems: [
         { title: 'Schedule History', href: '/activity-logs/schedule-history', icon: ListBulletIcon },
-        { title: 'Override History', href: '/activity-logs/override-history', icon: ListBulletIcon },
         { title: 'Archive', href: '/activity-logs/archive', icon: ListBulletIcon }
       ]
     },
@@ -151,10 +155,15 @@ const roleMenuItems = {
       icon: AcademicCapIcon
     },
     {
-      title: 'Override Requests',
-      href: '/override-requests',
-      icon: ArrowPathIcon
+      title: 'Admin Hours',
+      href: '/admin-hours',
+      icon: ClockIcon,
     },
+    // {
+    //   title: 'Override Requests',
+    //   href: '/override-requests',
+    //   icon: ArrowPathIcon
+    // },
     {
       title: 'Activity Logs',
       href: '/activity-logs',
@@ -162,7 +171,6 @@ const roleMenuItems = {
       hasDropdown: true,
       subItems: [
         { title: 'Schedule History', href: '/activity-logs/schedule-history', icon: ListBulletIcon },
-        { title: 'Override History', href: '/activity-logs/override-history', icon: ListBulletIcon },
         { title: 'Archive', href: '/activity-logs/archive', icon: ListBulletIcon }
       ]
     },
@@ -180,7 +188,7 @@ const roleMenuItems = {
   Faculty: [
     {
       title: 'Schedules',
-      href: '/schedules',
+      href: '/schedules/faculty',
       icon: CalendarDaysIcon,
     },
     {

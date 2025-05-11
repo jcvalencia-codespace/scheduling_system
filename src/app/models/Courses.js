@@ -106,6 +106,23 @@ class CoursesModel {
       throw error;
     }
   }
+
+  async getCoursesByDepartmentId(departmentId) {
+    try {
+      const Course = await this.initModel();
+      const courses = await Course.find({
+        department: departmentId,
+        isActive: true
+      })
+      .populate('department', 'departmentCode departmentName')
+      .lean();
+      
+      return JSON.parse(JSON.stringify(courses));
+    } catch (error) {
+      console.error('Error in getCoursesByDepartmentId:', error);
+      throw error;
+    }
+  }
 }
 
 const coursesModel = new CoursesModel();

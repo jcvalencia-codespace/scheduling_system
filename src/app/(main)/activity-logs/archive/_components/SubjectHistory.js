@@ -89,7 +89,7 @@ export default function SubjectHistory({ history, filters, activeTerm }) {
                   <span className="font-medium">{entry.updatedBy.name}</span>
                   <span className="text-xs text-gray-500">{entry.updatedBy.email}</span>
                   <span className="text-xs text-gray-500">
-                    {entry.updatedBy.role} {entry.updatedBy.course ? `- ${entry.updatedBy.course}` : ''}
+                    {entry.updatedBy.role} {entry.updatedBy.course?.name ? `- ${entry.updatedBy.course.name}` : ''}
                   </span>
                 </div>
               </div>
@@ -151,7 +151,7 @@ export default function SubjectHistory({ history, filters, activeTerm }) {
                     <span className="font-medium">{entry.updatedBy.name}</span>
                     <span className="text-gray-500 text-xs">{entry.updatedBy.email}</span>
                     <span className="text-gray-500 text-xs">
-                      {entry.updatedBy.role} {entry.updatedBy.course ? `- ${entry.updatedBy.course}` : ''}
+                      {entry.updatedBy.role} {entry.updatedBy.course?.name ? `- ${entry.updatedBy.course.name}` : ''}
                     </span>
                   </div>
                 </td>

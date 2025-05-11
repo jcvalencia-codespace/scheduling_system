@@ -1,8 +1,9 @@
-import { UserSchema } from '../../../db/schema';
+import { UserSchema, CourseSchema } from '../../../db/schema';
 import connectDB from '../../../lib/mongo';
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import { Departments, Courses } from './index';
+import coursesModel from './Courses';
 
 class UsersModel {
   constructor() {
@@ -15,6 +16,30 @@ class UsersModel {
       this.MODEL = mongoose.models.Users || mongoose.model("Users", UserSchema);
     }
     return this.MODEL;
+  }
+
+  async createUser(userData) {
+    try {
+      const User = await this.initModel();
+      // Remove department and course if Administrator
+      if (userData.role === 'Administrator') {
+        delete userData.department;
+        delete userData.course;
+      }
+      
+      const user = new User(userData);
+      const savedUser = await user.save();
+      // Convert to plain object and remove Mongoose specific fields
+      const plainUser = savedUser.toObject();
+      delete plainUser.$__;
+      delete plainUser.$errors;
+      delete plainUser.$isNew;
+      
+      return plainUser;
+    } catch (error) {
+      console.error('Error in createUser:', error);
+      throw error;
+    }
   }
 
   async getAllUsers() {
@@ -39,51 +64,30 @@ class UsersModel {
     }
   }
 
-  async createUser(userData) {
-    const User = await this.initModel();
-    const hashedPassword = await bcrypt.hash(userData.password, 10);
-    
-    const user = new User({
-      ...userData,
-      password: hashedPassword
-    });
-    
-    const savedUser = await user.save();
-    return JSON.parse(JSON.stringify(savedUser));
-  }
-
   async getUserByEmail(email) {
     const User = await this.initModel();
     const user = await User.findOne({ email });
     return user ? JSON.parse(JSON.stringify(user)) : null;
   }
 
-  // async getAllUsers() {
-  //   const User = await this.initModel();
-  //   const users = await User.find({})
-  //     .select('-password')
-  //     .populate('department', 'departmentCode departmentName')
-  //     .populate('course', 'courseCode courseTitle');
-  //   return JSON.parse(JSON.stringify(users));
-  // }
-
   async updateUser(userId, updateData) {
-    const User = await this.initModel();
-    
-    if (updateData.password) {
-      updateData.password = await bcrypt.hash(updateData.password, 10);
-    }
-    
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { $set: updateData },
-      { new: true }
-    )
-    .select('-password')
-    .populate('department', 'departmentCode departmentName')
-    .populate('course', 'courseCode courseTitle');
+    try {
+      const User = await this.initModel();
+      if (updateData.role === 'Administrator') {
+        delete updateData.department;
+        delete updateData.course;
+      }
 
-    return updatedUser ? JSON.parse(JSON.stringify(updatedUser)) : null;
+      const user = await User.findByIdAndUpdate(userId, updateData, { 
+        new: true, 
+        runValidators: true 
+      }).lean(); // Use lean() to get plain JavaScript object
+
+      return user;
+    } catch (error) {
+      console.error('Error in updateUser:', error);
+      throw error;
+    }
   }
 
   async deleteUser(userId) {
@@ -96,7 +100,7 @@ class UsersModel {
     return bcrypt.compare(password, user.password);
   }
 
-  async getFacultyUsers() {
+  async getFacultyUsers(departmentId = null) {
     try {
       const Users = await this.initModel();
       
@@ -145,10 +149,65 @@ class UsersModel {
       const totalCount = faculty[0]?.totalCount[0]?.count || 0;
       
       console.log(`Found ${totalCount} faculty members`);
-      
-      return JSON.parse(JSON.stringify(facultyData));
+
+      return JSON.parse(JSON.stringify(faculty));
     } catch (error) {
       console.error('Error in getFacultyUsers:', error);
+      throw error;
+    }
+  }
+
+  async getFacultyByDepartment(departmentId = null, isAdmin = false) {
+    try {
+      const User = await this.initModel();
+      // If admin, fetch all faculty regardless of department
+      const query = isAdmin 
+        ? { role: { $in: ['Faculty', 'Program Chair', 'Dean'] } }
+        : {
+            role: { $in: ['Faculty', 'Program Chair', 'Dean'] },
+            ...(departmentId && { department: new mongoose.Types.ObjectId(departmentId) })
+          };
+
+      const faculty = await User.find(query)
+        .select('firstName lastName employmentType department')
+        .populate({
+          path: 'department',
+          model: Departments
+        })
+        .sort({ lastName: 1, firstName: 1 });
+
+      return JSON.parse(JSON.stringify(faculty));
+    } catch (error) {
+      console.error('Error in getFacultyByDepartment:', error);
+      throw error;
+    }
+  }
+
+  async getFacultyByCourse(courseId = null, isAdmin = false) {
+    try {
+      const User = await this.initModel();
+      const query = isAdmin 
+        ? { role: { $in: ['Faculty', 'Program Chair', 'Dean'] } }
+        : {
+            role: { $in: ['Faculty', 'Program Chair'] },
+            ...(courseId && { course: new mongoose.Types.ObjectId(courseId) })
+          };
+
+      const faculty = await User.find(query)
+        .select('firstName lastName employmentType department course')
+        .populate({
+          path: 'department',
+          model: Departments
+        })
+        .populate({
+          path: 'course',
+          model: Courses
+        })
+        .sort({ lastName: 1, firstName: 1 });
+
+      return JSON.parse(JSON.stringify(faculty));
+    } catch (error) {
+      console.error('Error in getFacultyByCourse:', error);
       throw error;
     }
   }
@@ -166,16 +225,18 @@ class UsersModel {
   }
 
   async getCoursesByDepartment(departmentId) {
+    return coursesModel.getCoursesByDepartmentId(departmentId);
+  }
+
+  async getAllCourses() {
     try {
-      const courses = await Courses.find({ 
-        department: departmentId,
-        isActive: true 
-      })
-        .select('courseCode courseTitle')
-        .sort({ courseTitle: 1 });
-      return JSON.parse(JSON.stringify(courses));
+      const Course = mongoose.models.courses || mongoose.model('courses', CourseSchema);
+      const courses = await Course.find({ isActive: true })
+        .populate('department')
+        .sort({ courseCode: 1 });
+      return courses;
     } catch (error) {
-      console.error('Error fetching courses:', error);
+      console.error('Error in getAllCourses:', error);
       throw error;
     }
   }

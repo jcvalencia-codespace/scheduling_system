@@ -10,13 +10,13 @@ export const rolePermissions = {
     '/entry/sections',
     '/entry/class-load',
     '/logs',
-    '/logs/schedule-history',
-    '/logs/override-history',
-    '/logs/archive',
+    '/activity-logs/schedule-history',
+    '/activity-logs/archive',
     '/term',
     '/feedback',
-    '/chats'
-    
+    '/chats',
+    '/admin-hours',
+    '/settings'
   ],
   'Program Chair': [
     '/schedules',
@@ -25,16 +25,15 @@ export const rolePermissions = {
     '/entry/sections',
     '/entry/class-load',
     '/logs',
-    '/logs/schedule-history',
-    '/logs/override-history',
-    '/logs/archive',
+    '/activity-logs/schedule-history',
+    '/activity-logs/archive',
     '/term',
     '/feedback',
     '/chats'
   ],
  
   Faculty: [
-    '/schedules',
+    '/schedules/faculty',  // Changed from /schedules
     '/feedback',
     '/profile',
     '/chats'
@@ -45,7 +44,7 @@ export const rolePermissions = {
 export const menuItems = [
   {
     title: 'Schedules',
-    href: '/schedules',
+    href: '/schedules',  // This will be dynamically changed for Faculty
     icon: 'CalendarDaysIcon',
     roles: ['Administrator', 'Dean', 'Program Chair', 'Faculty']
   },
@@ -121,12 +120,12 @@ export const menuItems = [
     icon: 'AcademicCapIcon',
     roles: ['Administrator', 'Dean', 'Program Chair']
   },
-  {
-    title: 'Override Requests',
-    href: '/override-requests',
-    icon: 'ArrowPathIcon',
-    roles: ['Administrator']
-  },
+  // {
+  //   title: 'Override Requests',
+  //   href: '/override-requests',
+  //   icon: 'ArrowPathIcon',
+  //   roles: ['Administrator']
+  // },
   {
     title: 'Activity Logs',
     href: '/logs',
@@ -136,7 +135,7 @@ export const menuItems = [
     subItems: [
       { 
         title: 'Schedule History',
-        href: '/logs/schedule-history',
+        href: '/activity-logs/schedule-history',
         icon: 'ListBulletIcon',
         roles: ['Administrator', 'Dean', 'Program Chair']
       },
@@ -153,6 +152,12 @@ export const menuItems = [
         roles: ['Administrator', 'Dean', 'Program Chair']
       }
     ]
+  },
+  {
+    title: 'Admin Hours',
+    href: '/admin-hours',
+    icon: 'ClockIcon',
+    roles: ['Administrator', 'Dean']
   },
   {
     title: 'Send Feedback',

@@ -1,5 +1,5 @@
 'use client';
-//branch cl-2
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import useAuthStore from '@/store/useAuthStore';
 import {
@@ -11,15 +11,20 @@ import {
 } from '@heroicons/react/24/outline';
 import AssignSubjectModal from './_components/AssignSubjectModal';
 import ViewSubjectModal from './_components/ViewSubjectModal';
-import { getAssignments, deleteAssignment, getDepartments, getActiveTerm } from './_actions';
+import { getAssignments, deleteAssignment, getDepartments, getActiveTerm, getSubjectAssignments } from './_actions';
 import { useLoading } from '../../../context/LoadingContext';
 import Filter from './_components/filter';
 import ActionModal from './_components/ActionModal';
 import PrintModal from './_components/printModal';
 import { generateClassLoadPDF } from './_components/classLoadPdf';
 import Pagination from './_components/Pagination';
+import NoData from '@/app/components/NoData';
 
-export default function AssignSubjectsPage() {
+// Create a client
+const queryClient = new QueryClient();
+
+// Wrap the main component with QueryClientProvider
+function AssignSubjectsPageContent() {
   const user = useAuthStore(state => state.user);
   const [assignments, setAssignments] = useState([]);
   const { isLoading, setIsLoading } = useLoading(); 
@@ -223,6 +228,16 @@ export default function AssignSubjectsPage() {
     }
   };
 
+  // Add query to fetch subject assignments
+  const { data: subjectAssignments = [] } = useQuery({
+    queryKey: ['subjectAssignments'],
+    queryFn: async () => {
+      const { success, assignments } = await getSubjectAssignments();
+      if (success) return assignments;
+      return [];
+    }
+  });
+
   return (
     <div className="min-h-screen bg-gray-50 px-2 sm:px-6 lg:px-8 py-4 sm:py-8">
       <div className="max-w-7xl mx-auto">
@@ -286,53 +301,57 @@ export default function AssignSubjectsPage() {
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {currentItems.map((assignment) => (
-                    <tr key={assignment._id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {assignment.yearLevel} Year
-                      </td>
-                      {/* Removed term column */}
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {assignment.classId?.sectionName || 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {assignment.classId?.course?.courseCode || 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <button 
-                          onClick={() => handleViewSubjects(assignment)}
-                          className="text-blue-600 hover:text-blue-900"
-                          title="View Subjects"
-                        >
-                          <EyeIcon className="h-5 w-5 inline" aria-hidden="true" />
-                        </button>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
-                        <button 
-                          onClick={() => handleEditClick(assignment)}
-                          className="text-indigo-600 hover:text-indigo-900"
-                          title="Edit Assignment"
-                        >
-                          <PencilSquareIcon className="h-5 w-5" aria-hidden="true" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(assignment._id)}
-                          className="text-red-600 hover:text-red-900"
-                          title="Delete Assignment"
-                        >
-                          <TrashIcon className="h-5 w-5" aria-hidden="true" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {currentItems.length === 0 && (
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {filteredAssignments.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">
-                        No assignments found
+                      <td colSpan="5">
+                        <NoData 
+                          message="No assignments found" 
+                          description="Add an assignment to get started"
+                        />
                       </td>
                     </tr>
-                  )}
+                  ) : (
+                    currentItems.map((assignment) => (
+                      <tr key={assignment._id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {assignment.yearLevel} Year
+                        </td>
+                        {/* Removed term column */}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {assignment.classId?.sectionName || 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {assignment.classId?.course?.courseCode || 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <button 
+                            onClick={() => handleViewSubjects(assignment)}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="View Subjects"
+                          >
+                            <EyeIcon className="h-5 w-5 inline" aria-hidden="true" />
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
+                          <button 
+                            onClick={() => handleEditClick(assignment)}
+                            className="text-indigo-600 hover:text-indigo-900"
+                            title="Edit Assignment"
+                          >
+                            <PencilSquareIcon className="h-5 w-5" aria-hidden="true" />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(assignment._id)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Delete Assignment"
+                          >
+                            <TrashIcon className="h-5 w-5" aria-hidden="true" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+)                  }
                 </tbody>
               </table>
               {/* Replace the old pagination controls with the new component */}
@@ -417,9 +436,19 @@ export default function AssignSubjectsPage() {
         onClose={() => setIsPrintModalOpen(false)}
         courses={uniqueCourses}
         onPrint={handlePrint}
+        assignments={subjectAssignments} // Pass the assignments data
         activeTerm={activeTerm}
         isTermLoading={isTermLoading}
       />
     </div>
+  );
+}
+
+// Export the wrapped component
+export default function AssignSubjectsPage() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AssignSubjectsPageContent />
+    </QueryClientProvider>
   );
 }

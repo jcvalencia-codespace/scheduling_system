@@ -2,7 +2,9 @@
 
 import TermsModel from '@/app/models/Terms';
 import schedulesModel from '@/app/models/Schedules';
+import adminHoursModel from '@/app/models/AdminHours';
 import mongoose from 'mongoose';
+import moment from 'moment'; // Add moment import
 
 export async function getActiveTerm() {
   try {
@@ -123,10 +125,43 @@ export async function updateSchedule(scheduleId, scheduleData) {
 
 export async function getSchedules(query = {}) {
   try {
-    const schedules = await schedulesModel.getSchedules(query);
+    // Get active term first
+    const term = await TermsModel.getActiveTerm();
+    if (!term) {
+      return { error: 'No active term found' };
+    }
+    
+    // Add term and faculty filters to query
+    const schedules = await schedulesModel.getSchedules({
+      ...query,
+      term: term.id.toString(),
+      faculty: query.faculty ? query.faculty.toString() : undefined
+    });
+    
     return { schedules: JSON.parse(JSON.stringify(schedules)) };
   } catch (error) {
     console.error('Error fetching schedules:', error);
+    return { error: error.message || 'Failed to fetch schedules' };
+  }
+}
+
+export async function getFacultySchedules(facultyId) {
+  try {
+    // Get active term first
+    const term = await TermsModel.getActiveTerm();
+    if (!term) {
+      return { error: 'No active term found' };
+    }
+    
+    // Add term and faculty filters to query
+    const schedules = await schedulesModel.getSchedules({
+      term: term.id.toString(),
+      faculty: facultyId
+    });
+    
+    return { schedules: JSON.parse(JSON.stringify(schedules)) };
+  } catch (error) {
+    console.error('Error fetching faculty schedules:', error);
     return { error: error.message || 'Failed to fetch schedules' };
   }
 }
@@ -141,5 +176,197 @@ export async function deleteSchedule(scheduleId, userId) {
   } catch (error) {
     console.error('Error deleting schedule:', error);
     return { error: error.message || 'Failed to delete schedule' };
+  }
+}
+
+export async function getAllSections() {
+  try {
+    const sections = await schedulesModel.getAllActiveSections();
+    if (!sections) {
+      throw new Error('Failed to fetch sections');
+    }
+    
+    // Return populated sections with course and department info
+    return { 
+      sections: JSON.parse(JSON.stringify(
+        sections.map(section => ({
+          ...section,
+          course: {
+            ...section.course,
+            department: section.course?.department || null
+          }
+        }))
+      ))
+    };
+  } catch (error) {
+    console.error('Error fetching all sections:', error);
+    return { error: error.message || 'Failed to fetch sections' };
+  }
+}
+
+export async function getFacultyLoad(facultyId, termId) {
+  try {
+    if (!facultyId || !termId) {
+      return {
+        employmentType: 'N/A',
+        totalHours: 0,
+        teachingHours: 0,
+        adminHours: 0
+      };
+    }
+    
+    const loadData = await schedulesModel.calculateFacultyLoad(facultyId, termId);
+    
+    // If there's an error in the response, handle it gracefully
+    if (loadData.error) {
+      console.error('Faculty load calculation error:', loadData.error);
+      return {
+        employmentType: 'unknown',
+        totalHours: 0,
+        teachingHours: 0,
+        adminHours: 0
+      };
+    }
+    
+    return loadData;
+  } catch (error) {
+    console.error('Error getting faculty load:', error);
+    return {
+      employmentType: 'N/A',
+      totalHours: 0,
+      teachingHours: 0,
+      adminHours: 0
+    };
+  }
+}
+
+export async function getAdminHours(userId, termId) {
+  try {
+    // Get active term first
+    const term = await TermsModel.getActiveTerm();
+    if (!term) {
+      return { error: 'No active term found' };
+    }
+
+    const hours = await adminHoursModel.getAdminHours(userId, term.id);
+    return { hours: JSON.parse(JSON.stringify(hours)) };
+  } catch (error) {
+    console.error('Error fetching admin hours:', error);
+    return { error: 'Failed to fetch admin hours' };
+  }
+}
+
+export async function saveAdminHours(userId, termId, slots, creatorId, role) {
+  try {
+    // Get active term if termId not provided
+    if (!termId) {
+      const term = await TermsModel.getActiveTerm();
+      if (!term) {
+        return { error: 'No active term found' };
+      }
+      termId = term.id;
+    }
+
+    console.log('Saving admin hours with termId:', termId); // Debug log
+
+    const result = await adminHoursModel.saveAdminHours(
+      userId,
+      termId,
+      slots,
+      creatorId,
+      role
+    );
+    return { success: true, hours: JSON.parse(JSON.stringify(result)) };
+  } catch (error) {
+    console.error('Error saving admin hours:', error);
+    return { error: error.message };
+  }
+}
+
+export async function approveAdminHours(adminHoursId, slotId, approverId, approved, rejectionReason) {
+  try {
+    const result = await adminHoursModel.approveAdminHours(
+      adminHoursId, 
+      slotId,
+      approverId, 
+      approved, 
+      rejectionReason
+    );
+
+    // The notification is now handled in the model layer
+    return { success: true, hours: JSON.parse(JSON.stringify(result)) };
+  } catch (error) {
+    console.error('Error updating admin hours approval:', error);
+    return { error: error.message };
+  }
+}
+
+export async function cancelAdminHours(adminHoursId) {
+  try {
+    if (!adminHoursId) {
+      throw new Error('Admin hours ID is required');
+    }
+
+    console.log('Attempting to cancel admin hours with ID:', adminHoursId);
+    
+    const result = await adminHoursModel.cancelAdminHours(adminHoursId);
+    if (!result) {
+      throw new Error('Failed to cancel admin hours - No result returned');
+    }
+    
+    return { success: true, message: 'Admin hours cancelled successfully' };
+  } catch (error) {
+    console.error('Error in cancelAdminHours action:', error);
+    return { 
+      error: error.message || 'Failed to cancel admin hours',
+      details: error.toString()
+    };
+  }
+}
+
+export async function getFullTimeUsers() {
+  try {
+    const users = await adminHoursModel.getFullTimeUsers();
+    return { users: JSON.parse(JSON.stringify(users)) };
+  } catch (error) {
+    console.error('Error fetching full-time users:', error);
+    return { error: error.message };
+  }
+}
+
+export async function getAdminHourRequests(filter = 'pending', termId) {
+  try {
+    // Enhanced termId validation
+    if (!termId || typeof termId !== 'string') {
+      console.error('Invalid or missing termId:', termId);
+      throw new Error('Valid Term ID is required');
+    }
+
+    // Ensure termId is a valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(termId)) {
+      console.error('Invalid ObjectId format for termId:', termId);
+      throw new Error('Invalid Term ID format');
+    }
+
+    const requests = await adminHoursModel.getRequests(filter, termId);
+    return { requests: JSON.parse(JSON.stringify(requests)) };
+  } catch (error) {
+    console.error('Error fetching admin hour requests:', error);
+    return { error: error.message };
+  }
+}
+
+export async function editAdminHours(adminHoursId, slotId, updatedData) {
+  try {
+    const result = await adminHoursModel.editAdminHours(
+      adminHoursId,
+      slotId,
+      updatedData
+    );
+    
+    return { success: true, hours: JSON.parse(JSON.stringify(result)) };
+  } catch (error) {
+    console.error('Error editing admin hours:', error);
+    return { error: error.message };
   }
 }

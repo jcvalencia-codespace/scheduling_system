@@ -359,11 +359,12 @@ export default function ConflictAlert({
               <button
                 type="button"
                 onClick={onOverride}
-                disabled={!overrideEnabled || !allConflictsViewed()}
-                className={`px-4 py-2 text-sm font-medium text-white rounded-md ${overrideEnabled && allConflictsViewed()
+                disabled={!overrideEnabled}
+                className={`px-4 py-2 text-sm font-medium text-white rounded-md ${
+                  overrideEnabled
                     ? "bg-[#35408E] hover:bg-[#2a3272]"
                     : "bg-gray-400 cursor-not-allowed"
-                  }`}
+                }`}
               >
                 Acknowledge Conflicts
               </button>
