@@ -96,25 +96,57 @@ class RoomsModel {
   }
 
   async getAllRooms() {
-    const Rooms = await this.initModel();
-    const rooms = await Rooms.find({ isActive: true })
-      .sort({ roomCode: 1 })
-      .populate('department', 'departmentCode departmentName')
-      .populate('updateHistory.updatedBy', 'firstName lastName');
+    try {
+      const Room = await this.initModel();
+      const rooms = await Room.aggregate([
+        { $match: { isActive: true } },
+        {
+          $lookup: {
+            from: 'departments',
+            localField: 'department',
+            foreignField: '_id',
+            as: 'departmentInfo'
+          }
+        },
+        { $unwind: { path: '$departmentInfo', preserveNullAndEmptyArrays: true } },
+        {
+          $addFields: {
+            'department': {
+              $cond: {
+                if: { $ifNull: ['$departmentInfo', false] },
+                then: {
+                  _id: { $toString: '$departmentInfo._id' },
+                  departmentCode: '$departmentInfo.departmentCode',
+                  departmentName: '$departmentInfo.departmentName'
+                },
+                else: null
+              }
+            },
+            '_id': { $toString: '$_id' },
+            'updateHistory': {
+              $map: {
+                input: '$updateHistory',
+                as: 'history',
+                in: {
+                  _id: { $toString: '$$history._id' },
+                  updatedBy: { $toString: '$$history.updatedBy' },
+                  updatedAt: { $dateToString: { date: '$$history.updatedAt', format: '%Y-%m-%dT%H:%M:%S.%LZ' } },
+                  action: '$$history.action',
+                  academicYear: '$$history.academicYear'
+                }
+              }
+            },
+            'createdAt': { $dateToString: { date: '$createdAt', format: '%Y-%m-%dT%H:%M:%S.%LZ' } },
+            'updatedAt': { $dateToString: { date: '$updatedAt', format: '%Y-%m-%dT%H:%M:%S.%LZ' } }
+          }
+        }
+      ]);
 
-    // Convert to plain objects with proper date handling
-    const plainRooms = rooms.map(room => {
-      const plainRoom = room.toObject();
-      if (plainRoom.updateHistory) {
-        plainRoom.updateHistory = plainRoom.updateHistory.map(history => ({
-          ...history,
-          updatedAt: history.updatedAt instanceof Date ? history.updatedAt : new Date(history.updatedAt)
-        }));
-      }
-      return plainRoom;
-    });
-
-    return plainRooms;
+      return rooms;
+    } catch (error) {
+      console.error('Error in getAllRooms:', error);
+      throw error;
+    }
   }
 
   async getRoomByCode(roomCode) {
@@ -255,6 +287,76 @@ class RoomsModel {
     } catch (error) {
       console.error('Error in getRoomsByDepartment:', error);
       throw error;
+    }
+  }
+
+  static async getRooms() {
+    try {
+      const rooms = await Rooms.aggregate([
+        { $match: { isActive: true } },
+        {
+          $lookup: {
+            from: 'departments',
+            localField: 'department',
+            foreignField: '_id',
+            as: 'departmentInfo'
+          }
+        },
+        { $unwind: { path: '$departmentInfo', preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            _id: { $toString: '$_id' },
+            roomCode: 1,
+            roomName: 1,
+            capacity: 1,
+            type: 1,
+            floor: 1,
+            department: {
+              $cond: {
+                if: { $ifNull: ['$departmentInfo', false] },
+                then: {
+                  _id: { $toString: '$departmentInfo._id' },
+                  departmentCode: '$departmentInfo.departmentCode',
+                  departmentName: '$departmentInfo.departmentName'
+                },
+                else: null
+              }
+            },
+            updateHistory: {
+              $map: {
+                input: '$updateHistory',
+                as: 'history',
+                in: {
+                  _id: { $toString: '$$history._id' },
+                  updatedBy: { $toString: '$$history.updatedBy' },
+                  updatedAt: '$$history.updatedAt',
+                  action: '$$history.action',
+                  academicYear: '$$history.academicYear'
+                }
+              }
+            },
+            createdAt: 1,
+            updatedAt: 1
+          }
+        },
+        { $sort: { roomCode: 1 } }
+      ]);
+
+      // Parse dates and ensure all objects are plain
+      const serializedRooms = rooms.map(room => ({
+        ...room,
+        createdAt: room.createdAt?.toISOString(),
+        updatedAt: room.updatedAt?.toISOString(),
+        updateHistory: room.updateHistory?.map(history => ({
+          ...history,
+          updatedAt: history.updatedAt?.toISOString()
+        }))
+      }));
+
+      return serializedRooms;
+    } catch (error) {
+      console.error('Rooms fetch error:', error);
+      throw new Error('Failed to fetch rooms');
     }
   }
 }
