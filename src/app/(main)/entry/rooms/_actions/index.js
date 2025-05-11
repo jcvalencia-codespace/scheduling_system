@@ -61,7 +61,23 @@ export async function addRoom(formData) {
 export async function getRooms() {
   try {
     const rooms = await roomsModel.getAllRooms();
-    return { rooms };
+    
+    // Serialize rooms data - dates are already serialized from aggregation
+    const serializedRooms = rooms.map(room => ({
+      _id: room._id,
+      roomCode: room.roomCode,
+      roomName: room.roomName,
+      type: room.type,
+      floor: room.floor,
+      department: room.department,
+      capacity: room.capacity,
+      isActive: room.isActive,
+      updateHistory: room.updateHistory || [],
+      createdAt: room.createdAt,
+      updatedAt: room.updatedAt
+    }));
+
+    return { rooms: serializedRooms };
   } catch (error) {
     console.error('Error in getRooms:', error);
     return { error: error.message || 'Failed to fetch rooms' };

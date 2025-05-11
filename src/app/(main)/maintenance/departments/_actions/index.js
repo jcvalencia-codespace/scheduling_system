@@ -99,9 +99,26 @@ export async function getDepartmentById(departmentId) {
     if (!department) {
       throw new Error('Department not found');
     }
-    return { success: true, department };
+    // Serialize the department object to ensure it's a plain JavaScript object
+    const serializedDepartment = JSON.parse(JSON.stringify(department));
+    return { success: true, department: serializedDepartment };
   } catch (error) {
     console.error('Error in getDepartmentById:', error);
+    return { error: error.message || 'Failed to fetch department' };
+  }
+}
+
+export async function getDepartmentDetails(departmentCode) {
+  try {
+    const department = await departmentsModel.getDepartmentByCode(departmentCode);
+    if (!department) {
+      throw new Error('Department not found');
+    }
+    // Serialize the department object to ensure it's a plain JavaScript object
+    const serializedDepartment = JSON.parse(JSON.stringify(department));
+    return { success: true, department: serializedDepartment };
+  } catch (error) {
+    console.error('Error in getDepartmentDetails:', error);
     return { error: error.message || 'Failed to fetch department' };
   }
 }
