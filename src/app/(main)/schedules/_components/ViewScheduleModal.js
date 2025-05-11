@@ -2,7 +2,7 @@ import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import Swal from 'sweetalert2';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { 
+import {
   CalendarIcon,
   UserIcon,
   AcademicCapIcon,
@@ -15,7 +15,7 @@ import {
   ArrowsRightLeftIcon
 } from '@heroicons/react/24/outline';
 import { deleteSchedule } from '../_actions';
-import NewScheduleModal  from './NewScheduleModal';
+import NewScheduleModal from './NewScheduleModal';
 
 // Add useAuthStore to imports
 import useAuthStore from '@/store/useAuthStore';
@@ -81,6 +81,7 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule, onSchedul
   };
 
   if (!currentSchedule) return null;
+  const isAdminHours = currentSchedule.isAdminHours;
 
   return (
     <>
@@ -123,162 +124,236 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule, onSchedul
 
                   <div className="px-6 py-5">
                     <Dialog.Title as="h3" className="text-xl font-semibold text-gray-900 mb-5">
-                      View Schedule Details
+                      {isAdminHours ? 'Admin Hours Details' : 'View Schedule Details'}
                     </Dialog.Title>
 
                     {/* School Year and Term */}
-                    <div className="bg-blue-50/70 rounded-xl p-4 mb-6">
+                    <div className={`${isAdminHours ? 'bg-emerald-50/70' : 'bg-blue-50/70'} rounded-xl p-4 mb-6`}>
                       <div className="flex items-center space-x-3">
-                        <CalendarIcon className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                        <CalendarIcon className={`h-5 w-5 ${isAdminHours ? 'text-emerald-600' : 'text-blue-600'} flex-shrink-0`} />
                         <div>
-                          <p className="text-sm font-bold text-blue-900">Academic Year: {schedule.term?.academicYear || 'N/A'}</p>
-                          <p className="text-sm font-bold text-blue-900">{schedule.term?.term || 'N/A'}</p>
+                          <p className={`text-sm font-bold ${isAdminHours ? 'text-emerald-900' : 'text-blue-900'}`}>
+                            Academic Year: {currentSchedule.term?.academicYear || 'N/A'}
+                          </p>
+                          <p className={`text-sm font-bold ${isAdminHours ? 'text-emerald-900' : 'text-blue-900'}`}>
+                            {currentSchedule.term?.term || 'N/A'}
+                          </p>
                         </div>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-x-6">
-                      {/* Schedule Details */}
+                      {/* Schedule/Admin Hours Details */}
                       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                        <div className="bg-[#323E8F] px-6 py-3 rounded-t-xl">
+                        <div className={`${isAdminHours ? 'bg-[#579980]' : 'bg-[#323E8F]'} px-6 py-3 rounded-t-xl`}>
                           <h4 className="text-base font-semibold text-white">
-                            Schedule Details
+                            {isAdminHours ? 'Admin Hours Details' : 'Schedule Details'}
                           </h4>
                         </div>
                         <div className="px-6 py-4">
                           <div className="space-y-6">
+                            {/* Faculty Info */}
                             <div>
                               <div className="flex items-center gap-x-2 text-gray-600">
                                 <UserIcon className="h-5 w-5" />
                                 <p className="text-sm">
-                                  Scheduled for: <span className="font-semibold text-gray-900">
-                                    {schedule.faculty ? `${schedule.faculty.firstName} ${schedule.faculty.lastName}` : 'TBA (To Be Assigned)'}
+                                  {isAdminHours ? 'Faculty' : 'Scheduled for'}: {' '}
+                                  <span className="font-semibold text-gray-900">
+                                    {currentSchedule.faculty 
+                                      ? `${currentSchedule.faculty.firstName} ${currentSchedule.faculty.lastName}` 
+                                      : 'TBA (To Be Assigned)'}
                                   </span>
                                 </p>
                               </div>
                             </div>
 
-                            <div>
-                              <div className="flex items-center gap-x-2 text-gray-600">
-                                <AcademicCapIcon className="h-5 w-5" />
-                                <p className="text-sm">
-                                  Section: <span className="font-semibold text-gray-900">{schedule.section?.sectionName}</span>
-                                </p>
-                              </div>
-                            </div>
-
-                            <div>
-                              <div className="flex items-center gap-x-2 text-gray-600">
-                                <BookOpenIcon className="h-5 w-5" />
-                                <p className="text-sm">
-                                  Subject: <span className="font-semibold text-gray-900">
-                                    {schedule.subject?.subjectCode} - {schedule.subject?.subjectName}
-                                  </span>
-                                </p>
-                              </div>
-                            </div>
-
-                            <div>
-                              <div className="flex items-center gap-x-2 text-gray-600">
-                                <BuildingOfficeIcon className="h-5 w-5" />
-                                <p className="text-sm">
-                                  Room: <span className="font-semibold text-gray-900">{schedule.room?.roomCode}</span>
-                                </p>
-                              </div>
-                            </div>
-
+                            {/* Time */}
                             <div>
                               <div className="flex items-center gap-x-2 text-gray-600">
                                 <ClockIcon className="h-5 w-5" />
                                 <p className="text-sm">
                                   Time: <span className="font-semibold text-gray-900">
-                                    {schedule.timeFrom} - {schedule.timeTo}
+                                    {isAdminHours 
+                                      ? `${currentSchedule.startTime} - ${currentSchedule.endTime}`
+                                      : `${currentSchedule.timeFrom} - ${currentSchedule.timeTo}`}
                                   </span>
                                 </p>
                               </div>
                             </div>
+
+                            {/* Day */}
+                            <div>
+                              <div className="flex items-center gap-x-2 text-gray-600">
+                                <CalendarIcon className="h-5 w-5" />
+                                <p className="text-sm">
+                                  Day: <span className="font-semibold text-gray-900">
+                                    {isAdminHours ? currentSchedule.day : currentSchedule.days?.join(', ')}
+                                  </span>
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Show these fields only for regular schedules */}
+                            {!isAdminHours && (
+                              <>
+                                <div>
+                                  <div className="flex items-center gap-x-2 text-gray-600">
+                                    <AcademicCapIcon className="h-5 w-5" />
+                                    <p className="text-sm">
+                                      Section: <span className="font-semibold text-gray-900">
+                                        {currentSchedule.section?.sectionName}
+                                      </span>
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <div className="flex items-center gap-x-2 text-gray-600">
+                                    <BookOpenIcon className="h-5 w-5" />
+                                    <p className="text-sm">
+                                      Subject: <span className="font-semibold text-gray-900">
+                                        {currentSchedule.subject?.subjectCode} - {currentSchedule.subject?.subjectName}
+                                      </span>
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <div className="flex items-center gap-x-2 text-gray-600">
+                                    <BuildingOfficeIcon className="h-5 w-5" />
+                                    <p className="text-sm">
+                                      Room: <span className="font-semibold text-gray-900">
+                                        {currentSchedule.room?.roomCode}
+                                      </span>
+                                    </p>
+                                  </div>
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
 
-                      {/* Additional Information */}
-                      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                        <div className="bg-[#323E8F] px-6 py-3 rounded-t-xl">
-                          <h4 className="text-base font-semibold text-white">
-                            Additional Information
-                          </h4>
-                        </div>
-                        <div className="px-6 py-4">
-                          <div className="space-y-6">
-                            <div>
-                              <div className="flex items-center gap-x-2 text-gray-600">
-                                <UsersIcon className="h-5 w-5" />
-                                <p className="text-sm">
-                                  Class Limit: <span className="font-semibold text-gray-900">{schedule.classLimit}</span>
-                                </p>
+                      {/* Additional Information - Only show for regular schedules */}
+                      {!isAdminHours && (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                          <div className="bg-[#323E8F] px-6 py-3 rounded-t-xl">
+                            <h4 className="text-base font-semibold text-white">
+                              Additional Information
+                            </h4>
+                          </div>
+                          <div className="px-6 py-4">
+                            <div className="space-y-6">
+                              <div>
+                                <div className="flex items-center gap-x-2 text-gray-600">
+                                  <UsersIcon className="h-5 w-5" />
+                                  <p className="text-sm">
+                                    Class Limit: <span className="font-semibold text-gray-900">{schedule.classLimit}</span>
+                                  </p>
+                                </div>
                               </div>
-                            </div>
 
-                            <div>
-                              <div className="flex items-center gap-x-2 text-gray-600">
-                                <UserGroupIcon className="h-5 w-5" />
-                                <p className="text-sm">
-                                  Student Type: <span className="font-semibold text-gray-900">{schedule.studentType}</span>
-                                </p>
+                              <div>
+                                <div className="flex items-center gap-x-2 text-gray-600">
+                                  <UserGroupIcon className="h-5 w-5" />
+                                  <p className="text-sm">
+                                    Student Type: <span className="font-semibold text-gray-900">{schedule.studentType}</span>
+                                  </p>
+                                </div>
                               </div>
-                            </div>
 
-                            <div>
-                              <div className="flex items-center gap-x-2 text-gray-600">
-                                <PresentationChartLineIcon className="h-5 w-5" />
-                                <p className="text-sm">
-                                  Schedule Type: <span className="font-semibold text-gray-900">
-                                    {schedule.scheduleType?.charAt(0).toUpperCase() + schedule.scheduleType?.slice(1)}
-                                  </span>
-                                </p>
+                              <div>
+                                <div className="flex items-center gap-x-2 text-gray-600">
+                                  <PresentationChartLineIcon className="h-5 w-5" />
+                                  <p className="text-sm">
+                                    Schedule Type: <span className="font-semibold text-gray-900">
+                                      {schedule.scheduleType?.charAt(0).toUpperCase() + schedule.scheduleType?.slice(1)}
+                                    </span>
+                                  </p>
+                                </div>
                               </div>
-                            </div>
 
-                            <div>
-                              <div className="flex items-center gap-x-2 text-gray-600">
-                                <ArrowsRightLeftIcon className="h-5 w-5" />
-                                <p className="text-sm">
-                                  Pairing: <span className="font-semibold text-gray-900">
-                                    {schedule.isPaired ? 'Yes' : 'No'}
-                                  </span>
-                                </p>
+                              <div>
+                                <div className="flex items-center gap-x-2 text-gray-600">
+                                  <ArrowsRightLeftIcon className="h-5 w-5" />
+                                  <p className="text-sm">
+                                    Pairing: <span className="font-semibold text-gray-900">
+                                      {schedule.isPaired ? 'Yes' : 'No'}
+                                    </span>
+                                  </p>
+                                </div>
                               </div>
                             </div>
                           </div>
                         </div>
+                      )}
+
+                      {/* Admin Hours Status - Only show for admin hours */}
+                      {isAdminHours && (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                          <div className="bg-[#579980] px-6 py-3 rounded-t-xl">
+                            <h4 className="text-base font-semibold text-white">
+                              Status Information
+                            </h4>
+                          </div>
+                          <div className="px-6 py-4">
+                            <div className="space-y-6">
+                              <div>
+                                <div className="flex items-center gap-x-2 text-gray-600">
+                                  <UserGroupIcon className="h-5 w-5" />
+                                  <p className="text-sm">
+                                    Status: <span className="font-semibold text-gray-900">
+                                      {currentSchedule.status?.charAt(0).toUpperCase() + currentSchedule.status?.slice(1)}
+                                    </span>
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Action Buttons - Only show for regular schedules */}
+                    {!isAdminHours && (
+                      <div className="mt-8 flex justify-end gap-2">
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-6 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 transition-colors"
+                          onClick={handleEditClick}
+                        >
+                          Edit
+                        </button>
+
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center rounded-lg bg-red-600 px-6 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 transition-colors"
+                          onClick={handleDelete}
+                        >
+                          Delete
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center rounded-lg bg-gray-600 px-6 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600 transition-colors"
+                          onClick={onClose}
+                        >
+                          Close
+                        </button>
                       </div>
-                    </div>
+                    )}
 
-                    {/* Action Buttons */}
-                    <div className="mt-8 flex justify-end gap-2">
-                      <button
-                        type="button"
-                        className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-6 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 transition-colors"
-                        onClick={handleEditClick}
-                      >
-                        Edit
-                      </button>
-
-                      <button
-                        type="button"
-                        className="inline-flex items-center justify-center rounded-lg bg-red-600 px-6 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 transition-colors"
-                        onClick={handleDelete}
-                      >
-                        Delete
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex items-center justify-center rounded-lg bg-gray-600 px-6 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600 transition-colors"
-                        onClick={onClose}
-                      >
-                        Close
-                      </button>
-                    </div>
+                    {/* Close button for admin hours */}
+                    {isAdminHours && (
+                      <div className="mt-8 flex justify-end">
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center rounded-lg bg-gray-600 px-6 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600 transition-colors"
+                          onClick={onClose}
+                        >
+                          Close
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </Dialog.Panel>
               </Transition.Child>
@@ -287,19 +362,22 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule, onSchedul
         </Dialog>
       </Transition.Root>
 
-      <NewScheduleModal
-        isOpen={isEditModalOpen}
-        onClose={() => {
-          setIsEditModalOpen(false);
-          onClose(); // Ensure view modal is also closed
-        }}
-        onScheduleCreated={() => {
-          setIsEditModalOpen(false);
-          onScheduleDeleted(); // Call original callback
-        }}
-        editMode={true}
-        scheduleData={currentSchedule}
-      />
+      {/* Only render NewScheduleModal for regular schedules */}
+      {!isAdminHours && (
+        <NewScheduleModal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            onClose();
+          }}
+          onScheduleCreated={() => {
+            setIsEditModalOpen(false);
+            onScheduleDeleted();
+          }}
+          editMode={true}
+          scheduleData={currentSchedule}
+        />
+      )}
     </>
   );
 }

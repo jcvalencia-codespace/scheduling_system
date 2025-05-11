@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { AdminHourSchema, DepartmentSchema } from '../../../db/schema';
+import { AdminHourSchema, DepartmentSchema, ScheduleSchema } from '../../../db/schema';  // Add ScheduleSchema
 import connectDB from '../../../lib/mongo';
 import moment from 'moment';
 import { pusherServer } from '@/utils/pusher';
@@ -58,48 +58,58 @@ class AdminHoursModel {
       if (!user) throw new Error('User not found');
       if (user.employmentType !== 'full-time') throw new Error('Only full-time employees can have admin hours');
 
-      // Validate against schedule conflicts
+      // Enhanced schedule conflict check
       for (const slot of newSlots) {
+        // Convert times to 24-hour format for comparison
+        const parseTime = (timeStr) => {
+          return moment(timeStr, 'h:mm A').format('HH:mm');
+        };
+
+        const slotStartTime = parseTime(slot.startTime);
+        const slotEndTime = parseTime(slot.endTime);
+
+        // Check against faculty's regular class schedules
         const scheduleConflicts = await Schedules.find({
           isActive: true,
           term: termObjectId,
           faculty: userId,
-          'scheduleSlots.days': slot.day,
-          $or: [{
-            $and: [
-              { 'scheduleSlots.timeFrom': { $lte: slot.startTime } },
-              { 'scheduleSlots.timeTo': { $gt: slot.startTime } }
-            ]
-          }, {
-            $and: [
-              { 'scheduleSlots.timeFrom': { $lt: slot.endTime } },
-              { 'scheduleSlots.timeTo': { $gte: slot.endTime } }
-            ]
-          }]
-        });
+          'scheduleSlots.days': slot.day
+        }).populate(['subject', 'section']);
 
-        if (scheduleConflicts.length > 0) {
-          throw new Error(`Schedule conflict found for ${slot.day} at ${slot.startTime}-${slot.endTime}`);
+        for (const schedule of scheduleConflicts) {
+          for (const scheduleSlot of schedule.scheduleSlots) {
+            if (scheduleSlot.days.includes(slot.day)) {
+              const classStartTime = parseTime(scheduleSlot.timeFrom);
+              const classEndTime = parseTime(scheduleSlot.timeTo);
+
+              // Check for time overlap
+              if (
+                (slotStartTime >= classStartTime && slotStartTime < classEndTime) ||
+                (slotEndTime > classStartTime && slotEndTime <= classEndTime) ||
+                (slotStartTime <= classStartTime && slotEndTime >= classEndTime)
+              ) {
+                const sectionNames = Array.isArray(schedule.section) 
+                  ? schedule.section.map(s => s.sectionName).join(', ')
+                  : schedule.section.sectionName;
+
+                throw new Error(
+                  `Schedule conflict found for ${slot.day} at ${slot.startTime}-${slot.endTime}. ` +
+                  `Conflicts with class schedule: ${schedule.subject.subjectCode} ` +
+                  `(${scheduleSlot.timeFrom}-${scheduleSlot.timeTo}) ` +
+                  `for section ${sectionNames}`
+                );
+              }
+            }
+          }
         }
 
-        // Modified: Add term filter to admin hours conflict check
+        // Check against existing admin hours (keep existing admin hours conflict check)
         const adminHoursConflicts = await AdminHours.find({
           user: userId,
-          term: termObjectId, // Ensure we only check conflicts within the same term
+          term: termObjectId,
           isActive: true,
           'slots.day': slot.day,
-          'slots.status': { $in: ['pending', 'approved'] },
-          $or: [{
-            $and: [
-              { 'slots.startTime': { $lte: slot.startTime } },
-              { 'slots.endTime': { $gt: slot.startTime } }
-            ]
-          }, {
-            $and: [
-              { 'slots.startTime': { $lt: slot.endTime } },
-              { 'slots.endTime': { $gte: slot.endTime } }
-            ]
-          }]
+          'slots.status': { $in: ['pending', 'approved'] }
         });
 
         // Filter to only count conflicts with non-rejected slots in the current term
