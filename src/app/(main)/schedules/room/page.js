@@ -135,6 +135,11 @@ export default function RoomSchedulePage() {
   };
 
   const fetchRoomSchedules = async (roomId) => {
+    if (!roomId) {
+      setSchedules([]);
+      return;
+    }
+    
     setIsLoading(true);
     try {
       const response = await getRoomSchedules(roomId);
@@ -144,6 +149,7 @@ export default function RoomSchedulePage() {
       setSchedules(response.schedules);
     } catch (error) {
       console.error('Error fetching room schedules:', error);
+      setSchedules([]);
     } finally {
       setIsLoading(false);
     }
@@ -178,11 +184,11 @@ export default function RoomSchedulePage() {
 
   useEffect(() => {
     if (selectedRoom) {
-      fetchRoomSchedules(selectedRoom)
+      fetchRoomSchedules(selectedRoom);
     } else {
-      setSchedules([]) // Clear schedules when no room is selected
+      setSchedules([]); // Clear schedules when no room is selected
     }
-  }, [selectedRoom])
+  }, [selectedRoom]);
 
   useEffect(() => {
     const events = convertSchedulesToEvents(schedules)
@@ -242,16 +248,16 @@ export default function RoomSchedulePage() {
   }
 
   const handleEventClick = (info) => {
-    setSelectedSchedule(info.event.extendedProps.schedule)
-    setIsViewScheduleModalOpen(true)
-  }
+    setSelectedSchedule(info.event.extendedProps.schedule);
+    setIsViewScheduleModalOpen(true);
+  };
 
   const handlePrintClick = () => {
     if (!selectedRoom) {
       Swal.fire({
         icon: "warning",
         title: "No Room Selected",
-        text: "Please select a room to view its schedule.",
+        text: "Please select a room first before printing the schedule.",
         confirmButtonColor: "#323E8F",
       });
       return;
@@ -259,7 +265,9 @@ export default function RoomSchedulePage() {
     setIsPDFPreviewOpen(true);
   };
 
-  const canCreateSchedule = user?.role === "Dean" || user?.role === "Administrator"
+  const canCreateSchedule = user?.role === "Dean" || 
+                          user?.role === "Administrator" || 
+                          user?.role === "Program Chair"
   const canSeeTabNav = user?.role !== "Faculty"
 
   const roomOptions = availableRooms.map(room => ({
@@ -571,6 +579,7 @@ export default function RoomSchedulePage() {
           isOpen={isNewScheduleModalOpen}
           onClose={() => setIsNewScheduleModalOpen(false)}
           onScheduleCreated={fetchRoomSchedules}
+          selectedRoom={availableRooms.find(r => r._id === selectedRoom)}
           selectedSection={selectedRoom}
         />
       </div>

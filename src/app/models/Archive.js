@@ -44,6 +44,33 @@ class ArchiveModel {
     }
   }
 
+  async getActiveTerm() {
+    try {
+      await connectDB();
+      
+      // Properly serialize the course ObjectId
+      const term = await mongoose.model('Terms').findOne({
+        status: 'Active',
+        isVisible: true
+      }).lean();
+
+      if (!term) return null;
+
+      return {
+        _id: term._id.toString(),
+        academicYear: term.academicYear,
+        term: term.term,
+        startDate: term.startDate.toISOString(),
+        endDate: term.endDate.toISOString(),
+        status: term.status,
+        isVisible: term.isVisible
+      };
+    } catch (error) {
+      console.error('Error getting active term:', error);
+      throw error;
+    }
+  }
+
   async getUpdateHistory(startDate, endDate, academicYear, courseId = null) {
     try {
       await this.initializeModels();
@@ -83,15 +110,28 @@ class ArchiveModel {
           select: 'firstName lastName email role course'
         })
         .select('yearLevel classId updateHistory')
-        .lean(); // Use lean() to get plain objects
+        .lean();
 
-      console.log('Found assignments:', {
-        total: assignments.length,
-        withCourseFilter: !!courseId
+      // Process and sanitize the data
+      const sanitizedAssignments = assignments.map(assignment => {
+        const sanitizedAssignment = JSON.parse(JSON.stringify(assignment));
+        
+        // Ensure course IDs are properly stringified
+        if (sanitizedAssignment.updateHistory) {
+          sanitizedAssignment.updateHistory = sanitizedAssignment.updateHistory.map(entry => ({
+            ...entry,
+            updatedBy: entry.updatedBy ? {
+              ...entry.updatedBy,
+              course: entry.updatedBy.course ? entry.updatedBy.course.toString() : 'N/A'
+            } : null
+          }));
+        }
+
+        return sanitizedAssignment;
       });
 
-      // Map assignments to plain objects, ensuring all ObjectIds are converted to strings
-      const history = assignments.reduce((acc, assignment) => {
+      // Convert to history entries
+      const history = sanitizedAssignments.reduce((acc, assignment) => {
         if (!assignment?.updateHistory) return acc;
 
         const historyEntries = assignment.updateHistory
@@ -113,7 +153,7 @@ class ArchiveModel {
               name: `${entry.updatedBy.firstName || ''} ${entry.updatedBy.lastName || ''}`.trim() || 'Unknown User',
               email: entry.updatedBy.email || 'N/A',
               role: entry.updatedBy.role || 'N/A',
-              course: entry.updatedBy.course?.toString() || 'N/A' // Convert ObjectId to string
+              course: entry.updatedBy.course || 'N/A'
             } : { name: 'System', email: 'N/A', role: 'System', course: 'N/A' },
             classDetails: {
               section: assignment.classId?.sectionName || 'N/A',
@@ -126,7 +166,7 @@ class ArchiveModel {
         return [...acc, ...historyEntries];
       }, []);
 
-      return history.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+      return JSON.parse(JSON.stringify(history.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))));
     } catch (error) {
       console.error('Error in getUpdateHistory:', error);
       throw error;

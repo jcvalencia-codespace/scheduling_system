@@ -250,7 +250,7 @@ export default function SchedulePage() {
     setIsPDFPreviewOpen(true);
   };
 
-  const canCreateSchedule = user?.role === "Dean" || user?.role === "Administrator"
+  const canCreateSchedule = user?.role === "Dean" || user?.role === "Administrator" || user?.role === "Program Chair"
   const canSeeTabNav = user?.role !== "Faculty"
 
   const facultyOptions = user?.role === 'Faculty' 
@@ -536,8 +536,20 @@ export default function SchedulePage() {
 
         <ViewScheduleModal
           isOpen={isViewScheduleModalOpen}
-          onClose={() => setIsViewScheduleModalOpen(false)}
+          onClose={() => {
+            setIsViewScheduleModalOpen(false);
+            // Refresh schedules after view modal closes (in case of edits)
+            if (selectedFaculty) {
+              fetchFacultySchedules(selectedFaculty);
+            }
+          }}
           schedule={selectedSchedule}
+          onScheduleDeleted={() => {
+            // Refresh schedules after deletion
+            if (selectedFaculty) {
+              fetchFacultySchedules(selectedFaculty);
+            }
+          }}
         />
 
         <AdminHoursModal
@@ -565,9 +577,21 @@ export default function SchedulePage() {
 
         <NewScheduleModal
           isOpen={isNewScheduleModalOpen}
-          onClose={() => setIsNewScheduleModalOpen(false)}
-          onScheduleCreated={fetchFacultySchedules}
+          onClose={() => {
+            setIsNewScheduleModalOpen(false);
+            // Refresh schedules after modal closes
+            if (selectedFaculty) {
+              fetchFacultySchedules(selectedFaculty);
+            }
+          }}
+          onScheduleCreated={() => {
+            // Refresh schedules after schedule is created/updated
+            if (selectedFaculty) {
+              fetchFacultySchedules(selectedFaculty);
+            }
+          }}
           selectedSection={user?.firstName + " " + user?.lastName}
+          selectedFaculty={availableFaculty.find(f => f._id === selectedFaculty)}
         />
       </div>
     </div>

@@ -100,15 +100,28 @@ class RoomsModel {
     const rooms = await Rooms.find({ isActive: true })
       .sort({ roomCode: 1 })
       .populate('department', 'departmentCode departmentName')
-      .populate('updateHistory.updatedBy', 'firstName lastName'); // Add this line
-    return JSON.parse(JSON.stringify(rooms));
+      .populate('updateHistory.updatedBy', 'firstName lastName');
+
+    // Convert to plain objects with proper date handling
+    const plainRooms = rooms.map(room => {
+      const plainRoom = room.toObject();
+      if (plainRoom.updateHistory) {
+        plainRoom.updateHistory = plainRoom.updateHistory.map(history => ({
+          ...history,
+          updatedAt: history.updatedAt instanceof Date ? history.updatedAt : new Date(history.updatedAt)
+        }));
+      }
+      return plainRoom;
+    });
+
+    return plainRooms;
   }
 
   async getRoomByCode(roomCode) {
     const Room = await this.initModel();
     const room = await Room.findOne({ roomCode, isActive: true })
       .populate('department', 'departmentCode departmentName')
-      .populate('updateHistory.updatedBy', 'firstName lastName'); // Add this line
+      .populate('updateHistory.updatedBy', 'firstName lastName');
     return room ? JSON.parse(JSON.stringify(room)) : null;
   }
 
@@ -212,8 +225,8 @@ class RoomsModel {
         isActive: true,
         $or: [
           { department: departmentId ? new mongoose.Types.ObjectId(departmentId) : null },
-          { department: { $exists: false } },  // Include rooms without department
-          { department: null }  // Include rooms where department is null
+          { department: { $exists: false } },
+          { department: null }
         ]
       };
 
@@ -225,8 +238,20 @@ class RoomsModel {
         })
         .sort({ roomCode: 1 });
       
+      // Convert to plain objects with proper date handling
+      const plainRooms = rooms.map(room => {
+        const plainRoom = room.toObject();
+        if (plainRoom.updateHistory) {
+          plainRoom.updateHistory = plainRoom.updateHistory.map(history => ({
+            ...history,
+            updatedAt: history.updatedAt instanceof Date ? history.updatedAt : new Date(history.updatedAt)
+          }));
+        }
+        return plainRoom;
+      });
+
       console.log(`Found ${rooms.length} rooms for department ${departmentId}`);
-      return JSON.parse(JSON.stringify(rooms));
+      return plainRooms;
     } catch (error) {
       console.error('Error in getRoomsByDepartment:', error);
       throw error;
