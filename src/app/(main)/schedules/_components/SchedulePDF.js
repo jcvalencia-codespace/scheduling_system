@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import autoTable from 'jspdf-autotable';
+import logoImage from '../_assets/logo-header.png';
 
 const SchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
   const generatePDF = () => {
@@ -11,7 +12,7 @@ const SchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
     const logoX = (pageWidth - logoWidth) / 2;
     
     // Add centered logo with reduced size
-    doc.addImage('/logo-header.png', 'PNG', logoX, 5, logoWidth, 12);
+    doc.addImage(logoImage.src, 'PNG', logoX, 5, logoWidth, 12);
     
     // Add header
     doc.setFontSize(14);

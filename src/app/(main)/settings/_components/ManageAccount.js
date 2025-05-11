@@ -11,6 +11,7 @@ import {
     EyeIcon,
     EyeSlashIcon,
 } from "@heroicons/react/24/outline"
+import { changePassword } from '../_actions';
 
 export default function ManageAccount() {
     const { user } = useAuthStore()
@@ -24,6 +25,13 @@ export default function ManageAccount() {
     const [showCurrentPassword, setShowCurrentPassword] = useState(false)
     const [showNewPassword, setShowNewPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+    const [passwordForm, setPasswordForm] = useState({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+    });
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
 
     useEffect(() => {
         if (user) {
@@ -44,6 +52,17 @@ export default function ManageAccount() {
         }))
     }
 
+    const handlePasswordChange = (e) => {
+        const { id, value } = e.target;
+        setPasswordForm(prev => ({
+            ...prev,
+            [id]: value
+        }));
+        // Clear messages when user starts typing
+        setError('');
+        setSuccess('');
+    };
+
     const handleSaveProfile = () => {
         setLoading(true)
         // TODO: Implement API call to update profile
@@ -53,13 +72,51 @@ export default function ManageAccount() {
         }, 1000)
     }
 
-    const handleUpdatePassword = () => {
-        setLoading(true)
-        // Simulate API call
-        setTimeout(() => {
-            setLoading(false)
-        }, 1000)
-    }
+    const handleUpdatePassword = async () => {
+        setError('');
+        setSuccess('');
+        
+        // Validate passwords
+        if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+            setError('All password fields are required');
+            return;
+        }
+
+        if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+            setError('New passwords do not match');
+            return;
+        }
+
+        if (passwordForm.newPassword.length < 6) {
+            setError('New password must be at least 6 characters long');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const result = await changePassword({
+                currentPassword: passwordForm.currentPassword,
+                newPassword: passwordForm.newPassword,
+                email: user.email
+            });
+            
+            if (!result.success) {
+                throw new Error(result.message);
+            }
+
+            setSuccess(result.message);
+            // Clear form
+            setPasswordForm({
+                currentPassword: '',
+                newPassword: '',
+                confirmPassword: ''
+            });
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="space-y-8 bg">
@@ -83,7 +140,8 @@ export default function ManageAccount() {
                                 placeholder="First Name"
                                 value={formData.firstName}
                                 onChange={handleInputChange}
-                                className="w-full text-gray-700 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#283275] focus:border-[#283275]"
+                                disabled
+                                className="w-full text-gray-700 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#283275] focus:border-[#283275] bg-gray-50"
                             />
                         </div>
                         <div className="space-y-2">
@@ -95,7 +153,8 @@ export default function ManageAccount() {
                                 placeholder="Middle Name"
                                 value={formData.middleName} 
                                 onChange={handleInputChange}
-                                className="w-full text-gray-700 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#283275] focus:border-[#283275]"
+                                disabled
+                                className="w-full text-gray-700 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#283275] focus:border-[#283275] bg-gray-50"
                             />
                         </div>
                         <div className="space-y-2">
@@ -107,7 +166,8 @@ export default function ManageAccount() {
                                 placeholder="Last Name"
                                 value={formData.lastName}
                                 onChange={handleInputChange}
-                                className="w-full text-gray-700 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#283275] focus:border-[#283275]"
+                                disabled
+                                className="w-full text-gray-700 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#283275] focus:border-[#283275] bg-gray-50"
                             />
                         </div>
                         <div className="space-y-2">
@@ -120,27 +180,13 @@ export default function ManageAccount() {
                                 placeholder="Email"
                                 value={formData.email}
                                 onChange={handleInputChange}
-                                className="w-full text-gray-700 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#283275] focus:border-[#283275]"
+                                disabled
+                                className="w-full text-gray-700 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#283275] focus:border-[#283275] bg-gray-50"
                             />
                         </div>
                     </div>
                 </div>
-                <div className="border-t bg-slate-50 p-4 flex justify-start">
-                    <button
-                        onClick={handleSaveProfile}
-                        disabled={loading}
-                        className={`flex items-center px-4 py-2 rounded-md text-white ${loading ? "bg-[#283275]/70" : "bg-[#283275] hover:bg-[#283275]/90"
-                            } transition-colors`}
-                    >
-                        {loading ? (
-                            "Saving..."
-                        ) : (
-                            <>
-                                <ArrowDownTrayIcon className="mr-2 h-4 w-4" /> Save Changes
-                            </>
-                        )}
-                    </button>
-                </div>
+                
             </div>
 
             {/* Change Password Section */}
@@ -163,6 +209,8 @@ export default function ManageAccount() {
                                     id="currentPassword"
                                     type={showCurrentPassword ? "text" : "password"}
                                     placeholder="Current Password"
+                                    value={passwordForm.currentPassword}
+                                    onChange={handlePasswordChange}
                                     className="w-full text-gray-700 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#283275] focus:border-[#283275] pr-10"
                                 />
                                 <button
@@ -183,6 +231,8 @@ export default function ManageAccount() {
                                     id="newPassword"
                                     type={showNewPassword ? "text" : "password"}
                                     placeholder="New Password"
+                                    value={passwordForm.newPassword}
+                                    onChange={handlePasswordChange}
                                     className="w-full text-gray-700 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#283275] focus:border-[#283275] pr-10"
                                 />
                                 <button
@@ -203,6 +253,8 @@ export default function ManageAccount() {
                                     id="confirmPassword"
                                     type={showConfirmPassword ? "text" : "password"}
                                     placeholder="Confirm New Password"
+                                    value={passwordForm.confirmPassword}
+                                    onChange={handlePasswordChange}
                                     className="w-full text-gray-700 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#283275] focus:border-[#283275] pr-10"
                                 />
                                 <button
@@ -214,6 +266,12 @@ export default function ManageAccount() {
                                 </button>
                             </div>
                         </div>
+                        {error && (
+                            <p className="text-red-500 text-sm mt-2">{error}</p>
+                        )}
+                        {success && (
+                            <p className="text-green-500 text-sm mt-2">{success}</p>
+                        )}
                     </div>
                 </div>
                 <div className="border-t bg-slate-50 p-4 flex justify-start">

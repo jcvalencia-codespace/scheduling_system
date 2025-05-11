@@ -1,9 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { UserIcon, ShieldCheckIcon, DocumentCheckIcon } from "@heroicons/react/24/outline"
+import { saveAccessSettings, getAccessSettings } from "../_actions"
+import useAuthStore from "@/store/useAuthStore"
+import Swal from "sweetalert2"
 
 export default function ManageAccess() {
+  const { user } = useAuthStore()
   const [loading, setLoading] = useState(false)
   const [programChairSettings, setProgramChairSettings] = useState({
     showMultipleSections: false,
@@ -14,24 +18,75 @@ export default function ManageAccess() {
     showFacultyDropdown: true,
   })
 
-  const handleSaveSettings = () => {
+  useEffect(() => {
+    async function fetchSettings() {
+      try {
+        const [programChairResponse, deanResponse] = await Promise.all([
+          getAccessSettings('Program Chair'),
+          getAccessSettings('Dean')
+        ]);
+
+        if (programChairResponse.success) {
+          // Parse the settings if they're serialized
+          setProgramChairSettings(
+            typeof programChairResponse.data === 'string' 
+              ? JSON.parse(programChairResponse.data) 
+              : programChairResponse.data
+          );
+        }
+        if (deanResponse.success) {
+          // Parse the settings if they're serialized
+          setDeanSettings(
+            typeof deanResponse.data === 'string' 
+              ? JSON.parse(deanResponse.data) 
+              : deanResponse.data
+          );
+        }
+      } catch (error) {
+        console.error('Error fetching settings:', error);
+      }
+    }
+
+    fetchSettings();
+  }, []);
+
+  const handleSaveSettings = async () => {
     setLoading(true)
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Serialize the data before sending
+      const savePromises = [
+        saveAccessSettings('Program Chair', {
+          ...JSON.parse(JSON.stringify(programChairSettings)),
+          userId: user._id
+        }),
+        saveAccessSettings('Dean', {
+          ...JSON.parse(JSON.stringify(deanSettings)),
+          userId: user._id
+        })
+      ];
+
+      const results = await Promise.all(savePromises);
+
+      if (results.every(result => result.success)) {
+        await Swal.fire({
+          icon: 'success',
+          title: 'Settings Saved',
+          text: 'Access settings have been updated successfully',
+          timer: 1500
+        });
+      } else {
+        throw new Error('Failed to save some settings');
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to save settings'
+      });
+    } finally {
       setLoading(false)
-      // Show toast notification
-      const toast = document.createElement("div")
-      toast.className =
-        "fixed top-4 right-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-md"
-      toast.innerHTML = `
-        <div class="font-bold">Settings saved</div>
-        <div>Your access settings have been updated successfully.</div>
-      `
-      document.body.appendChild(toast)
-      setTimeout(() => {
-        toast.remove()
-      }, 3000)
-    }, 1000)
+    }
   }
 
   return (

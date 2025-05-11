@@ -9,6 +9,7 @@ import useAuthStore from '@/store/useAuthStore';
 import ScheduleModalSkeleton from './Skeleton';
 import { XCircleIcon } from '@heroicons/react/24/outline';
 import ConflictAlert from './ConflictAlert';
+import { useAccessSettings } from '@/app/hooks/useAccessSettings';
 
 export default function NewScheduleModal({
   isOpen,
@@ -21,6 +22,7 @@ export default function NewScheduleModal({
   selectedFaculty = null // Add this prop
 }) {
   const { user } = useAuthStore();
+  const { isMultipleSectionsEnabled, isFacultyDropdownEnabled } = useAccessSettings();
   const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   const studentTypes = [
@@ -767,6 +769,18 @@ export default function NewScheduleModal({
                       </div>
 
                       <div className="flex gap-6 mb-6">
+                        {isMultipleSectionsEnabled && (
+                          <label className="flex items-center gap-2 text-black">
+                            <input
+                              type="checkbox"
+                              name="isMultipleSections"
+                              checked={selectedValues.isMultipleSections}
+                              onChange={handleInputChange}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span>Multiple Sections</span>
+                          </label>
+                        )}
                         <label className="flex items-center gap-2 text-black">
                           <input
                             type="checkbox"
@@ -776,16 +790,6 @@ export default function NewScheduleModal({
                             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
                           <span>Pairing Schedule</span>
-                        </label>
-                        <label className="flex items-center gap-2 text-black">
-                          <input
-                            type="checkbox"
-                            name="isMultipleSections"
-                            checked={selectedValues.isMultipleSections}
-                            onChange={handleInputChange}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <span>Multiple Sections</span>
                         </label>
                       </div>
 
@@ -822,19 +826,21 @@ export default function NewScheduleModal({
                             />
                           </div>
 
-                          <div>
-                            <label className="block text-sm font-medium text-black mb-1">Faculty</label>
-                            <Select
-                              name="faculty"
-                              value={facultyOptions.find(option => option.value === selectedValues.faculty)}
-                              onChange={(option) => handleSelectChange(option, { name: 'faculty' })}
-                              options={facultyOptions}
-                              styles={customStyles}
-                              className="text-black "
-                              placeholder="Select a Faculty"
-                              isClearable
-                            />
-                          </div>
+                          {isFacultyDropdownEnabled && (
+                            <div>
+                              <label className="block text-sm font-medium text-black mb-1">Faculty</label>
+                              <Select
+                                name="faculty"
+                                value={facultyOptions.find(option => option.value === selectedValues.faculty)}
+                                onChange={(option) => handleSelectChange(option, { name: 'faculty' })}
+                                options={facultyOptions}
+                                styles={customStyles}
+                                className="text-black"
+                                placeholder="Select a Faculty"
+                                isClearable
+                              />
+                            </div>
+                          )}
 
                           <div>
                             <label className="block text-sm font-medium text-black mb-1">Subject</label>

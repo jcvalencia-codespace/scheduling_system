@@ -36,12 +36,16 @@ const UserSchema = new Schema({
   department: {
     type: Schema.Types.ObjectId,
     ref: 'departments',
-    required: true
+    required: function() {
+      return this.role !== 'Administrator';
+    }
   },
   course: {
     type: Schema.Types.ObjectId,
     ref: 'courses',
-    required: true
+    required: function() {
+      return this.role !== 'Administrator';
+    }
   },
   employmentType: {
     type: String,
@@ -713,6 +717,39 @@ const ChatSchema = new Schema({
 ChatSchema.index({ participants: 1, lastMessage: -1 });
 ChatSchema.index({ 'messages.sender': 1, 'messages.createdAt': -1 });
 
+const AccessSettingsSchema = new Schema({
+  role: {
+    type: String,
+    required: true,
+    enum: ['Dean', 'Program Chair'],
+    unique: true
+  },
+  settings: {
+    showMultipleSections: {
+      type: Boolean,
+      default: true
+    },
+    showFacultyDropdown: {
+      type: Boolean,
+      default: true
+    }
+  },
+  updateHistory: [{
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }]
+}, {
+  timestamps: true,
+  collection: 'accessSettings'
+});
+
 export {
   UserSchema,
   SubjectSchema,
@@ -726,5 +763,6 @@ export {
   ScheduleSchema,
   AdminHourSchema,
   NotificationSchema,
-  ChatSchema
+  ChatSchema,
+  AccessSettingsSchema
 };
