@@ -10,11 +10,10 @@ const SchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
     const logoWidth = 40;
     const logoX = (pageWidth - logoWidth) / 2;
     
-    // Load and add image using base64 string
+    // Load and add image using canvas
     const logo = new Image();
-    logo.src = '/logo-header.png'; // Update this path to match where you place the image in public folder
+    logo.src = '/logo-header.png';
     
-    // Convert image to data URL and add to PDF
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     logo.onload = () => {

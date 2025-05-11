@@ -1,16 +1,28 @@
 import { jsPDF } from "jspdf";
 import autoTable from 'jspdf-autotable';
-import logoImage from '../_assets/logo-header.png';
 
 const RoomSchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
   const generatePDF = () => {
     const doc = new jsPDF();
     
-    // Add logo and center it
+    // Center logo calculation
     const pageWidth = doc.internal.pageSize.width;
     const logoWidth = 40;
     const logoX = (pageWidth - logoWidth) / 2;
-    doc.addImage(logoImage.src, 'PNG', logoX, 5, logoWidth, 12);
+    
+    // Load and add image using canvas
+    const logo = new Image();
+    logo.src = '/logo-header.png';
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    logo.onload = () => {
+      canvas.width = logo.width;
+      canvas.height = logo.height;
+      ctx.drawImage(logo, 0, 0);
+      const dataUrl = canvas.toDataURL('image/png');
+      doc.addImage(dataUrl, 'PNG', logoX, 5, logoWidth, 12);
+    };
     
     // Add header text directly without logo
     doc.setFontSize(16);
