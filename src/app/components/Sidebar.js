@@ -239,7 +239,7 @@ export default function Sidebar() {
       <div className="flex h-16 items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4">
         <div className="flex items-center gap-2">
           <Image
-            src="/nu-shield.png"
+            src="https://i.imgur.com/jYFYI4l.png"
             alt="NU Shield"
             width={32}
             height={32}

@@ -104,8 +104,9 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen flex flex-col md:flex-row bg-gradient-to-r from-[#323E8F] to-[#1E2657]">
       {/* Left Column - Background Image */}
       <div className="hidden md:block md:w-1/2 relative flex items-center justify-center min-h-[300px] md:min-h-screen rounded-br-[80px] overflow-hidden">
+       {/* banner-image */}
         <Image
-          src="/banner-nu-baliwag.jpg"
+          src="https://i.imgur.com/tSaJcCx.jpeg"
           alt="NU Baliwag"
           fill
           className="object-cover rounded-br-[80px]"
@@ -119,7 +120,7 @@ export default function ForgotPasswordPage() {
           {/* Header with logo and text */}
           <div className="flex items-center gap-4 mb-8">
             <Image
-              src="/nu-shield.png"
+              src="https://i.imgur.com/jYFYI4l.png"
               alt="NU Shield"
               width={100}
               height={100}

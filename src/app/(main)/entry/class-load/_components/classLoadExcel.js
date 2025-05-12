@@ -189,7 +189,7 @@ export const generateClassLoadExcel = async (assignments = [], selectedCourse, s
         resolve({
           blob,
           fileName: `ClassLoad_${selectedCourse.courseCode}_Term${selectedTerm.term}.xlsx`,
-          logoPath: "/logo-header.png",
+          logoPath: "https://i.imgur.com/6yZFd27.png",
         })
       } catch (error) {
         reject(error)
@@ -216,5 +216,5 @@ export const downloadExcel = (excelData) => {
 // Helper function for logo (not used directly in Excel generation due to xlsx limitations)
 // but can be used by the UI to display the logo
 export const getLogoUrl = () => {
-  return "/logo-header.png"
+  return "https://i.imgur.com/6yZFd27.png"
 }
