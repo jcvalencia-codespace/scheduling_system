@@ -1,38 +1,19 @@
 import { jsPDF } from "jspdf";
 import autoTable from 'jspdf-autotable';
 
-const FacultySchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
+const FacultySchedulePDF = ({ activeTerm, schedules, selectedSection, adminHours = [] }) => {
   const generatePDF = () => {
     const doc = new jsPDF();
-    
-    // Center logo calculation
-    const pageWidth = doc.internal.pageSize.width;
-    const logoWidth = 40;
-    const logoX = (pageWidth - logoWidth) / 2;
-    
-    // Load and add image using canvas
-    const logo = new Image();
-    logo.src = 'https://i.imgur.com/6yZFd27.png';
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    logo.onload = () => {
-      canvas.width = logo.width;
-      canvas.height = logo.height;
-      ctx.drawImage(logo, 0, 0);
-      const dataUrl = canvas.toDataURL('image/png');
-      doc.addImage(dataUrl, 'PNG', logoX, 5, logoWidth, 12);
-    };
-
-    // Add header
+    // Remove logo handling since it causes CORS issues
+    // Just add header text directly
     doc.setFontSize(14);
     doc.setTextColor(26, 35, 126);
-    doc.text('Faculty Schedule', doc.internal.pageSize.width / 2, 22, { align: 'center' });
+    doc.text('Faculty Schedule', doc.internal.pageSize.width / 2, 15, { align: 'center' });
     
     doc.setFontSize(8);
     doc.setTextColor(0);
-    doc.text(`Faculty: ${selectedSection}`, doc.internal.pageSize.width / 2, 28, { align: 'center' });
-    doc.text(`${activeTerm.term} - AY ${activeTerm.academicYear}`, doc.internal.pageSize.width / 2, 33, { align: 'center' });
+    doc.text(`Faculty: ${selectedSection}`, doc.internal.pageSize.width / 2, 22, { align: 'center' });
+    doc.text(`${activeTerm.term} - AY ${activeTerm.academicYear}`, doc.internal.pageSize.width / 2, 27, { align: 'center' });
 
     // Generate time slots
     const timeSlots = generateTimeSlots();
@@ -53,13 +34,18 @@ const FacultySchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
         const spanInfo = scheduleSpans[`${timeIndex}-${dayIndex}`];
         
         if (spanInfo && spanInfo.isStart) {
-          const content = [
-            `${spanInfo.slot.timeFrom} - ${spanInfo.slot.timeTo}`,
-            schedule.subject?.subjectCode || '',
-            // schedule.subject?.subjectName || '',
-            `${schedule.section?.sectionName || 'N/A'}`,
-            `${spanInfo.slot.room?.roomCode || 'N/A'}`,
-          ].join('\n');
+          // Simplified content based on whether it's admin hours or regular schedule
+          const content = schedule.isAdminHours 
+            ? [
+                `${spanInfo.slot.timeFrom} - ${spanInfo.slot.timeTo}`,
+                'Admin Hours'
+              ].join('\n')
+            : [
+                `${spanInfo.slot.timeFrom} - ${spanInfo.slot.timeTo}`,
+                schedule.subject?.subjectCode || '',
+                `${schedule.section?.sectionName || 'N/A'}`,
+                `${spanInfo.slot.room?.roomCode || 'N/A'}`,
+              ].join('\n');
           
           row.push({ content, rowSpan: spanInfo.span });
         } else if (spanInfo && !spanInfo.isStart) {
@@ -74,7 +60,7 @@ const FacultySchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
 
     // Use the same table styling as SchedulePDF
     autoTable(doc, {
-      startY: 35,
+      startY: 30, // Adjusted starting position since we removed the logo
       margin: { left: 3, right: 3, top: 40 },
       head: [['Time', ...weekDays]],
       body: tableData,
@@ -116,13 +102,32 @@ const FacultySchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
           const spanInfo = scheduleSpans[`${timeIndex}-${dayIndex}`];
           
           if (spanInfo && spanInfo.isStart) {
-            data.cell.styles.fillColor = [255, 215, 0];
+            data.cell.styles.fillColor = spanInfo.isAdminHours 
+              ? [155, 233, 203] //rgb(155, 233, 203) for admin hours
+              : [255, 215, 0];  // Original color for regular schedules
             data.cell.styles.lineWidth = 0.1;
             data.cell.styles.lineColor = [0, 0, 0];
           }
         }
       }
     });
+
+    // Add issue date and time at the bottom
+    const currentDate = new Date();
+    const dateStr = currentDate.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
+    const timeStr = currentDate.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+    doc.text(`Issued on ${dateStr} at ${timeStr}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
 
     return doc;
   };
@@ -135,7 +140,7 @@ const FacultySchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
         const schedule = getScheduleForTimeAndDay(time, day);
         const slot = getSlotForTimeAndDay(schedule, time, day);
         
-        if (slot && isFirstTimeSlot(time, slot)) {
+        if (slot && isFirstTimeSlot(time, schedule.isAdminHours ? slot.timeFrom : slot.timeFrom)) {
           let span = 0;
           const startTime = new Date(`2000/01/01 ${slot.timeFrom}`).getTime();
           const endTime = new Date(`2000/01/01 ${slot.timeTo}`).getTime();
@@ -154,7 +159,8 @@ const FacultySchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
           spans[`${timeIndex}-${dayIndex}`] = { 
             isStart: true, 
             span: span,
-            slot: slot
+            slot: slot,
+            isAdminHours: schedule.isAdminHours
           };
         }
       });
@@ -186,7 +192,8 @@ const FacultySchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
   };
 
   const getScheduleForTimeAndDay = (time, day) => {
-    return schedules.find(schedule => {
+    // First check regular schedules
+    const regularSchedule = schedules.find(schedule => {
       return schedule.scheduleSlots.some(slot => {
         const scheduleStartTime = new Date(`2000/01/01 ${slot.timeFrom}`).getTime();
         const scheduleEndTime = new Date(`2000/01/01 ${slot.timeTo}`).getTime();
@@ -197,10 +204,37 @@ const FacultySchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
                currentTime < scheduleEndTime;
       });
     });
+
+    if (regularSchedule) return regularSchedule;
+
+    // Then check admin hours
+    const adminHourSlot = adminHours.find(slot => {
+      if (slot.status !== 'approved') return false;
+      
+      const scheduleStartTime = new Date(`2000/01/01 ${slot.startTime}`).getTime();
+      const scheduleEndTime = new Date(`2000/01/01 ${slot.endTime}`).getTime();
+      const currentTime = new Date(`2000/01/01 ${time}`).getTime();
+      
+      return slot.day === day && 
+             currentTime >= scheduleStartTime && 
+             currentTime < scheduleEndTime;
+    });
+
+    return adminHourSlot ? { isAdminHours: true, slot: adminHourSlot } : null;
   };
 
   const getSlotForTimeAndDay = (schedule, time, day) => {
-    if (!schedule || !schedule.scheduleSlots) return null;
+    if (!schedule) return null;
+    
+    if (schedule.isAdminHours) {
+      return {
+        timeFrom: schedule.slot.startTime,
+        timeTo: schedule.slot.endTime,
+        days: [schedule.slot.day]
+      };
+    }
+
+    if (!schedule.scheduleSlots) return null;
     
     return schedule.scheduleSlots.find(slot => {
       const scheduleStartTime = new Date(`2000/01/01 ${slot.timeFrom}`).getTime();
@@ -213,10 +247,10 @@ const FacultySchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
     });
   };
 
-  const isFirstTimeSlot = (currentTime, slot) => {
-    if (!slot || !slot.timeFrom || !currentTime) return false;
+  const isFirstTimeSlot = (currentTime, slotTimeFrom) => {
+    if (!slotTimeFrom || !currentTime) return false;
     
-    const slotStartTime = new Date(`2000/01/01 ${slot.timeFrom}`).getTime();
+    const slotStartTime = new Date(`2000/01/01 ${slotTimeFrom}`).getTime();
     const currentTimeDate = new Date(`2000/01/01 ${currentTime}`).getTime();
     return slotStartTime === currentTimeDate;
   };
