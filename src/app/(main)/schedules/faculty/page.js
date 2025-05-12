@@ -654,7 +654,8 @@ export default function SchedulePage() {
           onClose={() => setIsPDFPreviewOpen(false)}
           pdfProps={{
             activeTerm,
-            schedules: schedules, // Pass the full schedule array
+            schedules: schedules,
+            adminHours: adminHours, // Add admin hours to PDF props
             selectedSection: user?.role === 'Faculty'
               ? `${user.firstName} ${user.lastName}`
               : availableFaculty.find(f => f._id === selectedFaculty)
