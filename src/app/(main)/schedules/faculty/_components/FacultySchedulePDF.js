@@ -12,7 +12,7 @@ const FacultySchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
     
     // Load and add image using canvas
     const logo = new Image();
-    logo.src = '/logo-header.png';
+    logo.src = 'https://i.imgur.com/6yZFd27.png';
     
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');

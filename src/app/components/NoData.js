@@ -11,17 +11,17 @@ const NoData = ({
     <div className={`flex flex-col items-center justify-center p-8 ${className}`}>
       <div className="relative w-48 h-48 mb-4">
         <Image
-          src="/noData.svg"
+          src="https://i.imgur.com/VYEr8o2.jpeg"
           alt="No data illustration"
           fill
           className="object-contain"
           priority
         />
       </div>
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+      <h3 className="text-lg font-semibold text-gray-900 mb-2">
         {message}
       </h3>
-      <p className="text-sm text-gray-500 dark:text-gray-400 text-center max-w-sm">
+      <p className="text-sm text-gray-500 text-center max-w-sm">
         {description}
       </p>
     </div>

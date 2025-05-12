@@ -7,7 +7,7 @@ export const generateClassLoadPDF = async (assignments, selectedCourse, selected
 
   try {
     // Load header image first
-    const headerImg = await loadImage("/logo-header.png").catch(() => null)
+    const headerImg = await loadImage("https://i.imgur.com/6yZFd27.png").catch(() => null)
     const imgWidth = 40
     const imgHeight = 12
     // Document margins and dimensions
