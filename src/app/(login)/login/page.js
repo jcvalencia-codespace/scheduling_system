@@ -173,7 +173,7 @@ export default function LoginPage() {
       {/* Left Column - Image */}
       <div className="hidden md:block md:w-1/2 relative flex items-center justify-center min-h-[300px] md:min-h-screen rounded-br-[80px] overflow-hidden">
         <Image
-          src="/banner-nu-baliwag.jpg"
+          src="https://imgur.com/8oltGcx.jpeg"
           alt="NU Baliwag"
           fill
           className="object-cover rounded-br-[80px]"
@@ -187,7 +187,7 @@ export default function LoginPage() {
           {/* Header with logo and text */}
           <div className="flex items-center gap-4 mb-8">
             <Image
-              src="https://imgur.com/8oltGcx"
+              src="https://imgur.com/8oltGcx.jpeg"
               alt="NU Shield"
               width={100}
               height={100}
