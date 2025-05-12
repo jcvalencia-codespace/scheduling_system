@@ -4,16 +4,16 @@ import autoTable from 'jspdf-autotable';
 const RoomSchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
   const generatePDF = () => {
     const doc = new jsPDF();
-    
+
     // Center logo calculation
     const pageWidth = doc.internal.pageSize.width;
     const logoWidth = 40;
     const logoX = (pageWidth - logoWidth) / 2;
-    
+
     // Load and add image using canvas
     const logo = new Image();
     logo.src = 'https://i.imgur.com/6yZFd27.png';
-    
+
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     logo.onload = () => {
@@ -23,12 +23,12 @@ const RoomSchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
       const dataUrl = canvas.toDataURL('image/png');
       doc.addImage(dataUrl, 'PNG', logoX, 5, logoWidth, 12);
     };
-    
+
     // Add header text directly without logo
     doc.setFontSize(16);
     doc.setTextColor(26, 35, 126);
     doc.text('Room Schedule', doc.internal.pageSize.width / 2, 20, { align: 'center' });
-    
+
     doc.setFontSize(10);
     doc.setTextColor(0);
     doc.text(`Room: ${selectedSection}`, doc.internal.pageSize.width / 2, 27, { align: 'center' });
@@ -38,21 +38,21 @@ const RoomSchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
     const timeSlots = generateTimeSlots();
     const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     const scheduleSpans = calculateScheduleSpans(timeSlots, weekDays);
-    
+
     // Prepare table data with rowspans
     const tableData = [];
     timeSlots.forEach((time, timeIndex) => {
       const row = [time];
-      
+
       weekDays.forEach((day, dayIndex) => {
         const schedule = getScheduleForTimeAndDay(time, day);
         const slot = getSlotForTimeAndDay(schedule, time, day);
-        
+
         const spanInfo = scheduleSpans[`${timeIndex}-${dayIndex}`];
-        
+
         if (spanInfo && spanInfo.isStart) {
           const content = generateTableContent(schedule, spanInfo.slot);
-          
+
           row.push({ content, rowSpan: spanInfo.span });
         } else if (spanInfo && !spanInfo.isStart) {
           row.push({ content: '', rowSpan: 0 });
@@ -60,7 +60,7 @@ const RoomSchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
           row.push('');
         }
       });
-      
+
       tableData.push(row);
     });
 
@@ -95,18 +95,18 @@ const RoomSchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
         overflow: 'linebreak',
         lineColor: [0, 0, 0]
       },
-      didParseCell: function(data) {
+      didParseCell: function (data) {
         if (data.section === 'head') {
           data.cell.styles.fillColor = [26, 35, 126];
           data.cell.styles.textColor = [255, 255, 255];
           data.cell.styles.fontStyle = 'bold';
         }
-        
+
         if (data.section === 'body' && data.column.index > 0) {
           const timeIndex = data.row.index;
           const dayIndex = data.column.index - 1;
           const spanInfo = scheduleSpans[`${timeIndex}-${dayIndex}`];
-          
+
           if (spanInfo && spanInfo.isStart) {
             data.cell.styles.fillColor = [255, 215, 0];
             data.cell.styles.lineWidth = 0.1;
@@ -116,42 +116,60 @@ const RoomSchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
       }
     });
 
+
+    // Add issue date and time at the bottom
+    const currentDate = new Date();
+    const dateStr = currentDate.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
+    const timeStr = currentDate.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+    doc.text(`Issued on ${dateStr} at ${timeStr}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+
     return doc;
   };
 
   const calculateScheduleSpans = (timeSlots, weekDays) => {
     const spans = {};
-    
+
     timeSlots.forEach((time, timeIndex) => {
       weekDays.forEach((day, dayIndex) => {
         const schedule = getScheduleForTimeAndDay(time, day);
         const slot = getSlotForTimeAndDay(schedule, time, day);
-        
+
         if (slot && isFirstTimeSlot(time, slot)) {
           let span = 0;
           const startTime = new Date(`2000/01/01 ${slot.timeFrom}`).getTime();
           const endTime = new Date(`2000/01/01 ${slot.timeTo}`).getTime();
-          
+
           for (let i = timeIndex; i < timeSlots.length; i++) {
             const slotTime = new Date(`2000/01/01 ${timeSlots[i]}`).getTime();
             if (slotTime >= startTime && slotTime < endTime) {
               span++;
-              
+
               if (i > timeIndex) {
                 spans[`${i}-${dayIndex}`] = { isStart: false };
               }
             }
           }
-          
-          spans[`${timeIndex}-${dayIndex}`] = { 
-            isStart: true, 
+
+          spans[`${timeIndex}-${dayIndex}`] = {
+            isStart: true,
             span: span,
             slot: slot
           };
         }
       });
     });
-    
+
     return spans;
   };
 
@@ -159,7 +177,7 @@ const RoomSchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
     const slots = [];
     let hour = 7;
     let minute = 0;
-    
+
     while (hour < 22) {
       const time = new Date(2000, 0, 1, hour, minute);
       slots.push(time.toLocaleTimeString('en-US', {
@@ -167,7 +185,7 @@ const RoomSchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
         minute: '2-digit',
         hour12: true
       }));
-      
+
       minute += 20;
       if (minute >= 60) {
         minute = 0;
@@ -183,31 +201,31 @@ const RoomSchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
         const scheduleStartTime = new Date(`2000/01/01 ${slot.timeFrom}`).getTime();
         const scheduleEndTime = new Date(`2000/01/01 ${slot.timeTo}`).getTime();
         const currentTime = new Date(`2000/01/01 ${time}`).getTime();
-        
-        return slot.days.includes(day) && 
-               currentTime >= scheduleStartTime && 
-               currentTime < scheduleEndTime;
+
+        return slot.days.includes(day) &&
+          currentTime >= scheduleStartTime &&
+          currentTime < scheduleEndTime;
       });
     });
   };
 
   const getSlotForTimeAndDay = (schedule, time, day) => {
     if (!schedule || !schedule.scheduleSlots) return null;
-    
+
     return schedule.scheduleSlots.find(slot => {
       const scheduleStartTime = new Date(`2000/01/01 ${slot.timeFrom}`).getTime();
       const scheduleEndTime = new Date(`2000/01/01 ${slot.timeTo}`).getTime();
       const currentTime = new Date(`2000/01/01 ${time}`).getTime();
-      
-      return slot.days.includes(day) && 
-             currentTime >= scheduleStartTime && 
-             currentTime < scheduleEndTime;
+
+      return slot.days.includes(day) &&
+        currentTime >= scheduleStartTime &&
+        currentTime < scheduleEndTime;
     });
   };
 
   const isFirstTimeSlot = (currentTime, slot) => {
     if (!slot || !slot.timeFrom || !currentTime) return false;
-    
+
     const slotStartTime = new Date(`2000/01/01 ${slot.timeFrom}`).getTime();
     const currentTimeDate = new Date(`2000/01/01 ${currentTime}`).getTime();
     return slotStartTime === currentTimeDate;
@@ -218,7 +236,7 @@ const RoomSchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
     const margins = 6; // Left + right margins
     const timeColWidth = 18;
     const dayColWidth = (pageWidth - timeColWidth - margins) / dayCount;
-    
+
     const styles = { 0: { cellWidth: timeColWidth } };
     for (let i = 1; i <= dayCount; i++) {
       styles[i] = { cellWidth: dayColWidth };
@@ -228,9 +246,9 @@ const RoomSchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
 
   const generateTableContent = (schedule, slot) => {
     if (!schedule || !slot) return '';
-    
+
     // Handle sections display
-    const sectionDisplay = schedule.section 
+    const sectionDisplay = schedule.section
       ? Array.isArray(schedule.section)
         ? schedule.section.map(s => s.sectionName).join(', ')
         : schedule.section.sectionName

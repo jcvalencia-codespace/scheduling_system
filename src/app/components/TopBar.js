@@ -234,13 +234,13 @@ export default function TopBar() {
                   </div>
                   <button
                     onClick={() => router.push('/settings')}
-                    className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="block w-full px-4 py-2 text-left text-sm text-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200"
                   >
                     Settings
                   </button>
                   <button
                     onClick={handleLogout}
-                    className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-red-400"
                   >
                     Logout
                   </button>
