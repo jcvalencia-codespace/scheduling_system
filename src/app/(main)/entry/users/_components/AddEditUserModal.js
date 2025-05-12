@@ -78,50 +78,41 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (isSubmitting) return;
     setIsSubmitting(true);
 
     try {
-      console.log('Submitting form data:', formData);
-
+      // Create FormData instance
       const form = new FormData();
-      Object.keys(formData).forEach(key => {
-        if (formData[key] !== '' || key === 'middleName') {
-          form.append(key, formData[key]);
+      
+      // Append all form fields
+      Object.entries(formData).forEach(([key, value]) => {
+        if (value !== '') {  // Only append non-empty values
+          form.append(key, value);
         }
       });
 
-      const result = user
-        ? await editUser(user._id, form)
-        : await addUser(form);
-
-      console.log('Server response:', result);
-
+      const result = user ? await editUser(user._id, form) : await addUser(form);
+      
       if (result.error) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: result.error,
-          confirmButtonColor: '#323E8F'
-        });
-      } else {
-        await Swal.fire({
-          icon: 'success',
-          title: 'Success',
-          text: user ? 'User updated successfully!' : 'User created successfully!',
-          confirmButtonColor: '#323E8F'
-        });
-        setFormData(initialFormState);
-        onSuccess();
+        throw new Error(result.error);
       }
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: result.message || `User ${user ? 'updated' : 'added'} successfully!`,
+        confirmButtonColor: '#323E8F',
+      });
+
+      onSuccess();
     } catch (error) {
-      console.error('Error submitting form:', error);
+      console.error('Error submitting user:', error);
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'An error occurred while saving',
-        confirmButtonColor: '#323E8F'
+        text: error.message || `Failed to ${user ? 'update' : 'add'} user`,
+        confirmButtonColor: '#323E8F',
       });
     } finally {
       setIsSubmitting(false);
@@ -388,16 +379,26 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
                               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                                 {user ? 'New Password (leave blank to keep current)' : 'Password'}
                               </label>
-                              <input
-                                type="password"
-                                name="password"
-                                id="password"
-                                required={!user}
-                                value={formData.password}
-                                onChange={handleChange}
-                                disabled={isSubmitting}
-                                className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                              />
+                              {user ? (
+                                <input
+                                  type="password"
+                                  name="password"
+                                  id="password"
+                                  value={formData.password}
+                                  onChange={handleChange}
+                                  disabled={isSubmitting}
+                                  className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                />
+                              ) : (
+                                <div>
+                                  <div className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-500 bg-gray-50 shadow-sm ring-1 ring-inset ring-gray-300 sm:text-sm sm:leading-6 px-3">
+                                    Password will be auto-generated
+                                  </div>
+                                  <p className="mt-1 text-sm text-blue-600">
+                                    A secure password will be generated and sent to the user's email
+                                  </p>
+                                </div>
+                              )}
                             </div>
 
                             <div>

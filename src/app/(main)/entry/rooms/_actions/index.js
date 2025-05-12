@@ -51,7 +51,7 @@ export async function addRoom(formData) {
 
     const savedRoom = await roomsModel.processRoomCreation(roomData);
     revalidatePath('/entry/rooms');
-    return { success: true, room: savedRoom };
+    return { success: true, room: JSON.parse(JSON.stringify(savedRoom)) };
   } catch (error) {
     console.error('Error in addRoom:', error);
     return { error: error.message || 'Failed to create room' };
@@ -61,23 +61,7 @@ export async function addRoom(formData) {
 export async function getRooms() {
   try {
     const rooms = await roomsModel.getAllRooms();
-    
-    // Serialize rooms data - dates are already serialized from aggregation
-    const serializedRooms = rooms.map(room => ({
-      _id: room._id,
-      roomCode: room.roomCode,
-      roomName: room.roomName,
-      type: room.type,
-      floor: room.floor,
-      department: room.department,
-      capacity: room.capacity,
-      isActive: room.isActive,
-      updateHistory: room.updateHistory || [],
-      createdAt: room.createdAt,
-      updatedAt: room.updatedAt
-    }));
-
-    return { rooms: serializedRooms };
+    return { rooms: JSON.parse(JSON.stringify(rooms)) };
   } catch (error) {
     console.error('Error in getRooms:', error);
     return { error: error.message || 'Failed to fetch rooms' };
@@ -87,7 +71,7 @@ export async function getRooms() {
 export async function getDepartments() {
   try {
     const departments = await departmentsModel.getAllDepartments();
-    return { departments };
+    return { departments: JSON.parse(JSON.stringify(departments)) };
   } catch (error) {
     console.error('Error in getDepartments:', error);
     return { error: error.message || 'Failed to fetch departments' };
@@ -101,7 +85,7 @@ export async function editRoom(roomCode, formData) {
       return { error: 'Invalid user ID' };
     }
 
-    // Get department first to get its _id
+    // Get department to get its _id
     const department = await departmentsModel.getDepartmentByCode(
       formData.get('departmentCode')?.trim()
     );
@@ -110,6 +94,7 @@ export async function editRoom(roomCode, formData) {
     }
 
     const updateData = {
+      roomCode: formData.get('roomCode')?.trim().toUpperCase(),
       roomName: formData.get('roomName')?.trim(),
       type: formData.get('type')?.trim(),
       floor: formData.get('floor')?.trim(),
@@ -119,10 +104,10 @@ export async function editRoom(roomCode, formData) {
     };
 
     // Validate required fields
-    const requiredFields = ['roomName', 'type', 'floor', 'capacity'];
+    const requiredFields = ['roomCode', 'roomName', 'type', 'floor', 'capacity'];
     for (const field of requiredFields) {
       if (!updateData[field] && updateData[field] !== 0) {
-        throw new Error('All fields are required');
+        throw new Error(`${field} is required`);
       }
     }
 
@@ -131,24 +116,20 @@ export async function editRoom(roomCode, formData) {
       throw new Error('Capacity must be a positive number');
     }
 
-    const updatedRoom = await roomsModel.processRoomUpdate(roomCode, updateData);
+    const updatedRoom = await roomsModel.updateRoom(roomCode, updateData);
     revalidatePath('/entry/rooms');
-    return { success: true, room: updatedRoom };
+    return { success: true, room: JSON.parse(JSON.stringify(updatedRoom)) };
   } catch (error) {
     console.error('Error in editRoom:', error);
     return { error: error.message || 'Failed to update room' };
   }
 }
 
-export async function removeRoom(roomCode, userId) {
+export async function removeRoom(roomCode) {
   try {
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return { error: 'Invalid user ID' };
-    }
-
-    const deletedRoom = await roomsModel.processRoomDeletion(roomCode, userId);
+    const deletedRoom = await roomsModel.deleteRoom(roomCode);
     revalidatePath('/entry/rooms');
-    return { success: true };
+    return { success: true, room: JSON.parse(JSON.stringify(deletedRoom)) };
   } catch (error) {
     console.error('Error in removeRoom:', error);
     return { error: error.message || 'Failed to delete room' };

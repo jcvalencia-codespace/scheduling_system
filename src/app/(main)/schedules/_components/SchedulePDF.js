@@ -9,11 +9,9 @@ const SchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
     const pageWidth = doc.internal.pageSize.width;
     const logoWidth = 40;
     const logoX = (pageWidth - logoWidth) / 2;
-
     // Load and add image using canvas
     const logo = new Image();
     logo.src = 'https://i.imgur.com/6yZFd27.png';
-
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     logo.onload = () => {
