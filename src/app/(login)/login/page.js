@@ -187,7 +187,7 @@ export default function LoginPage() {
           {/* Header with logo and text */}
           <div className="flex items-center gap-4 mb-8">
             <Image
-              src="/nu-shield.png"
+              src="https://imgur.com/8oltGcx"
               alt="NU Shield"
               width={100}
               height={100}
