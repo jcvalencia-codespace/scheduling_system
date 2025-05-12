@@ -30,6 +30,23 @@ function cleanupExpiredOTPs() {
 // Run cleanup every minute
 setInterval(cleanupExpiredOTPs, 60000);
 
+// Add this function near the top to test the email connection
+export async function testResendConnection() {
+  try {
+    const response = await resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: 'your-email@example.com', // Replace with your email
+      subject: 'Test Email',
+      text: 'This is a test email from SchedNU',
+    });
+    console.log('Test email response:', response);
+    return response;
+  } catch (error) {
+    console.error('Test email error:', error);
+    throw error;
+  }
+}
+
 export async function generateOTP(email) {
   // Generate a 6-digit OTP
   const otp = crypto.randomInt(100000, 999999).toString();
@@ -55,14 +72,16 @@ export async function sendOTPEmail(email, otp) {
       return true;
     }
 
+    // Add more detailed error logging
+    console.log('Attempting to send email to:', email);
+    
     const response = await resend.emails.send({
-      from: 'onboarding@resend.dev',
+      from: 'SchedNU <onboarding@resend.dev>', // Update this with your verified domain
       to: email,
       subject: 'Login Verification',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
           <div style="background-color: #00204A; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-            <img src="cid:nuShield" alt="NU Shield" style="width: 80px; height: auto; margin-bottom: 15px;"/>
             <h2 style="margin: 0; font-size: 24px;">SCHED-NU Login Verification</h2>
           </div>
           <div style="padding: 30px; background-color: white; border-radius: 0 0 8px 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -80,23 +99,21 @@ export async function sendOTPEmail(email, otp) {
           </div>
         </div>
       `,
-      attachments: [
-        {
-          filename: 'nu-shield.png',
-          path: 'public/nu-shield.png',
-          cid: 'nuShield'
-        }
-      ]
+    }).catch(error => {
+      console.error('Resend API Error:', error);
+      throw error;
     });
 
-    if (response.error) {
-      console.error('Email sending error:', response.error);
-      return false;
-    }
-
+    console.log('Email send response:', response);
     return true;
   } catch (error) {
-    console.error('Email error:', error);
+    console.error('Email sending error details:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      statusCode: error.statusCode,
+      cause: error.cause
+    });
     return false;
   }
 }
