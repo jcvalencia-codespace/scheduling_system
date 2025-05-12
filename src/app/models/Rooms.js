@@ -27,29 +27,13 @@ class RoomsModel {
     // Continue with existing validation
   }
 
-  async createRoom(roomData) {
-    const Room = await this.initModel();
-    const room = new Room({
-      ...roomData,
-      updateHistory: [{
-        updatedBy: roomData.updatedBy,
-        updatedAt: new Date(),
-        action: 'created',
-        academicYear: roomData.academicYear // Make sure academicYear is passed through
-      }]
-    });
-    const savedRoom = await room.save();
-    await savedRoom.populate('department', 'departmentCode departmentName');
-    return JSON.parse(JSON.stringify(savedRoom));
+  toPlainObject(doc) {
+    if (!doc) return null;
+    return JSON.parse(JSON.stringify(doc));
   }
 
-  async processRoomCreation(roomData) {
-    // Get active term first
-    const Term = mongoose.models.Term || mongoose.model('Term', TermSchema);
-    const activeTerm = await Term.findOne({ status: 'Active' });
-    if (!activeTerm) {
-      throw new Error('No active term found');
-    }
+  async createRoom(roomData) {
+    const Room = await this.initModel();
     roomData.academicYear = activeTerm.academicYear;
 
     // Check for existing active room
@@ -65,6 +49,14 @@ class RoomsModel {
     }
 
     return await this.createRoom(roomData);
+  }
+
+  async processRoomCreation(roomData) {
+    const Room = await this.initModel();
+    const savedRoom = await Room.create(roomData);
+    const populatedRoom = await Room.findById(savedRoom._id)
+      .populate('department', 'departmentCode departmentName');
+    return JSON.parse(JSON.stringify(populatedRoom));
   }
 
   async getInactiveRoomByCode(roomCode) {
@@ -141,8 +133,8 @@ class RoomsModel {
           }
         }
       ]);
-
-      return rooms;
+      
+      return JSON.parse(JSON.stringify(rooms));
     } catch (error) {
       console.error('Error in getAllRooms:', error);
       throw error;
@@ -154,30 +146,36 @@ class RoomsModel {
     const room = await Room.findOne({ roomCode, isActive: true })
       .populate('department', 'departmentCode departmentName')
       .populate('updateHistory.updatedBy', 'firstName lastName');
-    return room ? JSON.parse(JSON.stringify(room)) : null;
+    return this.toPlainObject(room);
   }
 
   async updateRoom(roomCode, updateData) {
     const Room = await this.initModel();
     
+    // Check if trying to change roomCode and if new code already exists
+    const newRoomCode = updateData.roomCode?.trim().toUpperCase();
+    if (newRoomCode && newRoomCode !== roomCode) {
+      const existingRoom = await Room.findOne({ 
+        roomCode: newRoomCode,
+        isActive: true
+      });
+      if (existingRoom) {
+        throw new Error('Room code already exists');
+      }
+    }
+
     // Handle both FormData and regular objects
     let updateHistory;
     let plainUpdateData = {};
 
     if (updateData instanceof FormData) {
-      // Handle FormData
-      if (updateData.get('$push[updateHistory]')) {
-        updateHistory = JSON.parse(updateData.get('$push[updateHistory]'));
-      }
-      
-      // Convert FormData to plain object
+      updateHistory = JSON.parse(updateData.get('$push[updateHistory]'));
       updateData.forEach((value, key) => {
         if (key !== 'userId' && key !== '$push[updateHistory]') {
           plainUpdateData[key] = value;
         }
       });
     } else {
-      // Handle regular object
       if (updateData.$push?.updateHistory) {
         updateHistory = updateData.$push.updateHistory;
         delete updateData.$push;
@@ -192,9 +190,14 @@ class RoomsModel {
         ...(updateHistory && { $push: { updateHistory } })
       },
       { new: true, runValidators: true }
-    ).populate('department', 'departmentCode departmentName');
+    )
+    .populate('department', 'departmentCode departmentName');
     
-    return room ? JSON.parse(JSON.stringify(room)) : null;
+    if (!room) {
+      throw new Error('Room not found');
+    }
+
+    return this.toPlainObject(room);
   }
 
   async processRoomUpdate(roomCode, updateData) {
@@ -205,22 +208,19 @@ class RoomsModel {
     return updatedRoom;
   }
 
-  async deleteRoom(roomCode, updateData) {
+  async deleteRoom(roomCode) {
     const Room = await this.initModel();
-    const { $push, academicYear, ...otherUpdateData } = updateData;
-    
     const room = await Room.findOneAndUpdate(
       { roomCode, isActive: true },
-      { 
-        $set: { ...otherUpdateData, isActive: false },
-        $push: {
-          ...updateData.$push,
-          'updateHistory.$.academicYear': academicYear
-        }
-      },
+      { isActive: false },
       { new: true }
     );
-    return room ? JSON.parse(JSON.stringify(room)) : null;
+    
+    if (!room) {
+      throw new Error('Room not found');
+    }
+
+    return this.toPlainObject(room);
   }
 
   async processRoomDeletion(roomCode, userId) {
@@ -243,7 +243,7 @@ class RoomsModel {
       }
     };
 
-    const deletedRoom = await this.deleteRoom(roomCode, updateData);
+    const deletedRoom = await this.deleteRoom(roomCode);
     if (!deletedRoom) {
       throw new Error('Failed to delete room');
     }
@@ -358,6 +358,17 @@ class RoomsModel {
       console.error('Rooms fetch error:', error);
       throw new Error('Failed to fetch rooms');
     }
+  }
+
+  toPlainObject(document) {
+    const plainObject = document.toObject();
+    if (plainObject.updateHistory) {
+      plainObject.updateHistory = plainObject.updateHistory.map(history => ({
+        ...history,
+        updatedAt: history.updatedAt instanceof Date ? history.updatedAt : new Date(history.updatedAt)
+      }));
+    }
+    return plainObject;
   }
 }
 
