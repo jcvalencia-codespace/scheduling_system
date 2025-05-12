@@ -109,7 +109,7 @@ export async function verifyOTP(email, userProvidedOTP) {
 
   // Check if OTP matches
   if (storedOTP.otp !== userProvidedOTP) {
-    return { error: 'Invalid OTP' };
+    return { error: 'Invalid or expired OTP' };
   }
 
   // Mark OTP as verified instead of deleting it
@@ -137,7 +137,7 @@ export async function requestOTP(formData) {
     // Validate password before sending OTP
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return { error: 'Invalid password' };
+      return { error: 'Invalid credentials (Double check Email or Password)' };
     }
 
     // Generate and send OTP
@@ -148,7 +148,7 @@ export async function requestOTP(formData) {
       return { error: 'Failed to send OTP' };
     }
 
-    return { success: true, message: 'OTP sent successfully' };
+    return { success: true, message: ' OTP has been sent successfully. (Please check your email inbox or spam folder)' };
   } catch (error) {
     console.error('OTP request error:', error);
     return { error: 'An error occurred while requesting OTP' };
@@ -196,13 +196,13 @@ export async function login(formData) {
     const user = await User.getUserByEmail(email)
 
     if (!user) {
-      return { error: 'Invalid email or password' }
+      return { error: 'Invalid credentials (Double check Email or Password)' }
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password)
 
     if (!isPasswordValid) {
-      return { error: 'Invalid email or password' }
+      return { error: 'Invalid credentials (Double check Email or Password)' }
     }
 
     // Verify OTP if provided
@@ -362,7 +362,7 @@ export async function verifyOTPAndResetPassword(formData) {
     // Check OTP validity and verification status
     const storedData = otpStore.get(email);
     if (!storedData || storedData.otp !== otp || storedData.expiresAt < Date.now() || !storedData.verified) {
-      return { error: 'Invalid or expired reset code' };
+      return { error: 'Invalid or expired reset OTP code' };
     }
 
     // Hash new password
