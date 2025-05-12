@@ -6,17 +6,11 @@ import { sessionOptions } from '@/lib/iron-config'
 import connectDB from '../../../../lib/mongo';
 import User from '../../models/Users';
 import bcrypt from 'bcryptjs';
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 
 // OTP storage (in a real app, use a more persistent storage like Redis)
 const otpStore = new Map();
-
-// Initialize Resend with your API key
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-// Add this helper function near the top
-const isDevelopment = process.env.NODE_ENV === 'development';
 
 function cleanupExpiredOTPs() {
   const now = Date.now();
@@ -29,23 +23,6 @@ function cleanupExpiredOTPs() {
 
 // Run cleanup every minute
 setInterval(cleanupExpiredOTPs, 60000);
-
-// Add this function near the top to test the email connection
-export async function testResendConnection() {
-  try {
-    const response = await resend.emails.send({
-      from: 'onboarding@resend.dev',
-      to: 'your-email@example.com', // Replace with your email
-      subject: 'Test Email',
-      text: 'This is a test email from SchedNU',
-    });
-    console.log('Test email response:', response);
-    return response;
-  } catch (error) {
-    console.error('Test email error:', error);
-    throw error;
-  }
-}
 
 export async function generateOTP(email) {
   // Generate a 6-digit OTP
@@ -62,58 +39,57 @@ export async function generateOTP(email) {
 }
 
 export async function sendOTPEmail(email, otp) {
-  try {
-    // In development, just log the OTP
-    if (isDevelopment) {
-      console.log('=====================================');
-      console.log('Development mode - Use this OTP:', otp);
-      console.log('Email would be sent to:', email);
-      console.log('=====================================');
-      return true;
+  // Configure nodemailer with Gmail SMTP
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // Use TLS
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
     }
+  });
 
-    // Add more detailed error logging
-    console.log('Attempting to send email to:', email);
-    
-    const response = await resend.emails.send({
-      from: 'SchedNU <onboarding@resend.dev>', // Update this with your verified domain
-      to: email,
-      subject: 'Login Verification',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
-          <div style="background-color: #00204A; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-            <h2 style="margin: 0; font-size: 24px;">SCHED-NU Login Verification</h2>
+  const mailOptions = {
+    from: `"SCHED-NU" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: 'Login Verification',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
+        <div style="background-color: #00204A; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <img src="cid:nuShield" alt="NU Shield" style="width: 80px; height: 100px; margin-bottom: 15px; object-fit: contain;"/>
+          <h2 style="margin: 0; font-size: 24px;">SCHED-NU Login Verification</h2>
+        </div>
+        <div style="padding: 30px; background-color: white; border-radius: 0 0 8px 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <p style="color: #666; font-size: 16px; margin-bottom: 20px; font-weight: bold;">Your One-Time Password (OTP) is:</p>
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+            <h1 style="font-size: 32px; color: #00204A; letter-spacing: 8px; margin: 0; font-weight: bold;">${otp}</h1>
           </div>
-          <div style="padding: 30px; background-color: white; border-radius: 0 0 8px 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <p style="color: #666; font-size: 16px; margin-bottom: 20px; font-weight: bold;">Your One-Time Password (OTP) is:</p>
-            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
-              <h1 style="font-size: 32px; color: #00204A; letter-spacing: 8px; margin: 0; font-weight: bold;">${otp}</h1>
-            </div>
-            <p style="color: #666; font-size: 14px; margin-top: 20px;">
-              <span style="color: #dc3545;">⚠️ This OTP will expire in 5 minutes.</span><br>
-              For security reasons, please do not share this code with anyone.
-            </p>
-          </div>
-          <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
-            ${new Date().getFullYear()} National University - Baliwag. All rights reserved.
+          <p style="color: #666; font-size: 14px; margin-top: 20px;">
+            <span style="color: #dc3545;">⚠️ This OTP will expire in 5 minutes.</span><br>
+            For security reasons, please do not share this code with anyone.
+          </p>
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 14px; color: #666;">
+            If you didn't request this code, please ignore this email.
           </div>
         </div>
-      `,
-    }).catch(error => {
-      console.error('Resend API Error:', error);
-      throw error;
-    });
+        <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
+          ${new Date().getFullYear()} National University - Baliwag. All rights reserved.
+        </div>
+      </div>
+    `,
+    attachments: [{
+      filename: 'nu-shield.png',
+      path: process.cwd() + '/public/nu-shield.png',
+      cid: 'nuShield'
+    }]
+  };
 
-    console.log('Email send response:', response);
+  try {
+    await transporter.sendMail(mailOptions);
     return true;
   } catch (error) {
-    console.error('Email sending error details:', {
-      message: error.message,
-      name: error.name,
-      stack: error.stack,
-      statusCode: error.statusCode,
-      cause: error.cause
-    });
+    console.error('Error sending OTP email:', error);
     return false;
   }
 }
@@ -321,66 +297,56 @@ export async function requestPasswordReset(formData) {
 }
 
 async function sendResetOTPEmail(email, otp) {
-  try {
-    // Development mode logging
-    if (isDevelopment) {
-      console.log('=====================================');
-      console.log('Development mode - Reset OTP:', otp);
-      console.log('Email would be sent to:', email);
-      console.log('=====================================');
-      return true;
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
     }
+  });
 
-    const response = await resend.emails.send({
-      from: 'onboarding@resend.dev',
-      to: email,
-      subject: 'Password Reset Request',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
-          <div style="background-color: #00204A; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-            <img src="cid:nuShield" alt="NU Shield" style="width: 80px; height: auto; margin-bottom: 15px;"/>
-            <h2 style="margin: 0; font-size: 24px;">Password Reset Request</h2>
-          </div>
-          <div style="padding: 30px; background-color: white; border-radius: 0 0 8px 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <p style="color: #666; font-size: 16px; margin-bottom: 20px;">
-              We received a request to reset your password. Please use the following code to reset your password:
-            </p>
-            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
-              <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #00204A;">
-                ${otp}
-              </span>
-            </div>
-            <p style="color: #666; font-size: 14px; margin-top: 20px;">
-              This code will expire in 10 minutes. If you didn't request a password reset, please ignore this email.
-            </p>
-          </div>
-          <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
-            ${new Date().getFullYear()} National University - Baliwag. All rights reserved.
-          </div>
+  const mailOptions = {
+    from: `"SCHED-NU" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: 'Password Reset Request',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
+        <div style="background-color: #00204A; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <img src="cid:nuShield" alt="NU Shield" style="width: 80px; height: 100px; margin-bottom: 15px; object-fit: contain;"/>
+          <h2 style="margin: 0; font-size: 24px;">Password Reset Request</h2>
         </div>
-      `,
-      attachments: [
-        {
-          filename: 'nu-shield.png',
-          path: 'public/nu-shield.png',
-          cid: 'nuShield'
-        }
-      ]
-    });
+        <div style="padding: 30px; background-color: white; border-radius: 0 0 8px 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <p style="color: #666; font-size: 16px; margin-bottom: 20px;">
+            We received a request to reset your password. Please use the following code to reset your password:
+          </p>
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+            <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #00204A;">
+              ${otp}
+            </span>
+          </div>
+          <p style="color: #666; font-size: 14px; margin-top: 20px;">
+            This code will expire in 10 minutes. If you didn't request a password reset, please ignore this email.
+          </p>
+        </div>
+        <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
+          ${new Date().getFullYear()} National University - Baliwag. All rights reserved.
+        </div>
+      </div>
+    `,
+    attachments: [{
+      filename: 'nu-shield.png',
+      path: process.cwd() + '/public/nu-shield.png',
+      cid: 'nuShield'
+    }]
+  };
 
-    if (response.error) {
-      console.error('Resend API Error:', response.error);
-      return false;
-    }
-
-    console.log('Reset email sent successfully:', response);
+  try {
+    await transporter.sendMail(mailOptions);
     return true;
   } catch (error) {
-    console.error('Error sending reset email:', {
-      message: error.message,
-      stack: error.stack,
-      details: error.response?.body
-    });
+    console.error('Error sending reset password email:', error);
     return false;
   }
 }
