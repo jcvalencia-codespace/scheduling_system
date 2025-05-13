@@ -6,6 +6,7 @@ import { submitFeedback, getUserFeedback } from './_actions';
 import { useRouter } from 'next/navigation';
 import Swal from 'sweetalert2';
 import dynamic from 'next/dynamic';
+import useAuthStore from '@/store/useAuthStore';
 
 // Dynamic import of React Select with SSR disabled
 const Select = dynamic(() => import('react-select'), {
@@ -14,6 +15,7 @@ const Select = dynamic(() => import('react-select'), {
 
 export default function FeedbackPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const [userFeedback, setUserFeedback] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -58,10 +60,17 @@ export default function FeedbackPage() {
     setIsSubmitting(true);
     setError(null);
 
+    if (!user) {
+      setError('You must be logged in to submit feedback');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const formData = new FormData(e.target);
       formData.set('type', selectedType?.value || '');
       formData.set('priority', selectedPriority?.value || '');
+      formData.set('userId', user.id);
       const result = await submitFeedback(formData);
       
       if (result.error) {

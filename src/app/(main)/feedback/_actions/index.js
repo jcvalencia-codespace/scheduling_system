@@ -117,27 +117,34 @@ async function sendFeedbackEmail(feedback, user) {
 
 export async function submitFeedback(formData) {
   try {
-    // Get user session
-    const session = await getIronSession(cookies(), sessionOptions);
+    // Get user session for validation with awaited cookies
+    const cookieStore = await cookies();
+    const session = await getIronSession(cookieStore, sessionOptions);
 
     if (!session.user) {
       return { error: 'You must be logged in to submit feedback' };
     }
 
-    // Create feedback
+    // Use session.user._id directly instead of formData
+    const userId = session.user._id;
+    if (!userId) {
+      return { error: 'User ID is required' };
+    }
+
+    // Create feedback with the correct user ID
     const feedbackData = {
       subject: formData.get('subject'),
       message: formData.get('message'),
       type: formData.get('type'),
       priority: formData.get('priority'),
-      submittedBy: new mongoose.Types.ObjectId(session.user.id),
-      status: 'submitted', // Set initial status as submitted
+      submittedBy: new mongoose.Types.ObjectId(userId),
+      status: 'submitted',
       isActive: true
     };
 
     const feedback = await feedbackModel.createFeedback(feedbackData);
-
-    // Send email notification
+    
+    // Send email notification using session.user for email details
     await sendFeedbackEmail(feedback, session.user);
 
     // Revalidate the feedback page
@@ -152,15 +159,15 @@ export async function submitFeedback(formData) {
 
 export async function getUserFeedback() {
   try {
-    // Get user session
-    const session = await getIronSession(cookies(), sessionOptions);
+    const cookieStore = await cookies();
+    const session = await getIronSession(cookieStore, sessionOptions);
 
     if (!session.user) {
       return { error: 'You must be logged in to view feedback' };
     }
 
-    // Get user's feedback
-    const feedback = await feedbackModel.getFeedbackByUser(session.user.id);
+    // Get user's feedback using _id instead of id
+    const feedback = await feedbackModel.getFeedbackByUser(session.user._id);
     return { success: true, feedback };
   } catch (error) {
     console.error('Error getting user feedback:', error);
@@ -168,9 +175,28 @@ export async function getUserFeedback() {
   }
 }
 
+export async function getAllFeedbackData() {
+  try {
+    const cookieStore = await cookies();
+    const session = await getIronSession(cookieStore, sessionOptions);
+
+    if (!session.user) {
+      return { error: 'You must be logged in to view feedback' };
+    }
+
+    // Get all feedback
+    const feedback = await feedbackModel.getAllFeedback();
+    return { success: true, feedback };
+  } catch (error) {
+    console.error('Error getting all feedback:', error);
+    return { error: error.message || 'Failed to get feedback' };
+  }
+}
+
 export async function updateFeedbackStatus(feedbackId, status) {
   try {
-    const session = await getIronSession(cookies(), sessionOptions);
+    const cookieStore = await cookies();
+    const session = await getIronSession(cookieStore, sessionOptions);
 
     if (!session.user) {
       return { error: 'You must be logged in to update feedback' };
@@ -192,7 +218,8 @@ export async function updateFeedbackStatus(feedbackId, status) {
 
 export async function deleteFeedback(feedbackId) {
   try {
-    const session = await getIronSession(cookies(), sessionOptions);
+    const cookieStore = await cookies();
+    const session = await getIronSession(cookieStore, sessionOptions);
 
     if (!session.user) {
       return { error: 'You must be logged in to delete feedback' };

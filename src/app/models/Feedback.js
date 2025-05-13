@@ -24,16 +24,72 @@ class FeedbackModel {
 
   async getFeedbackByUser(userId) {
     const Feedback = await this.initModel();
-    const feedback = await Feedback.find({ submittedBy: userId, isActive: true })
-      .sort({ createdAt: -1 });
+    const feedback = await Feedback.aggregate([
+      { 
+        $match: { 
+          submittedBy: new mongoose.Types.ObjectId(userId), 
+          isActive: true 
+        } 
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'submittedBy',
+          foreignField: '_id',
+          as: 'submittedBy'
+        }
+      },
+      { $unwind: '$submittedBy' },
+      {
+        $project: {
+          subject: 1,
+          message: 1,
+          type: 1,
+          priority: 1,
+          status: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          'submittedBy._id': 1,
+          'submittedBy.firstName': 1,
+          'submittedBy.lastName': 1,
+          'submittedBy.email': 1
+        }
+      },
+      { $sort: { createdAt: -1 } }
+    ]);
     return JSON.parse(JSON.stringify(feedback));
   }
 
   async getAllFeedback() {
     const Feedback = await this.initModel();
-    const feedback = await Feedback.find({ isActive: true })
-      .sort({ createdAt: -1 })
-      .populate('submittedBy', 'firstName lastName email');
+    const feedback = await Feedback.aggregate([
+      { $match: { isActive: true } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'submittedBy',
+          foreignField: '_id',
+          as: 'submittedBy'
+        }
+      },
+      { $unwind: '$submittedBy' },
+      {
+        $project: {
+          subject: 1,
+          message: 1,
+          type: 1,
+          priority: 1,
+          status: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          'submittedBy._id': 1,
+          'submittedBy.firstName': 1,
+          'submittedBy.lastName': 1,
+          'submittedBy.email': 1
+        }
+      },
+      { $sort: { createdAt: -1 } }
+    ]);
     return JSON.parse(JSON.stringify(feedback));
   }
 
