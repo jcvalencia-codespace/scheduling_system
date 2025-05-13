@@ -186,18 +186,33 @@ export async function getAllSections() {
       throw new Error('Failed to fetch sections');
     }
     
-    // Return populated sections with course and department info
-    return { 
-      sections: JSON.parse(JSON.stringify(
-        sections.map(section => ({
-          ...section,
-          course: {
-            ...section.course,
-            department: section.course?.department || null
-          }
-        }))
-      ))
-    };
+    // Ensure proper serialization of ObjectIds
+    const serializedSections = sections.map(section => ({
+      ...section,
+      _id: section._id.toString(),
+      course: section.course ? {
+        ...section.course,
+        _id: section.course._id.toString(),
+        department: section.course.department ? {
+          ...section.course.department,
+          _id: section.course.department._id.toString()
+        } : null
+      } : null,
+      department: section.department ? {
+        ...section.department,
+        _id: section.department._id.toString()
+      } : null
+    }));
+
+    // Remove duplicates
+    const uniqueSections = serializedSections.reduce((acc, section) => {
+      if (!acc.find(s => s.sectionName === section.sectionName)) {
+        acc.push(section);
+      }
+      return acc;
+    }, []);
+
+    return { sections: uniqueSections };
   } catch (error) {
     console.error('Error fetching all sections:', error);
     return { error: error.message || 'Failed to fetch sections' };

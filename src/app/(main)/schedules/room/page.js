@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import moment from 'moment'
 import { useLoading } from "../../../context/LoadingContext"
 import FullCalendar from "@fullcalendar/react"
@@ -27,7 +27,6 @@ const NoSSRSelect = dynamic(() => import('react-select'), {
   ssr: false,
 })
 
-// Update the RoomSelectWrapper component
 const RoomSelectWrapper = ({ value, onChange, options, isDisabled, placeholder, isLoading }) => {
   const [mounted, setMounted] = useState(false);
 
@@ -54,6 +53,7 @@ const RoomSelectWrapper = ({ value, onChange, options, isDisabled, placeholder, 
       className="w-full"
       classNamePrefix="react-select"
       placeholder={isLoading ? "Loading rooms..." : placeholder}
+      isSearchable={true}
       styles={{
         menu: (base) => ({
           ...base,
@@ -76,7 +76,26 @@ const RoomSelectWrapper = ({ value, onChange, options, isDisabled, placeholder, 
           '&:active': {
             backgroundColor: '#323E8F'
           }
+        }),
+        group: (base) => ({
+          ...base,
+          paddingTop: 8,
+          paddingBottom: 8
+        }),
+        groupHeading: (base) => ({
+          ...base,
+          color: '#4b5563',
+          fontWeight: 600,
+          fontSize: '0.875rem',
+          textTransform: 'none',
+          padding: '8px 12px'
         })
+      }}
+      filterOption={(option, searchText) => {
+        const searchLower = searchText.toLowerCase();
+        const roomText = `${option.label}`.toLowerCase();
+        const deptText = option.data?.group?.toLowerCase() || '';
+        return roomText.includes(searchLower) || deptText.includes(searchLower);
       }}
     />
   );
@@ -97,7 +116,7 @@ export default function RoomSchedulePage() {
   const [isNewScheduleModalOpen, setIsNewScheduleModalOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   const pathname = usePathname();
-  const [availableRooms, setAvailableRooms] = useState([])
+  const [availableRooms, setAvailableRooms] = useState({ rooms: [], groupedRooms: {} })
   const [selectedRoom, setSelectedRoom] = useState("")
   const [isRoomsLoading, setIsRoomsLoading] = useState(true)
 
@@ -168,9 +187,13 @@ export default function RoomSchedulePage() {
         throw new Error(response.error);
       }
 
-      setAvailableRooms(response.rooms);
+      setAvailableRooms({
+        rooms: response.rooms || [],
+        groupedRooms: response.groupedRooms || {}
+      });
     } catch (error) {
       console.error('Error fetching rooms:', error);
+      setAvailableRooms({ rooms: [], groupedRooms: {} });
     } finally {
       setIsRoomsLoading(false);
     }
@@ -186,7 +209,7 @@ export default function RoomSchedulePage() {
     if (selectedRoom) {
       fetchRoomSchedules(selectedRoom);
     } else {
-      setSchedules([]); // Clear schedules when no room is selected
+      setSchedules([]);
     }
   }, [selectedRoom]);
 
@@ -270,14 +293,40 @@ export default function RoomSchedulePage() {
                           user?.role === "Program Chair"
   const canSeeTabNav = user?.role !== "Faculty"
 
-  const roomOptions = availableRooms.map(room => ({
-    value: room._id,
-    label: `${room.roomCode} - ${room.roomName}`
-  }))
+  const roomOptions = useMemo(() => {
+    // Show grouped rooms for Admin, Dean, and Program Chair
+    if (user?.role === 'Dean' || user?.role === 'Administrator' || user?.role === 'Program Chair') {
+      const sortedEntries = Object.entries(availableRooms.groupedRooms || {}).sort((a, b) => {
+        // If one of the departments matches user's department, it should come first
+        if (user?.department) {
+          if (a[0] === user.department?.departmentName) return -1;
+          if (b[0] === user.department?.departmentName) return 1;
+        }
+        // Otherwise, sort alphabetically
+        return a[0].localeCompare(b[0]);
+      });
+
+      return sortedEntries.map(([deptName, deptRooms]) => ({
+        label: deptName + (deptName === user.department?.departmentName ? ' (My Department)' : ''),
+        options: deptRooms.map(room => ({
+          value: room._id,
+          label: `${room.roomCode} - ${room.roomName}`,
+          group: deptName
+        }))
+      }));
+    }
+    
+    // For other roles, show only rooms from their department
+    return (availableRooms.rooms || [])
+      .filter(room => user?.role === 'Faculty' ? room.department?.departmentName === user.department?.departmentName : true)
+      .map(room => ({
+        value: room._id,
+        label: `${room.roomCode} - ${room.roomName}`
+      }));
+  }, [user?.role, user?.department?.departmentName, availableRooms]);
 
   return (
     <div className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-slate-50 to-slate-100">
-      {/* Conditionally render TabNav */}
       {canSeeTabNav && (
         <div className="mb-6">
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
@@ -405,9 +454,7 @@ export default function RoomSchedulePage() {
       `}</style>
 
       <div className="space-y-6">
-        {/* Header Section */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-2">
-          {/* Room Selection */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
             <label className="text-sm font-medium text-gray-600 whitespace-nowrap">
               View Schedule of Room:
@@ -423,20 +470,11 @@ export default function RoomSchedulePage() {
             </div>
           </div>
 
-          {/* Action Buttons */}
           <div className={`
             flex gap-2 sm:gap-3 transition-all duration-300 ease-in-out w-full sm:w-auto
             justify-end sm:justify-start mt-4 sm:mt-0
             ${isScrolled ? 'opacity-0 transform translate-y-[-20px]' : 'opacity-100 transform translate-y-0'}
           `}>
-            {/* <button
-              onClick={() => setIsAdminHoursModalOpen(true)}
-              className="inline-flex items-center px-3 sm:px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-white bg-[#579980] hover:bg-[#488b73] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#77DD77]"
-            >
-              <ClockIcon className="h-5 w-5 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Set Admin Hours</span>
-              <span className="sm:hidden">Admin Hours</span>
-            </button> */}
             {canCreateSchedule && (
               <button
                 onClick={() => setIsNewScheduleModalOpen(true)}
@@ -460,16 +498,6 @@ export default function RoomSchedulePage() {
 
         <div className={`fixed right-8 bottom-8 flex flex-col gap-4 transition-all duration-300 ease-in-out z-[60]
           ${isScrolled ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-[20px] pointer-events-none'}`}>
-          {/* <div className="tooltip">
-            <button
-              onClick={() => setIsAdminHoursModalOpen(true)}
-              className="w-12 h-12 rounded-full flex items-center justify-center text-white bg-[#579980] hover:bg-[#488b73] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#77DD77] shadow-lg transition-all duration-200"
-            >
-              <ClockIcon className="h-6 w-6" />
-            </button>
-            <span className="tooltiptext">Set Admin Hours</span>
-          </div> */}
-          
           {canCreateSchedule && (
             <div className="tooltip">
               <button
@@ -567,9 +595,9 @@ export default function RoomSchedulePage() {
           onClose={() => setIsPDFPreviewOpen(false)}
           pdfProps={{
             activeTerm,
-            schedules: schedules, // Pass the full schedule array
+            schedules: schedules,
             selectedSection: selectedRoom 
-              ? `${availableRooms.find(r => r._id === selectedRoom)?.roomCode} - ${availableRooms.find(r => r._id === selectedRoom)?.roomName}`
+              ? `${availableRooms.rooms.find(r => r._id === selectedRoom)?.roomCode} - ${availableRooms.rooms.find(r => r._id === selectedRoom)?.roomName}`
               : '',
             pdfGenerator: RoomSchedulePDF
           }}
@@ -579,7 +607,7 @@ export default function RoomSchedulePage() {
           isOpen={isNewScheduleModalOpen}
           onClose={() => setIsNewScheduleModalOpen(false)}
           onScheduleCreated={fetchRoomSchedules}
-          selectedRoom={availableRooms.find(r => r._id === selectedRoom)}
+          selectedRoom={availableRooms.rooms.find(r => r._id === selectedRoom)}
           selectedSection={selectedRoom}
         />
       </div>
@@ -626,4 +654,3 @@ function renderEventContent(eventInfo) {
     </div>
   );
 }
-
