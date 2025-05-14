@@ -4,6 +4,7 @@
 export const rolePermissions = {
   Administrator: ['*'], // Full access to all routes and features
   Dean: [
+    'dashboard',
     '/schedules',
     '/entry',
     '/entry/subjects',
@@ -19,6 +20,7 @@ export const rolePermissions = {
     '/settings'
   ],
   'Program Chair': [
+    'dashboard',
     '/schedules',
     '/entry',
     '/entry/subjects',
