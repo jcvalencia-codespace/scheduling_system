@@ -9,10 +9,11 @@ import {
 } from '@heroicons/react/24/outline';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 import AddEditCourseModal from './_components/AddEditCourseModal';
-import { getCourses, removeCourse } from './_actions';
+import { getCourses, removeCourse, getDepartments } from './_actions';
 import Swal from 'sweetalert2';
 import { useLoading } from '../../../context/LoadingContext';
 import NoData from '@/app/components/NoData';
+import Filter from './_components/Filter';
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState([]);
@@ -24,22 +25,35 @@ export default function CoursesPage() {
     key: null,
     direction: 'asc',
   });
+  const [filters, setFilters] = useState({
+    department: '',
+  });
+  const [departments, setDepartments] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const result = await getCourses();
-        if (result.error) {
-          throw new Error(result.error);
+        const [coursesData, departmentsData] = await Promise.all([
+          getCourses(),
+          getDepartments()
+        ]);
+
+        if (coursesData.error) {
+          throw new Error(coursesData.error);
         }
-        setCourses(result.courses || []);
+        if (departmentsData.error) {
+          throw new Error(departmentsData.error);
+        }
+
+        setCourses(coursesData.courses || []);
+        setDepartments(departmentsData.departments || []);
       } catch (error) {
-        console.error('Error loading courses:', error);
+        console.error('Error fetching data:', error);
         Swal.fire({
           icon: 'error',
           title: 'Error',
-          text: 'Failed to load courses',
+          text: 'Failed to load data',
           confirmButtonColor: '#323E8F'
         });
       } finally {
@@ -71,15 +85,28 @@ export default function CoursesPage() {
     });
   }, [courses, sortConfig]);
 
+  const handleFilterChange = (filterName, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterName]: value
+    }));
+  };
+
   const filteredCourses = useMemo(() => {
     return sortedCourses.filter((course) => {
       const searchString = searchQuery.toLowerCase();
-      return (
+      const matchesSearch = 
         course.courseCode.toLowerCase().includes(searchString) ||
-        course.courseTitle.toLowerCase().includes(searchString)
-      );
+        course.courseTitle.toLowerCase().includes(searchString) ||
+        course.department?.departmentCode?.toLowerCase().includes(searchString) ||
+        course.department?.departmentName?.toLowerCase().includes(searchString);
+
+      const matchesDepartment = !filters.department || 
+        course.department?.departmentCode === filters.department;
+
+      return matchesSearch && matchesDepartment;
     });
-  }, [sortedCourses, searchQuery]);
+  }, [sortedCourses, searchQuery, filters]);
 
   const handleDelete = async (courseCode) => {
     const result = await Swal.fire({
@@ -234,6 +261,11 @@ export default function CoursesPage() {
                 )}
               </div>
             </div>
+            <Filter 
+              filters={filters}
+              handleFilterChange={handleFilterChange}
+              departments={departments}
+            />
           </div>
 
           <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
