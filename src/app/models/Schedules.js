@@ -826,6 +826,159 @@ export default class SchedulesModel {
     }
   }
 
+  static async getSchedulesByYearAndTerm(academicYear, termId) {
+    try {
+      console.log('🔄 Model: Fetching schedules for:', { academicYear, termId })
+      
+      const pipeline = [
+        { 
+          $match: { 
+            isActive: true,
+            term: new mongoose.Types.ObjectId(termId)
+          }
+        },
+        {
+          $lookup: {
+            from: 'terms',
+            localField: 'term',
+            foreignField: '_id',
+            as: 'termInfo'
+          }
+        },
+        { $unwind: '$termInfo' },
+        {
+          $match: {
+            'termInfo.academicYear': academicYear
+          }
+        },
+        {
+          $lookup: {
+            from: 'sections',
+            localField: 'section',
+            foreignField: '_id',
+            as: 'section'
+          }
+        },
+        { $unwind: { path: '$section' } },
+        {
+          $lookup: {
+            from: 'subjects',
+            localField: 'subject',
+            foreignField: '_id',
+            as: 'subject'
+          }
+        },
+        { $unwind: { path: '$subject' } },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'faculty',
+            foreignField: '_id',
+            as: 'faculty'
+          }
+        },
+        { 
+          $addFields: {
+            faculty: { $arrayElemAt: ['$faculty', 0] }
+          }
+        },
+        {
+          $lookup: {
+            from: 'rooms',
+            localField: 'scheduleSlots.room',
+            foreignField: '_id',
+            as: 'rooms'
+          }
+        },
+        {
+          $addFields: {
+            'scheduleSlots': {
+              $map: {
+                input: '$scheduleSlots',
+                as: 'slot',
+                in: {
+                  days: '$$slot.days',
+                  timeFrom: '$$slot.timeFrom',
+                  timeTo: '$$slot.timeTo',
+                  room: {
+                    $arrayElemAt: [
+                      {
+                        $filter: {
+                          input: '$rooms',
+                          as: 'room',
+                          cond: { $eq: ['$$room._id', '$$slot.room'] }
+                        }
+                      },
+                      0
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            section: {
+              _id: '$section._id',
+              sectionName: '$section.sectionName'
+            },
+            subject: {
+              _id: '$subject._id',
+              subjectCode: '$subject.subjectCode',
+              subjectName: '$subject.subjectName'
+            },
+            faculty: {
+              $cond: {
+                if: { $eq: ['$faculty', null] },
+                then: null,
+                else: {
+                  _id: '$faculty._id',
+                  firstName: '$faculty.firstName',
+                  lastName: '$faculty.lastName'
+                }
+              }
+            },
+            scheduleSlots: 1,
+            isPaired: 1,
+            term: '$termInfo'
+          }
+        }
+      ]
+
+      console.log('📝 Model: Executing schedule pipeline with match:', {
+        academicYear,
+        termId
+      })
+      
+      const schedules = await Schedules.aggregate(pipeline)
+
+      console.log('✅ Model: Schedules found:', {
+        total: schedules.length,
+        bySection: schedules.reduce((acc, s) => {
+          const section = s.section?.sectionName
+          acc[section] = (acc[section] || 0) + 1
+          return acc
+        }, {}),
+        sample: schedules[0] ? {
+          section: schedules[0].section?.sectionName,
+          subject: schedules[0].subject?.subjectCode,
+          slots: schedules[0].scheduleSlots.map(slot => ({
+            days: slot.days,
+            time: `${slot.timeFrom}-${slot.timeTo}`,
+            room: slot.room?.roomCode || 'No Room'
+          }))
+        } : 'No schedules'
+      })
+
+      return JSON.parse(JSON.stringify(schedules))
+    } catch (error) {
+      console.error('❌ Model: Error in getSchedulesByYearAndTerm:', error)
+      throw error
+    }
+  }
+
   static async getRoomSchedules(roomId) {
     try {
       if (!roomId) {

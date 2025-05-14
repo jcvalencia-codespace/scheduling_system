@@ -220,6 +220,56 @@ class TermsModel {
     }
   }
 
+  async getAllArchivedTerms() {
+    try {
+      const Term = await this.initModel()
+      const terms = await Term.find({
+        $and: [
+          { status: { $ne: "Active" } },  // Exclude active terms
+          {
+            $or: [
+              { status: "Inactive" },
+              { isVisible: true }
+            ]
+          }
+        ]
+      })
+        .sort({ academicYear: -1, term: 1 })
+        .lean()
+
+      // Debug log the raw terms
+      console.log('Raw archived and visible terms:', terms.map(t => ({
+        id: t._id,
+        term: t.term,
+        academicYear: t.academicYear,
+        status: t.status,
+        isVisible: t.isVisible
+      })))
+
+      const groupedTerms = terms.reduce((acc, term) => {
+        if (!acc[term.academicYear]) {
+          acc[term.academicYear] = []
+        }
+        acc[term.academicYear].push({
+          _id: term._id,
+          term: term.term,
+          academicYear: term.academicYear,
+          startDate: term.startDate,
+          endDate: term.endDate,
+          status: term.status,
+          isVisible: term.isVisible
+        })
+        return acc
+      }, {})
+
+      console.log('Grouped terms:', Object.keys(groupedTerms).length, 'academic years')
+      return JSON.parse(JSON.stringify(groupedTerms))
+    } catch (error) {
+      console.error('Error in getAllArchivedTerms:', error)
+      throw error
+    }
+  }
+
   mapTermData(term) {
     return {
       id: term._id.toString(),

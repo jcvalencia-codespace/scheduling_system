@@ -55,10 +55,10 @@ export async function getCourses() {
 export async function getDepartments() {
   try {
     const departments = await departmentsModel.getAllDepartments();
-    return { departments };
+    return { departments: JSON.parse(JSON.stringify(departments)) };
   } catch (error) {
-    console.error('Error in getDepartments:', error);
-    return { error: error.message || 'Failed to fetch departments' };
+    console.error('Error fetching departments:', error);
+    return { error: 'Failed to fetch departments' };
   }
 }
 

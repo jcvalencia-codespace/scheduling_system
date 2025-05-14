@@ -344,6 +344,51 @@ class RoomsModel {
     }
   }
 
+  async getAllActiveRooms() {
+    try {
+      const Room = await this.initModel();
+      const rooms = await Room.aggregate([
+        { $match: { isActive: true } },
+        {
+          $lookup: {
+            from: 'departments',
+            localField: 'department',
+            foreignField: '_id',
+            as: 'departmentInfo'
+          }
+        },
+        { $unwind: { path: '$departmentInfo', preserveNullAndEmptyArrays: true } },
+        {
+          $project: {
+            _id: 1,
+            roomCode: 1,
+            roomName: 1,
+            capacity: 1,
+            type: 1,
+            floor: 1,
+            department: {
+              $cond: {
+                if: { $ifNull: ['$departmentInfo', false] },
+                then: {
+                  _id: '$departmentInfo._id',
+                  departmentCode: '$departmentInfo.departmentCode',
+                  departmentName: '$departmentInfo.departmentName'
+                },
+                else: null
+              }
+            }
+          }
+        },
+        { $sort: { roomCode: 1 } }
+      ]);
+
+      return JSON.parse(JSON.stringify(rooms));
+    } catch (error) {
+      console.error('Error in getAllActiveRooms:', error);
+      throw error;
+    }
+  }
+
   static async getRooms() {
     try {
       const rooms = await Rooms.aggregate([
