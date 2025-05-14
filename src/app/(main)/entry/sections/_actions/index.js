@@ -66,14 +66,14 @@ export async function removeSection(sectionName, userId) {
   }
 }
 
-export async function getCourses() {
+export async function getCourses(userId) {
   try {
-    await sectionsModel.initModel(); // Ensure models are initialized
-    const courses = await sectionsModel.getAllCoursesWithDepartment();
+    await sectionsModel.initModel();
+    const courses = await coursesModel.getCoursesByUserRole(userId);
     if (!courses) {
       throw new Error('No courses found');
     }
-    return { courses };
+    return { courses: JSON.parse(JSON.stringify(courses)) };
   } catch (error) {
     console.error('Error in getCourses:', error);
     return { error: error.message || 'Failed to fetch courses' };

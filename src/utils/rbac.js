@@ -31,6 +31,7 @@ export const rolePermissions = {
     '/activity-logs/archive',
     '/term',
     '/feedback',
+    '/settings',
     '/chats'
   ],
  

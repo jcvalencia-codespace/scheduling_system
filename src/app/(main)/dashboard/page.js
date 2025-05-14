@@ -7,7 +7,7 @@ import UnscheduledClasses from "./_components/UnscheduledClasses"
 export default function DashboardPage() {
   return (
     <div className="bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 -mt-2">
         <div className="space-y-6">
           {/* Title */}
           <div>

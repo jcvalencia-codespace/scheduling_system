@@ -2,8 +2,44 @@
 
 import { motion } from "framer-motion"
 import { BookOpen, Home, Users, Calendar, Layers } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 export default function ActionButtons() {
+  const router = useRouter()
+
+  const buttons = [
+    {
+      label: "Create new Section",
+      icon: <BookOpen className="h-5 w-5" />,
+      color: "rose",
+      href: "entry/sections"
+    },
+    {
+      label: "Register Room",
+      icon: <Home className="h-5 w-5" />,
+      color: "sky",
+      href: "entry/rooms/new"
+    },
+    {
+      label: "Add Faculty Member",
+      icon: <Users className="h-5 w-5" />,
+      color: "amber",
+      href: "entry/users/new"
+    },
+    {
+      label: "Schedule Class",
+      icon: <Calendar className="h-5 w-5" />,
+      color: "emerald",
+      href: "entry/schedules"
+    },
+    {
+      label: "Subject Management",
+      icon: <Layers className="h-5 w-5" />,
+      color: "violet",
+      href: "entry/subjects"
+    }
+  ]
+
   const container = {
     hidden: { opacity: 0 },
     show: {
@@ -21,11 +57,14 @@ export default function ActionButtons() {
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="flex flex-col gap-3">
-      <ActionButton label="Create new Section" icon={<BookOpen className="h-5 w-5" />} color="rose" variants={item} />
-      <ActionButton label="Register Room" icon={<Home className="h-5 w-5" />} color="sky" variants={item} />
-      <ActionButton label="Add Faculty Member" icon={<Users className="h-5 w-5" />} color="amber" variants={item} />
-      <ActionButton label="Schedule Class" icon={<Calendar className="h-5 w-5" />} color="emerald" variants={item} />
-      <ActionButton label="EXTRA BTN" icon={<Layers className="h-5 w-5" />} color="violet" variants={item} />
+      {buttons.map((button, index) => (
+        <ActionButton 
+          key={index}
+          {...button}
+          variants={item}
+          onClick={() => router.push(button.href)}
+        />
+      ))}
     </motion.div>
   )
 }
@@ -58,12 +97,13 @@ const colors = {
   },
 }
 
-function ActionButton({ label, icon, color, variants }) {
+function ActionButton({ label, icon, color, variants, onClick }) {
   const colorClasses = colors[color]
 
   return (
     <motion.button
       variants={variants}
+      onClick={onClick}
       className={`${colorClasses.bg} ${colorClasses.hover} ${colorClasses.text} rounded-lg p-3 text-sm font-medium transition-colors flex items-center gap-2`}
     >
       {icon}
