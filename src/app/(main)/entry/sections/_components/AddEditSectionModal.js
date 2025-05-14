@@ -7,6 +7,7 @@ import Select from 'react-select';
 import { addSection, editSection } from '../_actions';
 import useAuthStore from '@/store/useAuthStore';
 import Swal from 'sweetalert2';
+import SectionModalSidebar from './SectionModalSidebar';
 
 const YEAR_LEVELS = ['1st Year', '2nd Year', '3rd Year', '4th Year'].map(year => ({
   value: year,
@@ -181,28 +182,39 @@ export default function AddEditSectionModal({ show, onClose, section, courses, o
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
-                <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
+              <Dialog.Panel className="relative transform overflow-hidden rounded-xl bg-white text-left shadow-xl transition-all sm:my-8 w-full max-w-5xl">
+                <div className="absolute right-0 top-0 pr-4 pt-4 block z-[9999]">
                   <button
                     type="button"
-                    className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                    className="rounded-full bg-white text-gray-400 hover:text-gray-500 hover:bg-gray-100 p-1.5 transition-colors shadow-sm"
                     onClick={handleClose}
-                    disabled={isSubmitting}
                   >
                     <span className="sr-only">Close</span>
-                    <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                    <XMarkIcon className="h-5 w-5" aria-hidden="true" />
                   </button>
                 </div>
-                <div className="sm:flex sm:items-start">
-                  <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                    <Dialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900">
-                      {section ? 'Edit Section' : 'Add Section'}
-                    </Dialog.Title>
-                    <div className="mt-4">
-                      <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-                          <div className="sm:col-span-2">
-                            <label htmlFor="sectionName" className="block text-sm font-medium text-gray-700">
+
+                <div className="flex flex-col md:flex-row min-h-[600px]">
+                  <SectionModalSidebar section={section} />
+                  
+                  {/* Main content */}
+                  <div className="w-full md:w-2/3 flex flex-col">
+                    <form onSubmit={handleSubmit} className="flex-1 flex flex-col h-full">
+                      {/* Form content */}
+                      <div className="flex-1 p-8 space-y-8">
+                        {/* Title */}
+                        <div className="pt-4">
+                          <h3 className="text-lg font-medium text-gray-900">
+                            Section Information
+                          </h3>
+                          <p className="mt-1 text-sm text-gray-500">
+                            Fill in the details for the section
+                          </p>
+                        </div>
+
+                        <div className="space-y-6">
+                          <div>
+                            <label htmlFor="sectionName" className="block text-sm font-medium text-gray-700 mb-1">
                               Section Name
                             </label>
                             <input
@@ -212,13 +224,13 @@ export default function AddEditSectionModal({ show, onClose, section, courses, o
                               value={formData.sectionName}
                               onChange={handleChange('sectionName')}
                               disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                              className="block text-black w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
                               required
                             />
                           </div>
 
-                          <div className="sm:col-span-2">
-                            <label htmlFor="courseCode" className="block text-sm font-medium text-gray-700">
+                          <div>
+                            <label htmlFor="courseCode" className="block text-sm font-medium text-gray-700 mb-1">
                               Course
                             </label>
                             <Select
@@ -233,14 +245,13 @@ export default function AddEditSectionModal({ show, onClose, section, courses, o
                               isDisabled={isSubmitting}
                               styles={customStyles}
                               placeholder="Select Course"
-                              className="mt-1"
                               isSearchable={true}
                               isClearable={true}
                             />
                           </div>
 
-                          <div className="sm:col-span-2">
-                            <label htmlFor="yearLevel" className="block text-sm font-medium text-gray-700">
+                          <div>
+                            <label htmlFor="yearLevel" className="block text-sm font-medium text-gray-700 mb-1">
                               Year Level
                             </label>
                             <Select
@@ -252,33 +263,47 @@ export default function AddEditSectionModal({ show, onClose, section, courses, o
                               isDisabled={isSubmitting}
                               styles={customStyles}
                               placeholder="Select Year Level"
-                              className="mt-1"
-                              menuPlacement='top'
                               isSearchable={true}
                               isClearable={true}
                             />
                           </div>
                         </div>
+                      </div>
 
-                        <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                          <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="inline-flex w-full justify-center rounded-md bg-[#323E8F] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#35408E] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:ml-3 sm:w-auto"
-                          >
-                            {section ? 'Update' : 'Add'}
-                          </button>
-                          <button
-                            type="button"
-                            disabled={isSubmitting}
-                            className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:mt-0 sm:w-auto"
-                            onClick={handleClose}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </form>
-                    </div>
+                      {/* Footer */}
+                      <div className="flex justify-end space-x-3 p-6 bg-gray-50 border-t border-gray-200">
+                        <button
+                          type="button"
+                          disabled={isSubmitting}
+                          className="inline-flex justify-center rounded-md bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors"
+                          onClick={handleClose}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={isSubmitting}
+                          className="inline-flex justify-center items-center rounded-md bg-[#323E8F] px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-[#35408E] transition-colors disabled:opacity-70"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <svg
+                                className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Processing...
+                            </>
+                          ) : (
+                            <>{section ? 'Update Section' : 'Add Section'}</>
+                          )}
+                        </button>
+                      </div>
+                    </form>
                   </div>
                 </div>
               </Dialog.Panel>

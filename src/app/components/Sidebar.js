@@ -23,12 +23,18 @@ import {
   BookOpenIcon,
   XMarkIcon,
   ArrowLeftOnRectangleIcon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
+  PresentationChartBarIcon,
 } from '@heroicons/react/24/outline';
 
 // Define role-based menu items
 const roleMenuItems = {
   Dean: [
+    {
+      title: 'Dashboard',
+      href: '/dashboard',
+      icon: PresentationChartBarIcon,
+    },
     {
       title: 'Schedules',
       href: '/schedules',
@@ -73,6 +79,11 @@ const roleMenuItems = {
   ],
   'Program Chair': [
     {
+      title: 'Dashboard',
+      href: '/dashboard',
+      icon: PresentationChartBarIcon,
+    },
+    {
       title: 'Schedules',
       href: '/schedules',
       icon: CalendarDaysIcon,
@@ -110,6 +121,11 @@ const roleMenuItems = {
     }
   ],
   Administrator: [
+    {
+      title: 'Dashboard',
+      href: '/dashboard',
+      icon: PresentationChartBarIcon,
+    },
     {
       title: 'Schedules',
       href: '/schedules',
