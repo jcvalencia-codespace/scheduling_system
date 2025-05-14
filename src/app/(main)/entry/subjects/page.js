@@ -307,12 +307,6 @@ export default function SubjectsPage() {
                         </th>
                         <th
                           scope="col"
-                          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                        >
-                          Hours
-                        </th>
-                        <th
-                          scope="col"
                           className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
                           onClick={() => handleSort('department')}
                         >
@@ -329,7 +323,7 @@ export default function SubjectsPage() {
                     <tbody className="divide-y divide-gray-200 bg-white">
                       {filteredSubjects.length === 0 ? (
                         <tr>
-                          <td colSpan="5">
+                          <td colSpan="4">
                             <NoData 
                               message={searchTerm ? "No matching subjects" : "No subjects yet"} 
                               description={searchTerm 
@@ -349,11 +343,8 @@ export default function SubjectsPage() {
                               {subject.subjectName}
                             </td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                              {subject.lectureHours} / {subject.labHours}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                               {subject.department?.departmentCode && subject.department?.departmentName 
-                                ? `${subject.department.departmentCode} ` 
+                                ? `${subject.department.departmentCode}` 
                                 : 'N/A'}
                             </td>
                             <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
@@ -411,7 +402,6 @@ export default function SubjectsPage() {
                   </div>
                   <div className="text-sm text-gray-500">
                     <p><span className="font-medium">Name:</span> {subject.subjectName}</p>
-                    <p><span className="font-medium">Hours:</span> {subject.lectureHours} / {subject.labHours}</p>
                     <p>
                       <span className="font-medium">Department:</span>{' '}
                       {subject.department?.departmentCode && subject.department?.departmentName 

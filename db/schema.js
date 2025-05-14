@@ -67,16 +67,6 @@ const SubjectSchema = new Schema({
     type: String,
     required: true,
   },
-  lectureHours: {
-    type: Number,
-    required: true,
-    min: 0,
-  },
-  labHours: {
-    type: Number,
-    required: true,
-    min: 0,
-  },
   department: {
     type: Schema.Types.ObjectId,
     ref: 'Departments',

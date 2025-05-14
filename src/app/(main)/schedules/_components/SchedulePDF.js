@@ -1,168 +1,176 @@
 import { jsPDF } from "jspdf";
 import autoTable from 'jspdf-autotable';
 
+// Add helper function for loading images
+const loadImage = (src) => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = src;
+    img.onload = () => resolve(img);
+  });
+};
+
 const SchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
-  const generatePDF = () => {
+  const generatePDF = async () => {
     const doc = new jsPDF();
 
-    // Center logo calculation
-    const pageWidth = doc.internal.pageSize.width;
-    const logoWidth = 40;
-    const logoX = (pageWidth - logoWidth) / 2;
-    // Load and add image using canvas
-    const logo = new Image();
-    logo.src = 'https://i.imgur.com/6yZFd27.png';
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    logo.onload = () => {
-      canvas.width = logo.width;
-      canvas.height = logo.height;
-      ctx.drawImage(logo, 0, 0);
-      const dataUrl = canvas.toDataURL('image/png');
-      doc.addImage(dataUrl, 'PNG', logoX, 5, logoWidth, 12);
-    };
+    try {
+      // Load header image first
+      const headerImg = await loadImage("https://i.imgur.com/6yZFd27.png").catch(() => null);
+      const imgWidth = 40;
+      const imgHeight = 12;
+      
+      if (headerImg) {
+        // Center the image horizontally
+        const xPosition = (doc.internal.pageSize.width - imgWidth) / 2;
+        doc.addImage(headerImg, "PNG", xPosition, 2, imgWidth, imgHeight);
+      }
 
-    // Add header
-    doc.setFontSize(14);
-    doc.setTextColor(26, 35, 126);
-    doc.text('Class Schedule', doc.internal.pageSize.width / 2, 22, { align: 'center' });
+      // Add header text
+      doc.setFontSize(12); // Changed from 14
+      doc.setTextColor(26, 35, 126);
+      doc.text('Class Schedule', doc.internal.pageSize.width / 2, 20, { align: 'center' });
+      
+      doc.setFontSize(8);
+      doc.setTextColor(0);
+      doc.text(`Schedule for: ${selectedSection}`, doc.internal.pageSize.width / 2, 26, { align: 'center' });
+      doc.text(`${activeTerm.term} - AY ${activeTerm.academicYear}`, doc.internal.pageSize.width / 2, 31, { align: 'center' });
 
-    doc.setFontSize(8);
-    doc.setTextColor(0);
-    doc.text(`Schedule for: ${selectedSection}`, doc.internal.pageSize.width / 2, 28, { align: 'center' });
-    doc.text(`${activeTerm.term} - AY ${activeTerm.academicYear}`, doc.internal.pageSize.width / 2, 33, { align: 'center' });
+      // Generate time slots
+      const timeSlots = generateTimeSlots();
+      const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-    // Generate time slots
-    const timeSlots = generateTimeSlots();
-    const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      // Calculate rowspan for each schedule
+      const scheduleSpans = calculateScheduleSpans(timeSlots, weekDays);
 
-    // Calculate rowspan for each schedule
-    const scheduleSpans = calculateScheduleSpans(timeSlots, weekDays);
+      // Prepare table data with rowspans
+      const tableData = [];
+      timeSlots.forEach((time, timeIndex) => {
+        const row = [time];
 
-    // Prepare table data with rowspans
-    const tableData = [];
-    timeSlots.forEach((time, timeIndex) => {
-      const row = [time];
+        weekDays.forEach((day, dayIndex) => {
+          const schedule = getScheduleForTimeAndDay(time, day);
+          const slot = getSlotForTimeAndDay(schedule, time, day);
 
-      weekDays.forEach((day, dayIndex) => {
-        const schedule = getScheduleForTimeAndDay(time, day);
-        const slot = getSlotForTimeAndDay(schedule, time, day);
-
-        // Check if this is a cell that should be displayed or skipped due to rowspan
-        const spanInfo = scheduleSpans[`${timeIndex}-${dayIndex}`];
-
-        if (spanInfo && spanInfo.isStart) {
-          // This is the start of a schedule block
-          const content = [
-            `${spanInfo.slot.timeFrom} - ${spanInfo.slot.timeTo}`,
-            schedule.subject?.subjectCode || '',
-            spanInfo.slot.room?.roomCode || '',
-            schedule.faculty ? `${schedule.faculty.firstName?.[0]}.${schedule.faculty.lastName}` : ''
-          ].join('\n');
-
-          row.push({ content, rowSpan: spanInfo.span });
-        } else if (spanInfo && !spanInfo.isStart) {
-          // This cell is covered by a rowspan, so we skip it
-          row.push({ content: '', rowSpan: 0 });
-        } else {
-          // Empty cell
-          row.push('');
-        }
-      });
-
-      tableData.push(row);
-    });
-
-    // Calculate column widths - equal for all day columns
-    const pageWidthForTable = doc.internal.pageSize.width;
-    const leftMargin = 3; // Reduced left margin
-    const rightMargin = 3; // Reduced right margin
-    const timeColWidth = 18; // Time column width
-    const dayColWidth = (pageWidthForTable - timeColWidth - leftMargin - rightMargin) / weekDays.length; // More space for day columns
-
-    const columnStyles = {
-      0: { cellWidth: timeColWidth }
-    };
-
-    // Set equal width for all day columns
-    weekDays.forEach((_, index) => {
-      columnStyles[index + 1] = { cellWidth: dayColWidth };
-    });
-
-    // Draw table using autoTable plugin with adjusted settings
-    autoTable(doc, {
-      startY: 35,
-      margin: { left: leftMargin, right: rightMargin, top: 40 },
-      head: [['Time', ...weekDays]],
-      body: tableData,
-      theme: 'plain',
-      headStyles: {
-        fillColor: [26, 35, 126],
-        textColor: [255, 255, 255],
-        fontSize: 7,
-        fontStyle: 'bold',
-        lineWidth: 0.2,
-        lineColor: [0, 0, 0],
-        halign: 'center',
-        valign: 'middle'
-      },
-      bodyStyles: {
-        fontSize: 8,
-        lineWidth: 0.2,
-        lineColor: [0, 0, 0],
-        cellPadding: 1
-      },
-      columnStyles: columnStyles,
-      styles: {
-        cellPadding: 3,
-        valign: 'middle',
-        halign: 'center',
-        overflow: 'linebreak',
-        lineColor: [0, 0, 0]
-      },
-      didParseCell: function (data) {
-        // Style the header row consistently
-        if (data.section === 'head') {
-          data.cell.styles.fillColor = [26, 35, 126];
-          data.cell.styles.textColor = [255, 255, 255];
-          data.cell.styles.fontStyle = 'bold';
-        }
-
-        // Style schedule cells
-        if (data.section === 'body' && data.column.index > 0) {
-          const timeIndex = data.row.index;
-          const dayIndex = data.column.index - 1;
+          // Check if this is a cell that should be displayed or skipped due to rowspan
           const spanInfo = scheduleSpans[`${timeIndex}-${dayIndex}`];
 
           if (spanInfo && spanInfo.isStart) {
-            // This is a schedule cell
-            data.cell.styles.fillColor = [255, 215, 0]; // Gold background
-            data.cell.styles.lineWidth = 0.1;
-            data.cell.styles.lineColor = [0, 0, 0];
+            // This is the start of a schedule block
+            const content = [
+              `${spanInfo.slot.timeFrom} - ${spanInfo.slot.timeTo}`,
+              schedule.subject?.subjectCode || '',
+              spanInfo.slot.room?.roomCode || '',
+              schedule.faculty ? `${schedule.faculty.firstName?.[0]}.${schedule.faculty.lastName}` : ''
+            ].join('\n');
+
+            row.push({ content, rowSpan: spanInfo.span });
+          } else if (spanInfo && !spanInfo.isStart) {
+            // This cell is covered by a rowspan, so we skip it
+            row.push({ content: '', rowSpan: 0 });
+          } else {
+            // Empty cell
+            row.push('');
+          }
+        });
+
+        tableData.push(row);
+      });
+
+      // Calculate column widths - equal for all day columns
+      const pageWidthForTable = doc.internal.pageSize.width;
+      const leftMargin = 3; // Reduced left margin
+      const rightMargin = 3; // Reduced right margin
+      const timeColWidth = 18; // Time column width
+      const dayColWidth = (pageWidthForTable - timeColWidth - leftMargin - rightMargin) / weekDays.length; // More space for day columns
+
+      const columnStyles = {
+        0: { cellWidth: timeColWidth }
+      };
+
+      // Set equal width for all day columns
+      weekDays.forEach((_, index) => {
+        columnStyles[index + 1] = { cellWidth: dayColWidth };
+      });
+
+      // Draw table using autoTable plugin with adjusted settings
+      autoTable(doc, {
+        startY: 35,
+        margin: { left: leftMargin, right: rightMargin, top: 35 }, // Changed from 40
+        head: [['Time', ...weekDays]],
+        body: tableData,
+        theme: 'plain',
+        headStyles: {
+          fillColor: [26, 35, 126],
+          textColor: [255, 255, 255],
+          fontSize: 7,
+          fontStyle: 'bold',
+          lineWidth: 0.2,
+          lineColor: [0, 0, 0],
+          halign: 'center',
+          valign: 'middle'
+        },
+        bodyStyles: {
+          fontSize: 8,
+          lineWidth: 0.2,
+          lineColor: [0, 0, 0],
+          cellPadding: 1
+        },
+        columnStyles: columnStyles,
+        styles: {
+          cellPadding: 3,
+          valign: 'middle',
+          halign: 'center',
+          overflow: 'linebreak',
+          lineColor: [0, 0, 0]
+        },
+        didParseCell: function (data) {
+          // Style the header row consistently
+          if (data.section === 'head') {
+            data.cell.styles.fillColor = [26, 35, 126];
+            data.cell.styles.textColor = [255, 255, 255];
+            data.cell.styles.fontStyle = 'bold';
+          }
+
+          // Style schedule cells
+          if (data.section === 'body' && data.column.index > 0) {
+            const timeIndex = data.row.index;
+            const dayIndex = data.column.index - 1;
+            const spanInfo = scheduleSpans[`${timeIndex}-${dayIndex}`];
+
+            if (spanInfo && spanInfo.isStart) {
+              // This is a schedule cell
+              data.cell.styles.fillColor = [255, 215, 0]; // Gold background
+              data.cell.styles.lineWidth = 0.1;
+              data.cell.styles.lineColor = [0, 0, 0];
+            }
           }
         }
-      }
-    });
+      });
 
-    // Add issue date and time at the bottom
-    const currentDate = new Date();
-    const dateStr = currentDate.toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric'
-    });
-    const timeStr = currentDate.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
+      // Add issue date and time at the bottom
+      const currentDate = new Date();
+      const dateStr = currentDate.toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      });
+      const timeStr = currentDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
 
-    doc.setFontSize(10);
-    doc.setTextColor(0);
-    doc.text(`Issued on ${dateStr} at ${timeStr}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
-   
-   
-    return doc;
+      doc.setFontSize(10);
+      doc.setTextColor(0);
+      doc.text(`Issued on ${dateStr} at ${timeStr}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+     
+     
+      return doc;
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      throw new Error("Failed to generate PDF");
+    }
   };
 
   // Calculate rowspans for each schedule block

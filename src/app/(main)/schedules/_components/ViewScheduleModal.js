@@ -24,7 +24,8 @@ export default function ViewScheduleModal({
   isOpen, 
   onClose, 
   schedule,
-  onDeleted // Add this prop
+  onScheduleDeleted, // Add this prop
+  onScheduleUpdated  // Add this prop if not already present
 }) {
   // Add user from auth store
   const { user } = useAuthStore();
@@ -42,6 +43,14 @@ export default function ViewScheduleModal({
     if (typeof onClose === 'function') {
       onClose();
     }
+  };
+
+  const handleEditSuccess = () => {
+    setIsEditModalOpen(false);
+    if (onScheduleUpdated) {
+      onScheduleUpdated();
+    }
+    onClose();
   };
 
   const handleDelete = async () => {
@@ -72,9 +81,9 @@ export default function ViewScheduleModal({
         });
 
         onClose();
-        // Call onDeleted callback if provided
-        if (onDeleted) {
-          onDeleted();
+        // Call onScheduleDeleted callback if provided
+        if (onScheduleDeleted) {
+          onScheduleDeleted();
         }
       }
     } catch (error) {
@@ -389,10 +398,7 @@ export default function ViewScheduleModal({
             setIsEditModalOpen(false);
             onClose();
           }}
-          onScheduleCreated={() => {
-            setIsEditModalOpen(false);
-            onScheduleDeleted();
-          }}
+          onScheduleCreated={handleEditSuccess} // Changed from onScheduleDeleted to handleEditSuccess
           editMode={true}
           scheduleData={currentSchedule}
         />

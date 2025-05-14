@@ -47,7 +47,7 @@ export default function AddEditCourseModal({ show, onClose, course, onSuccess })
     }),
     menu: (base) => ({
       ...base,
-      zIndex: 100,
+      zIndex: 110, // Increased z-index for dropdown menu
     }),
     menuList: (base) => ({
       ...base,
@@ -167,7 +167,7 @@ export default function AddEditCourseModal({ show, onClose, course, onSuccess })
 
   return (
     <Transition.Root show={show} as={Fragment}>
-      <Dialog as="div" className="relative z-10" onClose={handleClose}>
+      <Dialog as="div" className="relative z-[100]" onClose={handleClose}> {/* Changed z-50 to z-[100] */}
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -219,7 +219,7 @@ export default function AddEditCourseModal({ show, onClose, course, onSuccess })
                           value={formData.courseCode}
                           onChange={(e) => setFormData({ ...formData, courseCode: e.target.value })}
                           className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
-                          disabled={!!course}
+                          placeholder="Enter course code"
                           required
                         />
                       </div>

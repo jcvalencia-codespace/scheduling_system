@@ -11,8 +11,6 @@ import useAuthStore from '../../../../../store/useAuthStore';
 const initialFormState = {
   subjectCode: '',
   subjectName: '',
-  lectureHours: '',
-  labHours: '',
   department: ''
 };
 
@@ -27,8 +25,6 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
       setFormData({
         subjectCode: subject.subjectCode,
         subjectName: subject.subjectName,
-        lectureHours: subject.lectureHours,
-        labHours: subject.labHours,
         department: subject.department?._id || subject.department
       });
     } else {
@@ -247,42 +243,6 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
                             />
                           </div>
 
-                          <div>
-                            <label htmlFor="lectureHours" className="block text-sm font-medium text-gray-700">
-                              Lecture Hours
-                            </label>
-                            <input
-                              type="number"
-                              name="lectureHours"
-                              id="lectureHours"
-                              required
-                              min="0"
-                              step="0.5"
-                              value={formData.lectureHours}
-                              onChange={handleChange}
-                              disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
-                            />
-                          </div>
-
-                          <div>
-                            <label htmlFor="labHours" className="block text-sm font-medium text-gray-700">
-                              Lab Hours
-                            </label>
-                            <input
-                              type="number"
-                              name="labHours"
-                              id="labHours"
-                              required
-                              min="0"
-                              step="0.5"
-                              value={formData.labHours}
-                              onChange={handleChange}
-                              disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
-                            />
-                          </div>
-
                           <div className="sm:col-span-2">
                             <label htmlFor="department" className="block text-sm font-medium text-gray-700">
                               Department
@@ -312,9 +272,7 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
                               isClearable
                               menuPlacement="top"
                               styles={customStyles}
-                              // isLoading={departments.length === 0}
                               required
-                              
                             />
                           </div>
                         </div>

@@ -21,8 +21,37 @@ class CoursesModel {
 
   async createCourse(courseData) {
     const Course = await this.initModel();
+    
+    // Check for existing course with same code (both active and inactive)
+    const existingCourse = await Course.findOne({ 
+      courseCode: courseData.courseCode
+    });
+
+    if (existingCourse) {
+      if (existingCourse.isActive) {
+        throw new Error('Course code already exists and is active');
+      } else {
+        // If course exists but is inactive, reactivate it
+        const updatedCourse = await Course.findOneAndUpdate(
+          { _id: existingCourse._id },
+          { 
+            $set: {
+              courseTitle: courseData.courseTitle,
+              department: courseData.department,
+              isActive: true
+            }
+          },
+          { new: true }
+        ).populate('department', 'departmentCode departmentName');
+        
+        return JSON.parse(JSON.stringify(updatedCourse));
+      }
+    }
+
+    // If no existing course, create new one
     const course = new Course(courseData);
     const savedCourse = await course.save();
+    await savedCourse.populate('department', 'departmentCode departmentName');
     return JSON.parse(JSON.stringify(savedCourse));
   }
 
@@ -48,12 +77,32 @@ class CoursesModel {
 
   async updateCourse(courseCode, updateData) {
     const Course = await this.initModel();
+
+    // Check if courseCode is being changed and if new code exists among active courses
+    const newCourseCode = updateData.courseCode?.trim().toUpperCase();
+    if (newCourseCode && newCourseCode !== courseCode) {
+      const existingCourse = await Course.findOne({
+        courseCode: newCourseCode,
+        isActive: true
+      });
+
+      if (existingCourse) {
+        throw new Error('Course code already exists');
+      }
+    }
+
+    // Find and update the course
     const course = await Course.findOneAndUpdate(
-      { courseCode, isActive: true },
+      { courseCode: courseCode },
       { $set: updateData },
-      { new: true, runValidators: true }
-    );
-    return course ? JSON.parse(JSON.stringify(course)) : null;
+      { new: true }
+    ).populate('department', 'departmentCode departmentName');
+
+    if (!course) {
+      throw new Error('Course not found');
+    }
+
+    return JSON.parse(JSON.stringify(course));
   }
 
   async deleteCourse(courseCode) {

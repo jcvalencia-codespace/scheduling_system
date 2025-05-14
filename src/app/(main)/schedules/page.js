@@ -332,6 +332,11 @@ export default function SchedulePage() {
     }
     setIsPDFPreviewOpen(true)
   }
+
+  const handleScheduleDeleted = () => {
+    fetchSchedules(); // or however you refresh your schedules data
+  };
+
   return (
     <div className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-slate-50 to-slate-100">
       <style jsx global>{`
@@ -652,7 +657,8 @@ export default function SchedulePage() {
           isOpen={isViewScheduleModalOpen}
           onClose={() => setIsViewScheduleModalOpen(false)}
           schedule={selectedSchedule}
-          onScheduleDeleted={fetchSchedules} // Make sure this line is included
+          onScheduleDeleted={handleScheduleDeleted}
+          onScheduleUpdated={handleScheduleDeleted} // Use the same handler for both cases
         />
 
         <PreviewPDFModal
