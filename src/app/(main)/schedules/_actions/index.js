@@ -316,20 +316,23 @@ export async function approveAdminHours(adminHoursId, slotId, approverId, approv
   }
 }
 
-export async function cancelAdminHours(adminHoursId) {
+export async function cancelAdminHours(adminHoursId, slotId) {
   try {
-    if (!adminHoursId) {
-      throw new Error('Admin hours ID is required');
+    if (!adminHoursId || !slotId) {
+      throw new Error('Admin hours ID and slot ID are required');
     }
 
-    console.log('Attempting to cancel admin hours with ID:', adminHoursId);
-    
-    const result = await adminHoursModel.cancelAdminHours(adminHoursId);
-    if (!result) {
-      throw new Error('Failed to cancel admin hours - No result returned');
+    const response = await adminHoursModel.cancelAdminHours(adminHoursId, slotId);
+
+    if (!response) {
+      throw new Error('Failed to cancel admin hours');
     }
-    
-    return { success: true, message: 'Admin hours cancelled successfully' };
+
+    return { 
+      success: true, 
+      message: 'Admin hours slot cancelled successfully',
+      hours: JSON.parse(JSON.stringify(response))
+    };
   } catch (error) {
     console.error('Error in cancelAdminHours action:', error);
     return { 

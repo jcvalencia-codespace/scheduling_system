@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { MagnifyingGlassIcon, BellIcon, ChevronDownIcon, Bars3Icon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, BellIcon, ChevronDownIcon, Bars3Icon, HomeIcon, ChevronRightIcon, Cog6ToothIcon, ArrowLeftOnRectangleIcon } from '@heroicons/react/24/outline';
 import { SunIcon, MoonIcon, CheckCircleIcon, ExclamationCircleIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/solid';
 import { useTheme } from '../context/ThemeContext';
 import { useSidebar } from '../context/SidebarContext';
@@ -14,7 +14,7 @@ import moment from 'moment';
 import Swal from 'sweetalert2';
 import { getDepartmentById } from '../(main)/maintenance/departments/_actions';
 import NotificationModal from './NotificationModal';
-
+import Link from 'next/link';
 
 export default function TopBar() {
 
@@ -28,6 +28,8 @@ export default function TopBar() {
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotifications();
   const [departmentDetails, setDepartmentDetails] = useState(null);
   const [selectedNotification, setSelectedNotification] = useState(null);
+  const dropdownRef = useRef(null);
+  const notificationsRef = useRef(null);
 
   useEffect(() => {
     const fetchDepartmentDetails = async () => {
@@ -44,15 +46,49 @@ export default function TopBar() {
     }
   }, [user]);
 
-  // Function to get page title from pathname
-  const getPageTitle = (path) => {
+  useEffect(() => {
+    // Close both dropdowns on route change
+    setShowDropdown(false);
+    setShowNotifications(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Helper function to check if a path segment is a parent/dropdown item
+  const isParentRoute = (segment) => {
+    const parentRoutes = ['activity-logs', 'entry', 'maintenance', 'feedback'];
+    return parentRoutes.includes(segment);
+  };
+
+  // Modified breadcrumbs function
+  const getBreadcrumbs = (path) => {
     const segments = path.split('/').filter(Boolean);
-    if (segments.length === 0) return 'Dashboard';
-    const lastSegment = segments[segments.length - 1];
-    return lastSegment
-      .split('-')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
+    return segments.map((segment, index) => {
+      const url = `/${segments.slice(0, index + 1).join('/')}`;
+      const title = segment
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+      return {
+        title,
+        url,
+        isParent: isParentRoute(segment)
+      };
+    });
   };
 
   const handleLogout = async () => {
@@ -82,8 +118,31 @@ export default function TopBar() {
             >
               <Bars3Icon className="h-6 w-6" />
             </button>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{getPageTitle(pathname)}</h1>
+            <div className="flex items-center space-x-2">
+              <Link href="/" className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
+                <HomeIcon className="h-5 w-5" />
+              </Link>
+              {getBreadcrumbs(pathname).map((item, index, array) => (
+                <div key={item.url} className="flex items-center">
+                  <ChevronRightIcon className="h-4 w-4 text-gray-400" />
+                  {item.isParent ? (
+                    <span className="ml-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+                      {item.title}
+                    </span>
+                  ) : (
+                    <Link
+                      href={item.url}
+                      className={`ml-2 text-sm font-medium ${
+                        index === array.length - 1
+                          ? 'text-gray-900 dark:text-white'
+                          : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                      }`}
+                    >
+                      {item.title}
+                    </Link>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -112,7 +171,7 @@ export default function TopBar() {
             </div>
 
             {/* Notifications */}
-            <div className="relative">
+            <div className="relative" ref={notificationsRef}>
               <button
                 onClick={() => setShowNotifications(!showNotifications)}
                 className="relative rounded-full bg-gray-100 p-2 text-gray-500 hover:text-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
@@ -201,7 +260,7 @@ export default function TopBar() {
             </div>
 
             {/* Profile Dropdown */}
-            <div className="relative">
+            <div className="relative" ref={dropdownRef}>
               <button
                 className="flex items-center space-x-3"
                 onClick={() => setShowDropdown(!showDropdown)}
@@ -226,8 +285,8 @@ export default function TopBar() {
               {showDropdown && (
                 <div className="absolute right-0 mt-2 w-48 rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-gray-800">
                   <div className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 border-b dark:border-gray-700">
-                    <p className="font-semibold">{user?.firstName} {user?.lastName}</p>
-                    <p className="font-medium">{user?.email}</p>
+                    <p className="font-semibold truncate">{user?.firstName} {user?.lastName}</p>
+                    <p className="font-medium truncate">{user?.email}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       {departmentDetails?.departmentCode || 'Loading...'}
                     </p>
@@ -236,13 +295,19 @@ export default function TopBar() {
                     onClick={() => router.push('/settings')}
                     className="block w-full px-4 py-2 text-left text-sm text-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200"
                   >
-                    Settings
+                    <div className="flex items-center space-x-2">
+                      <Cog6ToothIcon className="h-5 w-5" />
+                      <span>Settings</span>
+                    </div>
                   </button>
                   <button
                     onClick={handleLogout}
                     className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-red-400"
                   >
-                    Logout
+                    <div className="flex items-center space-x-2">
+                      <ArrowLeftOnRectangleIcon className="h-5 w-5" />
+                      <span>Logout</span>
+                    </div>
                   </button>
                 </div>
               )}

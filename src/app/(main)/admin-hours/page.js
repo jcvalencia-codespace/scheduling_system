@@ -19,7 +19,7 @@ export default function AdminHoursRequestPage() {
     const setupPusherSubscription = () => {
         // Return early if no user
         if (!user || !user.role) {
-            return () => {};
+            return () => { };
         }
 
         const channel = pusherClient.subscribe('admin-hours');
@@ -37,35 +37,35 @@ export default function AdminHoursRequestPage() {
         };
 
         channel.bind('new-request', (data) => {
-            console.log('New request received:', data); 
+            console.log('New request received:', data);
             setRequests(prev => {
                 const currentRequests = [...prev];
                 const existingIndex = currentRequests.findIndex(r => r._id === data.request._id);
-                
+
                 if (!hasMatchingSlots(data.request)) {
                     return currentRequests.filter(r => r._id !== data.request._id);
                 }
-                
+
                 if (existingIndex >= 0) {
                     currentRequests[existingIndex] = data.request;
                     return currentRequests;
                 }
-                
+
                 return [data.request, ...currentRequests];
             });
         });
 
         // Update the request-updated handler with the same department check
         channel.bind('request-updated', (data) => {
-            console.log('Request updated:', data); 
+            console.log('Request updated:', data);
             setRequests(prev => {
                 const currentRequests = [...prev];
                 const updatedRequest = data.request;
-                
+
                 if (!hasMatchingSlots(updatedRequest)) {
                     return currentRequests.filter(r => r._id !== updatedRequest._id);
                 }
-                
+
                 const filteredRequests = currentRequests.filter(req => req._id !== updatedRequest._id);
                 return [updatedRequest, ...filteredRequests];
             });
@@ -109,43 +109,43 @@ export default function AdminHoursRequestPage() {
             const { term, error: termError } = await getActiveTerm();
             if (termError) throw new Error(termError);
             if (!term) throw new Error('No active term found');
-            
+
             setActiveTerm(term);
 
             const termId = term.id?.toString() || term._id?.toString();
             if (!termId) throw new Error('Invalid term ID');
 
             const { requests: adminHourRequests, error } = await getAdminHourRequests(
-                filter, 
+                filter,
                 termId,
                 user.role,
                 user.department // Make sure this is being passed correctly
             );
-            
+
             if (error) throw new Error(error);
-            
+
             // Additional client-side department filtering for safety
             const filteredByDepartment = user.role === 'Dean' && user.department
-                ? adminHourRequests.filter(request => 
+                ? adminHourRequests.filter(request =>
                     request.user?.department?._id.toString() === user.department.toString()
-                  )
+                )
                 : adminHourRequests;
-            
-            const filteredRequests = filteredByDepartment.filter(request => 
+
+            const filteredRequests = filteredByDepartment.filter(request =>
                 request.slots.some(slot => slot.status === filter)
             );
-            
+
             const sortedRequests = filteredRequests.sort((a, b) => {
-                const latestSlotA = a.slots.reduce((latest, slot) => 
+                const latestSlotA = a.slots.reduce((latest, slot) =>
                     (!latest || new Date(slot.createdAt) > new Date(latest.createdAt)) ? slot : latest
                 );
-                const latestSlotB = b.slots.reduce((latest, slot) => 
+                const latestSlotB = b.slots.reduce((latest, slot) =>
                     (!latest || new Date(slot.createdAt) > new Date(latest.createdAt)) ? slot : latest
                 );
-                
+
                 return new Date(latestSlotB.createdAt) - new Date(latestSlotA.createdAt);
             });
-            
+
             setRequests(sortedRequests);
         } catch (error) {
             console.error('Error loading requests:', error);
@@ -294,12 +294,11 @@ export default function AdminHoursRequestPage() {
                                                                 </div>
                                                             </td>
                                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                                                    slot.status === 'approved' ? 'bg-green-100 text-green-800' :
-                                                                    slot.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                                                    slot.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
-                                                                    'bg-yellow-100 text-yellow-800'
-                                                                }`}>
+                                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${slot.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                                                        slot.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                                                            slot.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
+                                                                                'bg-yellow-100 text-yellow-800'
+                                                                    }`}>
                                                                     {slot.status.charAt(0).toUpperCase() + slot.status.slice(1)}
                                                                 </span>
                                                             </td>
@@ -334,6 +333,11 @@ export default function AdminHoursRequestPage() {
                                                                         </button>
                                                                     </div>
                                                                 )}
+                                                                {slot.status === "rejected" && (
+                                                                    <span className="text-sm text-red-600">
+                                                                        {slot.rejectionReason || "No reason provided"}
+                                                                    </span>
+                                                                )}
                                                             </td>
                                                         </tr>
                                                     ))
@@ -341,7 +345,7 @@ export default function AdminHoursRequestPage() {
                                         </tbody>
                                     </table>
                                 ) : (
-                                    <NoData 
+                                    <NoData
                                         {...getStatusMessages(filter)}
                                         className="py-12"
                                     />
