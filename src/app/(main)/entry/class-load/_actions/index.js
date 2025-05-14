@@ -244,3 +244,14 @@ export const getSubjectAssignments = async () => {
     return { success: false, assignments: [] };
   }
 };
+
+export async function getVisibleTerms() {
+  try {
+    const terms = await Term.find({ isVisible: true })
+      .sort({ term: 1 });
+    return { success: true, terms: JSON.parse(JSON.stringify(terms)) };
+  } catch (error) {
+    console.error('Error fetching visible terms:', error);
+    return { error: 'Failed to fetch terms' };
+  }
+}

@@ -198,40 +198,44 @@ export default function NewScheduleModal({
 
   useEffect(() => {
     async function fetchData() {
-      try {
-        setLoading(true);
-        const [formResponse, termResponse] = await Promise.all([
-          getScheduleFormData(),
-          getActiveTerm()
-        ]);
+      if (isOpen) {
+        try {
+          setLoading(true);
+          const [formResponse, termResponse] = await Promise.all([
+            getScheduleFormData().catch(error => {
+              throw new Error(error.message);
+            }),
+            getActiveTerm().catch(error => {
+              throw new Error(error.message);
+            })
+          ]);
 
-        if (formResponse.error) {
-          throw new Error(formResponse.error);
+          if (termResponse.error) {
+            throw new Error(termResponse.error);
+          }
+
+          setFormData(formResponse);
+          setTermInfo({
+            _id: termResponse.term.id,
+            academicYear: termResponse.term.academicYear,
+            term: termResponse.term.term
+          });
+        } catch (error) {
+          console.error('Fetch error:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: error.message || 'Failed to load schedule data',
+            confirmButtonColor: '#323E8F'
+          });
+          onClose(); // Close modal on error
+        } finally {
+          setLoading(false);
         }
-
-        console.log('Term Response:', termResponse);
-
-        if (!termResponse.term || !termResponse.term.id) {
-          throw new Error('No active term found');
-        }
-
-        setFormData(formResponse);
-        setTermInfo({
-          _id: termResponse.term.id,
-          academicYear: termResponse.term.academicYear,
-          term: termResponse.term.term
-        });
-      } catch (error) {
-        console.error('Fetch error:', error);
-        setError(error.message);
-      } finally {
-        setLoading(false);
       }
     }
 
-    if (isOpen) {
-      fetchData();
-    }
+    fetchData();
   }, [isOpen]);
 
   const roomOptions = useMemo(() => {
@@ -278,6 +282,44 @@ export default function NewScheduleModal({
     return options;
   }, [formData.rooms, user]);
 
+  const filteredSectionOptions = useMemo(() => {
+    if (!user || !formData.sections) return [];
+
+    let filteredSections = formData.sections;
+
+    // Only filter sections if multiple sections is not enabled
+    if (!selectedValues.isMultipleSections) {
+      if (user.role === 'Dean') {
+        // For Dean, only show sections from their department
+        const userDeptId = user.department?._id || user.department;
+        filteredSections = formData.sections.filter(section => {
+          const sectionDeptId = section.department?._id || section.department;
+          return sectionDeptId && sectionDeptId.toString() === userDeptId.toString();
+        });
+      } else if (user.role === 'Program Chair') {
+        // For Program Chair, only show sections from their course
+        const userCourseId = user.course?._id || user.course;
+        filteredSections = formData.sections.filter(section => {
+          const sectionCourseId = section.course?._id || section.course;
+          return sectionCourseId && sectionCourseId.toString() === userCourseId.toString();
+        });
+      }
+    }
+
+    console.log('Section filtering:', {
+      isMultipleSections: selectedValues.isMultipleSections,
+      totalSections: formData.sections.length,
+      filteredCount: filteredSections.length
+    });
+
+    return filteredSections.map(section => ({
+      value: section._id,
+      label: section.displayName || section.sectionName,
+      courseInfo: section.course,
+      yearLevel: section.yearLevel
+    }));
+  }, [formData.sections, user, selectedValues.isMultipleSections]);
+
   useEffect(() => {
     if (isOpen) {
       // Set initial values
@@ -314,12 +356,6 @@ export default function NewScheduleModal({
       [name]: type === 'checkbox' ? checked : value
     }));
   };
-  const sectionOptions = formData.sections.map(section => ({
-    value: section._id,
-    label: section.displayName,
-    courseInfo: section.course,
-    yearLevel: section.yearLevel
-  }));
 
   const facultyOptions = formData.faculty.map(f => ({
     value: f._id,
@@ -813,14 +849,18 @@ export default function NewScheduleModal({
                             <Select
                               name="section"
                               value={selectedValues.isMultipleSections
-                                ? sectionOptions.filter(option => selectedValues.section?.includes(option.value))
-                                : sectionOptions.find(option => option.value === selectedValues.section)
+                                ? filteredSectionOptions.filter(option => selectedValues.section?.includes(option.value))
+                                : filteredSectionOptions.find(option => option.value === selectedValues.section)
                               }
                               onChange={(option) => handleSelectChange(option, { name: 'section' })}
-                              options={sectionOptions}
+                              options={filteredSectionOptions}
                               styles={customStyles}
                               className="text-black"
-                              placeholder="Select a Section"
+                              placeholder={
+                                filteredSectionOptions.length === 0 
+                                  ? "No sections available for your department" 
+                                  : "Select a Section"
+                              }
                               isClearable
                               isMulti={selectedValues.isMultipleSections}
                               isSearchable={true}

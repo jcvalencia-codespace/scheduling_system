@@ -14,6 +14,7 @@ import Swal from 'sweetalert2';
 import { useLoading } from '../../../context/LoadingContext';
 import NoData from '@/app/components/NoData';
 import useAuthStore from '../../../../store/useAuthStore';
+import Filter from './_components/Filter';
 
 export default function RoomsPage() {
   const { user } = useAuthStore();
@@ -26,6 +27,9 @@ export default function RoomsPage() {
   const [sortConfig, setSortConfig] = useState({
     key: null,
     direction: 'asc',
+  });
+  const [filters, setFilters] = useState({
+    department: '',
   });
 
   useEffect(() => {
@@ -81,17 +85,29 @@ export default function RoomsPage() {
     });
   }, [rooms, sortConfig]);
 
+  const handleFilterChange = (filterName, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterName]: value
+    }));
+  };
+
   const filteredRooms = useMemo(() => {
     return sortedRooms.filter((room) => {
       const searchString = searchQuery.toLowerCase();
-      return (
+      const matchesSearch = (
         room.roomCode.toLowerCase().includes(searchString) ||
         room.roomName.toLowerCase().includes(searchString) ||
         room.type.toLowerCase().includes(searchString) ||
         room.floor.toLowerCase().includes(searchString)
       );
+
+      const matchesDepartment = !filters.department || 
+        room.department?.departmentCode === filters.department;
+
+      return matchesSearch && matchesDepartment;
     });
-  }, [sortedRooms, searchQuery]);
+  }, [sortedRooms, searchQuery, filters]);
 
   const handleDelete = async (roomCode) => {
     const result = await Swal.fire({
@@ -249,6 +265,11 @@ export default function RoomsPage() {
             )}
           </div>
         </div>
+        <Filter 
+          filters={filters}
+          handleFilterChange={handleFilterChange}
+          departments={departments}
+        />
       </div>
 
           <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">

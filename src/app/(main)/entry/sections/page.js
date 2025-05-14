@@ -10,6 +10,7 @@ import {
 import { XMarkIcon } from '@heroicons/react/24/solid';
 import { getSections, removeSection, getCourses } from './_actions';
 import AddEditSectionModal from './_components/AddEditSectionModal';
+import Filter from './_components/Filter';
 import Swal from 'sweetalert2';
 import Loading from '../../../components/Loading';
 import { useLoading } from '../../../context/LoadingContext';
@@ -20,6 +21,7 @@ export default function SectionsPage() {
   const user = useAuthStore((state) => state.user);
   const [sections, setSections] = useState([]);
   const [courses, setCourses] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const { isLoading, setIsLoading } = useLoading();
   const [showModal, setShowModal] = useState(false);
   const [selectedSection, setSelectedSection] = useState(null);
@@ -27,6 +29,11 @@ export default function SectionsPage() {
   const [sortConfig, setSortConfig] = useState({
     key: null,
     direction: 'asc',
+  });
+  const [filters, setFilters] = useState({
+    department: '',
+    course: '',
+    yearLevel: ''
   });
 
   useEffect(() => {
@@ -37,34 +44,33 @@ export default function SectionsPage() {
           getSections(),
           getCourses()
         ]);
-        if (sectionsData.sections) {
-          setSections(sectionsData.sections);
-        } else if (sectionsData.error) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: sectionsData.error
-          });
+
+        if (sectionsData.error) {
+          throw new Error(sectionsData.error);
         }
-        if (coursesData.courses) {
-          setCourses(coursesData.courses);
-        } else if (coursesData.error) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: coursesData.error
-          });
-        }
+        
+        // Extract departments from sections data
+        const uniqueDepartments = Array.from(new Set(
+          sectionsData.sections
+            .map(section => section.department)
+            .filter(Boolean)
+        ));
+
+        setSections(sectionsData.sections);
+        setDepartments(uniqueDepartments);
+        setCourses(coursesData.courses || []);
       } catch (error) {
+        console.error('Error fetching data:', error);
         Swal.fire({
           icon: 'error',
           title: 'Error',
-          text: 'Failed to load sections and courses'
+          text: 'Failed to load data'
         });
       } finally {
         setIsLoading(false);
       }
     };
+
     fetchData();
   }, [setIsLoading]);
 
@@ -145,6 +151,19 @@ export default function SectionsPage() {
     setShowModal(true);
   };
 
+  const handleFilterChange = (filterName, value) => {
+    setFilters((prevFilters) => ({
+      ...prevFilters,
+      [filterName]: value
+    }));
+  };
+
+  const getDepartmentCode = (section) => {
+    return section.department?.departmentCode || 
+           section.course?.department?.departmentCode || 
+           '';
+  };
+
   const sortedSections = useMemo(() => {
     if (!sortConfig.key) return sections;
 
@@ -169,15 +188,29 @@ export default function SectionsPage() {
   }, [sections, sortConfig]);
 
   const filteredSections = useMemo(() => {
-    const searchTermLower = searchTerm.toLowerCase();
-    return sortedSections.filter(section => 
-      section.sectionName.toLowerCase().includes(searchTermLower) ||
-      section.course?.courseCode?.toLowerCase().includes(searchTermLower) ||
-      section.course?.courseTitle?.toLowerCase().includes(searchTermLower) ||
-      section.department?.departmentCode?.toLowerCase().includes(searchTermLower) ||
-      section.yearLevel.toLowerCase().includes(searchTermLower)
-    );
-  }, [sortedSections, searchTerm]);
+    return sortedSections.filter((section) => {
+      const searchString = searchTerm.toLowerCase();
+      const departmentCode = section.department?.departmentCode || 
+                            section.course?.department?.departmentCode || '';
+      
+      const matchesSearch = 
+        section.sectionName.toLowerCase().includes(searchString) ||
+        section.course?.courseCode?.toLowerCase().includes(searchString) ||
+        section.course?.courseTitle?.toLowerCase().includes(searchString) ||
+        departmentCode.toLowerCase().includes(searchString);
+
+      const matchesDepartment = !filters.department || 
+        departmentCode === filters.department;
+
+      const matchesCourse = !filters.course || 
+        section.course?.courseCode === filters.course;
+
+      const matchesYearLevel = !filters.yearLevel || 
+        section.yearLevel === filters.yearLevel;
+
+      return matchesSearch && matchesDepartment && matchesCourse && matchesYearLevel;
+    });
+  }, [sortedSections, searchTerm, filters]);
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
@@ -199,8 +232,8 @@ export default function SectionsPage() {
         </div>
       </div>
 
-      {/* Search Bar */}
-      <div className="mt-4 flex items-center justify-between">
+      {/* Filters and Search Bar */}
+      <div className="flex flex-col sm:flex-row justify-between space-y-3 sm:space-y-0 sm:space-x-4">
         <div className="flex-1 max-w-sm">
           <div className="relative rounded-md shadow-sm">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -228,6 +261,12 @@ export default function SectionsPage() {
             )}
           </div>
         </div>
+        <Filter 
+          filters={filters}
+          handleFilterChange={handleFilterChange}
+          departments={departments}
+          courses={courses}
+        />
       </div>
 
       {/* Table */}

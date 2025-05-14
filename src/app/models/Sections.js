@@ -104,33 +104,39 @@ class SectionsModel {
   async getAllSectionsWithDepartment(userRole = null, departmentId = null, courseId = null) {
     try {
       const Section = await this.initModel();
+      
+      console.log('Getting sections with params:', { userRole, departmentId, courseId }); // Debug log
+
       let query = { isActive: true };
 
-      // Add filters based on user role and IDs
+      // Add role-based filters
       if (userRole === 'Dean' && departmentId) {
-        query.department = new mongoose.Types.ObjectId(departmentId);
+        query.department = departmentId;
       } else if (userRole === 'Program Chair' && courseId) {
-        query.course = new mongoose.Types.ObjectId(courseId);
+        query.course = courseId;
       }
-
-      console.log('Section query:', query); // Debug log
 
       const sections = await Section.find(query)
         .populate({
           path: 'course',
-          select: 'courseCode courseTitle department _id',
+          select: 'courseCode courseTitle department',
           populate: {
             path: 'department',
-            select: 'departmentCode departmentName _id'
+            select: 'departmentCode departmentName'
           }
         })
-        .populate('department', 'departmentCode departmentName _id')
-        .lean()
-        .sort({ sectionName: 1 });
+        .populate('department', 'departmentCode departmentName')
+        .lean();
 
-      console.log('Found sections:', sections.length); // Debug log
+      // Add display name
+      const sectionsWithDisplayName = sections.map(section => ({
+        ...section,
+        displayName: `${section.sectionName} - ${section.course?.courseCode || 'No Course'}`
+      }));
 
-      return JSON.parse(JSON.stringify(sections));
+      console.log(`Found ${sectionsWithDisplayName.length} sections`); // Debug log
+
+      return sectionsWithDisplayName;
     } catch (error) {
       console.error('Error in getAllSectionsWithDepartment:', error);
       throw error;

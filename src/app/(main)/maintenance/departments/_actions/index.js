@@ -19,8 +19,12 @@ export async function addDepartment(formData) {
       }
     }
 
-    // Check if department code already exists
-    const existingDepartment = await departmentsModel.getDepartmentByCode(departmentData.departmentCode);
+    // Check only active departments for duplicates
+    const existingDepartment = await departmentsModel.getDepartmentByCodeAndStatus(
+      departmentData.departmentCode,
+      true // only check active departments
+    );
+    
     if (existingDepartment) {
       throw new Error('Department code already exists');
     }
@@ -37,7 +41,7 @@ export async function addDepartment(formData) {
 export async function getDepartments() {
   try {
     const departments = await departmentsModel.getAllDepartments();
-    return { departments };
+    return { departments: JSON.parse(JSON.stringify(departments)) };
   } catch (error) {
     console.error('Error in getDepartments:', error);
     return { error: error.message || 'Failed to fetch departments' };
@@ -47,12 +51,23 @@ export async function getDepartments() {
 export async function editDepartment(departmentCode, formData) {
   try {
     const updateData = {
+      departmentCode: formData.get('departmentCode')?.trim().toUpperCase(),
       departmentName: formData.get('departmentName')?.trim(),
+      originalCode: formData.get('originalCode')
     };
 
-    // Validate required fields
-    if (!updateData.departmentName) {
-      throw new Error('Department name is required');
+    if (!updateData.departmentName || !updateData.departmentCode) {
+      throw new Error('Department code and name are required');
+    }
+
+    if (updateData.departmentCode !== updateData.originalCode) {
+      const existingDepartment = await departmentsModel.getDepartmentByCodeAndStatus(
+        updateData.departmentCode,
+        true
+      );
+      if (existingDepartment) {
+        throw new Error('Department code already exists');
+      }
     }
 
     const updatedDepartment = await departmentsModel.updateDepartment(departmentCode, updateData);
@@ -61,7 +76,10 @@ export async function editDepartment(departmentCode, formData) {
     }
 
     revalidatePath('/maintenance/departments');
-    return { success: true, department: updatedDepartment };
+    return { 
+      success: true, 
+      department: JSON.parse(JSON.stringify(updatedDepartment)) 
+    };
   } catch (error) {
     console.error('Error in editDepartment:', error);
     return { error: error.message || 'Failed to update department' };

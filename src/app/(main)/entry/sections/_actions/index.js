@@ -12,7 +12,7 @@ export async function getSections() {
     if (!sections) {
       throw new Error('No sections found');
     }
-    return { sections };
+    return { sections: JSON.parse(JSON.stringify(sections)) };
   } catch (error) {
     console.error('Error fetching sections:', error);
     return { error: error.message || 'Failed to fetch sections' };
