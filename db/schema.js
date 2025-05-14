@@ -67,16 +67,6 @@ const SubjectSchema = new Schema({
     type: String,
     required: true,
   },
-  lectureHours: {
-    type: Number,
-    required: true,
-    min: 0,
-  },
-  labHours: {
-    type: Number,
-    required: true,
-    min: 0,
-  },
   department: {
     type: Schema.Types.ObjectId,
     ref: 'Departments',
@@ -212,7 +202,7 @@ const RoomSchema = new Schema({
     },
     action: {
       type: String,
-      enum: ['created', 'updated', 'deleted'],
+      enum: ['created', 'updated', 'deleted', 'reactivated'],
       required: true
     },
     academicYear: {

@@ -366,50 +366,52 @@ class AdminHoursModel {
     try {
       const AdminHours = await this.initModel();
       
-      const objectId = mongoose.Types.ObjectId.isValid(adminHoursId) 
-        ? new mongoose.Types.ObjectId(adminHoursId)
-        : null;
-
-      if (!objectId) {
-        throw new Error('Invalid admin hours ID format');
-      }
-
       // Update only the specific slot
       const result = await AdminHours.findOneAndUpdate(
         { 
-          _id: objectId,
-          'slots._id': slotId
+          _id: adminHoursId,
+          'slots._id': slotId,
+          'slots.status': 'pending' // Only allow canceling pending slots
         },
         {
           $set: {
-            'slots.$.status': 'cancelled'
+            'slots.$.status': 'cancelled',
+            'slots.$.updatedAt': new Date()
           }
         },
         { new: true }
-      );
+      ).populate({
+        path: 'user',
+        select: 'firstName lastName department _id',
+        model: 'Users',
+        populate: {
+          path: 'department',
+          model: 'Departments',
+          select: 'departmentCode'
+        }
+      });
 
       if (!result) {
-        throw new Error('Admin hours record or slot not found');
+        throw new Error('Admin hours record or slot not found or not in pending status');
       }
 
-      const populatedResult = await AdminHours.findById(result._id)
-        .populate({
-          path: 'user',
-          select: 'firstName lastName department',
-          model: 'Users',
-          populate: {
-            path: 'department',
-            model: 'Departments',
-            select: 'departmentCode'
-          }
-        });
+      // Find the specific slot that was updated
+      const updatedSlot = result.slots.find(slot => slot._id.toString() === slotId);
+      
+      // Create notification for the requester
+      await createNotification({
+        userId: result.user._id,
+        title: 'Admin Hours Request Cancelled',
+        message: `Your admin hours request for ${updatedSlot.day} (${updatedSlot.startTime} - ${updatedSlot.endTime}) has been cancelled.`,
+        type: 'info'
+      });
 
       // Trigger Pusher event for cancelled request
       await pusherServer.trigger('admin-hours', 'request-updated', {
-        request: JSON.parse(JSON.stringify(populatedResult))
+        request: JSON.parse(JSON.stringify(result))
       });
 
-      return populatedResult;
+      return result;
     } catch (error) {
       console.error('Error in cancelAdminHours:', error);
       throw error;

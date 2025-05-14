@@ -68,10 +68,50 @@ export default class SchedulesModel {
         { $sort: { sectionName: 1 } }
       ]);
 
-      return sections;
+      return JSON.parse(JSON.stringify(sections));
     } catch (error) {
       console.error('Section fetch error:', error);
       throw new Error('Failed to fetch sections');
+    }
+  }
+
+  static async getSectionsForUser() {
+    try {
+      const Section = mongoose.models.Sections || mongoose.model('Sections', SectionSchema);
+
+      const sections = await Section.find({ isActive: true })
+        .populate({
+          path: 'course',
+          select: 'courseCode courseTitle department',
+          populate: {
+            path: 'department',
+            select: 'departmentCode departmentName'
+          }
+        })
+        .populate('department', 'departmentCode departmentName')
+        .lean();
+
+      // Format sections for display
+      return sections.map(section => ({
+        ...section,
+        _id: section._id.toString(),
+        course: section.course ? {
+          ...section.course,
+          _id: section.course._id.toString(),
+          department: section.course.department ? {
+            ...section.course.department,
+            _id: section.course.department._id.toString()
+          } : null
+        } : null,
+        department: section.department ? {
+          ...section.department,
+          _id: section.department._id.toString()
+        } : null,
+        displayName: `${section.sectionName} - ${section.course?.courseCode || 'No Course'}`
+      }));
+    } catch (error) {
+      console.error('Error in getSectionsForUser:', error);
+      throw error;
     }
   }
 
@@ -142,7 +182,7 @@ export default class SchedulesModel {
           }
         }
       },
-      { $sort: { sectionName: 1 } });
+        { $sort: { sectionName: 1 } });
 
       const sections = await Sections.aggregate(pipeline);
 
@@ -150,11 +190,11 @@ export default class SchedulesModel {
       console.log('Section filtering results:', {
         totalFound: sections.length,
         departmentId: departmentId,
-        departmentsFound: sections.length > 0 
+        departmentsFound: sections.length > 0
           ? [...new Set(sections.map(s => ({
-              id: s.course.department._id.toString(),
-              code: s.course.department.departmentCode
-            })))]
+            id: s.course.department._id.toString(),
+            code: s.course.department.departmentCode
+          })))]
           : []
       });
 
@@ -288,15 +328,15 @@ export default class SchedulesModel {
     const calculateDuration = (timeFrom, timeTo) => {
       const [fromTime, fromPeriod] = timeFrom.split(' ');
       const [toTime, toPeriod] = timeTo.split(' ');
-      
+
       let [fromHour, fromMinute] = fromTime.split(':').map(Number);
       let [toHour, toMinute] = toTime.split(':').map(Number);
-      
+
       if (fromPeriod === 'PM' && fromHour !== 12) fromHour += 12;
       if (fromPeriod === 'AM' && fromHour === 12) fromHour = 0;
       if (toPeriod === 'PM' && toHour !== 12) toHour += 12;
       if (toPeriod === 'AM' && toHour === 12) toHour = 0;
-      
+
       const minutes = (toHour * 60 + toMinute) - (fromHour * 60 + fromMinute);
       return minutes > 0 ? minutes : minutes + (24 * 60);
     };
@@ -314,8 +354,8 @@ export default class SchedulesModel {
 
     if (scheduleData.isPaired && scheduleData.pairedSchedule) {
       const pairedSlot = {
-        days: Array.isArray(scheduleData.pairedSchedule.days) 
-          ? scheduleData.pairedSchedule.days 
+        days: Array.isArray(scheduleData.pairedSchedule.days)
+          ? scheduleData.pairedSchedule.days
           : [scheduleData.pairedSchedule.days],
         timeFrom: scheduleData.pairedSchedule.timeFrom,
         timeTo: scheduleData.pairedSchedule.timeTo,
@@ -347,8 +387,8 @@ export default class SchedulesModel {
               const existingTimeFrom = moment(existingSlot.timeFrom, 'h:mm A');
               const existingTimeTo = moment(existingSlot.timeTo, 'h:mm A');
 
-              const isCompleteOverlap = newTimeFrom.isSameOrBefore(existingTimeFrom) && 
-                                        newTimeTo.isSameOrAfter(existingTimeTo);
+              const isCompleteOverlap = newTimeFrom.isSameOrBefore(existingTimeFrom) &&
+                newTimeTo.isSameOrAfter(existingTimeTo);
 
               if (isCompleteOverlap) {
                 isSlotOverlapped = true;
@@ -384,7 +424,7 @@ export default class SchedulesModel {
               await createNotification({
                 userId: existingSchedule.faculty._id,
                 title: 'Schedule Modified',
-                message: remainingSlots.length > 1 
+                message: remainingSlots.length > 1
                   ? 'One of your paired schedule slots has been removed due to a conflict.'
                   : 'Your paired schedule has been converted to a regular schedule due to a conflict.',
                 type: 'warning',
@@ -408,8 +448,8 @@ export default class SchedulesModel {
             const existingTimeTo = moment(existingSlot.timeTo, 'h:mm A');
 
             // Check if existing schedule is completely overlapped
-            const isCompleteOverlap = newTimeFrom.isSameOrBefore(existingTimeFrom) && 
-                                      newTimeTo.isSameOrAfter(existingTimeTo);
+            const isCompleteOverlap = newTimeFrom.isSameOrBefore(existingTimeFrom) &&
+              newTimeTo.isSameOrAfter(existingTimeTo);
 
             if (isCompleteOverlap) {
               // Deactivate the completely overlapped schedule
@@ -434,7 +474,7 @@ export default class SchedulesModel {
                   relatedSchedule: existingSchedule._id
                 });
               }
-              
+
               modified = true;
               break;
             }
@@ -501,7 +541,7 @@ export default class SchedulesModel {
 
             const currentTime = moment().format('h:mm A');
 
-            const sectionDisplay = Array.isArray(existingSchedule.section) 
+            const sectionDisplay = Array.isArray(existingSchedule.section)
               ? existingSchedule.section.map(s => s.sectionName).join(', ')
               : (existingSchedule.section.sectionName || 'Unknown Section');
 
@@ -549,7 +589,7 @@ export default class SchedulesModel {
           ...scheduleData.pairedSchedule,
           timeFrom: formatTime(scheduleData.pairedSchedule.timeFrom),
           timeTo: formatTime(scheduleData.pairedSchedule.timeTo),
-          days: Array.isArray(scheduleData.pairedSchedule.days) ? 
+          days: Array.isArray(scheduleData.pairedSchedule.days) ?
             scheduleData.pairedSchedule.days : [scheduleData.pairedSchedule.days],
           room: new mongoose.Types.ObjectId(scheduleData.pairedSchedule.room)
         };
@@ -613,13 +653,13 @@ export default class SchedulesModel {
         ]);
 
       // Handle section name safely
-      const sectionDisplay = Array.isArray(populatedSchedule.section) 
+      const sectionDisplay = Array.isArray(populatedSchedule.section)
         ? populatedSchedule.section.map(s => s.sectionName).join(', ')
         : populatedSchedule.section.sectionName || 'Unknown Section';
 
       // Only create notification if faculty is assigned
       if (scheduleData.faculty) {
-        await createNotification({ 
+        await createNotification({
           userId: scheduleData.faculty,
           title: 'New Schedule Assigned',
           message: `You have been assigned to teach ${populatedSchedule.subject.subjectCode} - ${populatedSchedule.subject.subjectName} for section ${sectionDisplay}`,
@@ -643,11 +683,11 @@ export default class SchedulesModel {
       }
 
       const schedules = await Schedules.aggregate([
-        { 
-          $match: { 
+        {
+          $match: {
             isActive: true,
             ...(query.term ? { term: query.term } : {})
-          } 
+          }
         },
         {
           $lookup: {
@@ -783,6 +823,159 @@ export default class SchedulesModel {
     } catch (error) {
       console.error('Schedules fetch error:', error);
       throw new Error('Failed to fetch schedules');
+    }
+  }
+
+  static async getSchedulesByYearAndTerm(academicYear, termId) {
+    try {
+      console.log('🔄 Model: Fetching schedules for:', { academicYear, termId })
+
+      const pipeline = [
+        {
+          $match: {
+            isActive: true,
+            term: new mongoose.Types.ObjectId(termId)
+          }
+        },
+        {
+          $lookup: {
+            from: 'terms',
+            localField: 'term',
+            foreignField: '_id',
+            as: 'termInfo'
+          }
+        },
+        { $unwind: '$termInfo' },
+        {
+          $match: {
+            'termInfo.academicYear': academicYear
+          }
+        },
+        {
+          $lookup: {
+            from: 'sections',
+            localField: 'section',
+            foreignField: '_id',
+            as: 'section'
+          }
+        },
+        { $unwind: { path: '$section' } },
+        {
+          $lookup: {
+            from: 'subjects',
+            localField: 'subject',
+            foreignField: '_id',
+            as: 'subject'
+          }
+        },
+        { $unwind: { path: '$subject' } },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'faculty',
+            foreignField: '_id',
+            as: 'faculty'
+          }
+        },
+        {
+          $addFields: {
+            faculty: { $arrayElemAt: ['$faculty', 0] }
+          }
+        },
+        {
+          $lookup: {
+            from: 'rooms',
+            localField: 'scheduleSlots.room',
+            foreignField: '_id',
+            as: 'rooms'
+          }
+        },
+        {
+          $addFields: {
+            'scheduleSlots': {
+              $map: {
+                input: '$scheduleSlots',
+                as: 'slot',
+                in: {
+                  days: '$$slot.days',
+                  timeFrom: '$$slot.timeFrom',
+                  timeTo: '$$slot.timeTo',
+                  room: {
+                    $arrayElemAt: [
+                      {
+                        $filter: {
+                          input: '$rooms',
+                          as: 'room',
+                          cond: { $eq: ['$$room._id', '$$slot.room'] }
+                        }
+                      },
+                      0
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            section: {
+              _id: '$section._id',
+              sectionName: '$section.sectionName'
+            },
+            subject: {
+              _id: '$subject._id',
+              subjectCode: '$subject.subjectCode',
+              subjectName: '$subject.subjectName'
+            },
+            faculty: {
+              $cond: {
+                if: { $eq: ['$faculty', null] },
+                then: null,
+                else: {
+                  _id: '$faculty._id',
+                  firstName: '$faculty.firstName',
+                  lastName: '$faculty.lastName'
+                }
+              }
+            },
+            scheduleSlots: 1,
+            isPaired: 1,
+            term: '$termInfo'
+          }
+        }
+      ]
+
+      console.log('📝 Model: Executing schedule pipeline with match:', {
+        academicYear,
+        termId
+      })
+
+      const schedules = await Schedules.aggregate(pipeline)
+
+      console.log('✅ Model: Schedules found:', {
+        total: schedules.length,
+        bySection: schedules.reduce((acc, s) => {
+          const section = s.section?.sectionName
+          acc[section] = (acc[section] || 0) + 1
+          return acc
+        }, {}),
+        sample: schedules[0] ? {
+          section: schedules[0].section?.sectionName,
+          subject: schedules[0].subject?.subjectCode,
+          slots: schedules[0].scheduleSlots.map(slot => ({
+            days: slot.days,
+            time: `${slot.timeFrom}-${slot.timeTo}`,
+            room: slot.room?.roomCode || 'No Room'
+          }))
+        } : 'No schedules'
+      })
+
+      return JSON.parse(JSON.stringify(schedules))
+    } catch (error) {
+      console.error('❌ Model: Error in getSchedulesByYearAndTerm:', error)
+      throw error
     }
   }
 
@@ -981,7 +1174,7 @@ export default class SchedulesModel {
 
       const updatedData = {
         term: new mongoose.Types.ObjectId(scheduleData.term),
-        section: Array.isArray(scheduleData.section) 
+        section: Array.isArray(scheduleData.section)
           ? scheduleData.section.map(s => new mongoose.Types.ObjectId(s))
           : [new mongoose.Types.ObjectId(scheduleData.section)],
         // Handle faculty field - can be null
@@ -1041,15 +1234,15 @@ export default class SchedulesModel {
       const calculateDuration = (timeFrom, timeTo) => {
         const [fromTime, fromPeriod] = timeFrom.split(' ');
         const [toTime, toPeriod] = timeTo.split(' ');
-        
+
         let [fromHour, fromMinute] = fromTime.split(':').map(Number);
         let [toHour, toMinute] = toTime.split(':').map(Number);
-        
+
         if (fromPeriod === 'PM' && fromHour !== 12) fromHour += 12;
         if (fromPeriod === 'AM' && fromHour === 12) fromHour = 0;
         if (toPeriod === 'PM' && toHour !== 12) toHour += 12;
         if (toPeriod === 'AM' && toHour === 12) toHour = 0;
-        
+
         const minutes = (toHour * 60 + toMinute) - (fromHour * 60 + fromMinute);
         return minutes > 0 ? minutes : minutes + (24 * 60);
       };
@@ -1067,7 +1260,7 @@ export default class SchedulesModel {
             timeTo: slot.timeTo,
             duration,
             type: 'exceeded',
-            message: `Schedule duration (${Math.floor(duration/60)} hours ${duration%60} minutes) exceeds maximum allowed (4 hours)`
+            message: `Schedule duration (${Math.floor(duration / 60)} hours ${duration % 60} minutes) exceeds maximum allowed (4 hours)`
           });
         } else if (duration < minDuration) {
           conflicts.hasConflicts = true;
@@ -1076,7 +1269,7 @@ export default class SchedulesModel {
             timeTo: slot.timeTo,
             duration,
             type: 'insufficient',
-            message: `Schedule duration (${Math.floor(duration/60)} hours ${duration%60} minutes) is less than minimum required (2 hours)`
+            message: `Schedule duration (${Math.floor(duration / 60)} hours ${duration % 60} minutes) is less than minimum required (2 hours)`
           });
         }
       };
@@ -1096,8 +1289,8 @@ export default class SchedulesModel {
 
       if (scheduleData.isPaired && scheduleData.pairedSchedule) {
         const pairedSlot = {
-          days: Array.isArray(scheduleData.pairedSchedule.days) 
-            ? scheduleData.pairedSchedule.days 
+          days: Array.isArray(scheduleData.pairedSchedule.days)
+            ? scheduleData.pairedSchedule.days
             : [scheduleData.pairedSchedule.days],
           timeFrom: scheduleData.pairedSchedule.timeFrom,
           timeTo: scheduleData.pairedSchedule.timeTo,
@@ -1133,7 +1326,7 @@ export default class SchedulesModel {
         // A conflict exists if one range doesn't end before the other starts
         // and doesn't start after the other ends
         return !(
-          timeTo1.isSameOrBefore(timeFrom2) || 
+          timeTo1.isSameOrBefore(timeFrom2) ||
           timeFrom1.isSameOrAfter(timeTo2)
         );
       };
@@ -1146,7 +1339,7 @@ export default class SchedulesModel {
             isActive: true,
             'scheduleSlots.days': day
           };
-          
+
           // Add term filter if provided
           if (scheduleData.term) {
             baseQuery.term = new mongoose.Types.ObjectId(scheduleData.term);
@@ -1160,7 +1353,7 @@ export default class SchedulesModel {
           // 1. Check for room conflicts
           const roomId = new mongoose.Types.ObjectId(slot.room);
           console.log('Checking room conflicts for:', { day, roomId: roomId.toString(), time: `${slot.timeFrom}-${slot.timeTo}` });
-          
+
           const roomConflicts = await Schedules.aggregate([
             {
               $match: {
@@ -1195,14 +1388,14 @@ export default class SchedulesModel {
           ]);
 
           console.log(`Found ${roomConflicts.length} potential room conflicts`);
-          
+
           // Filter room conflicts by time overlap
           const filteredRoomConflicts = roomConflicts.filter(conflict => {
             const hasOverlap = isTimeOverlap(slot, conflict.scheduleSlots);
-            console.log('Time overlap check:', { 
-              hasOverlap, 
-              slot: `${slot.timeFrom}-${slot.timeTo}`, 
-              conflict: `${conflict.scheduleSlots.timeFrom}-${conflict.scheduleSlots.timeTo}` 
+            console.log('Time overlap check:', {
+              hasOverlap,
+              slot: `${slot.timeFrom}-${slot.timeTo}`,
+              conflict: `${conflict.scheduleSlots.timeFrom}-${conflict.scheduleSlots.timeTo}`
             });
             return hasOverlap;
           });
@@ -1260,7 +1453,7 @@ export default class SchedulesModel {
             ]);
 
             // Filter faculty conflicts by time overlap
-            const filteredFacultyConflicts = facultyConflicts.filter(conflict => 
+            const filteredFacultyConflicts = facultyConflicts.filter(conflict =>
               isTimeOverlap(slot, conflict.scheduleSlots)
             );
 
@@ -1281,8 +1474,8 @@ export default class SchedulesModel {
           }
 
           // 3. Check for section conflicts - Modified for multiple sections
-          const sections = Array.isArray(scheduleData.section) 
-            ? scheduleData.section 
+          const sections = Array.isArray(scheduleData.section)
+            ? scheduleData.section
             : [scheduleData.section];
 
           for (const sectionId of sections) {
@@ -1320,7 +1513,7 @@ export default class SchedulesModel {
             ]);
 
             // Filter section conflicts by time overlap
-            const filteredSectionConflicts = sectionConflicts.filter(conflict => 
+            const filteredSectionConflicts = sectionConflicts.filter(conflict =>
               isTimeOverlap(slot, conflict.scheduleSlots)
             );
 
@@ -1381,6 +1574,44 @@ export default class SchedulesModel {
         { $unwind: '$scheduleSlots' }
       ]);
 
+      // Get admin hours using findOne instead of aggregate
+      const adminHoursModel = mongoose.models.AdminHours || mongoose.model('AdminHours', require('../../../db/schema').AdminHourSchema);
+      const adminHours = await adminHoursModel.findOne({
+        user: new mongoose.Types.ObjectId(facultyId),
+        term: new mongoose.Types.ObjectId(termId),
+        isActive: true
+      });
+
+      // Calculate actual admin hours from approved slots
+      let actualAdminHours = 0;
+      if (adminHours && adminHours.slots) {
+        adminHours.slots.forEach(slot => {
+          if (slot.status === 'approved') {
+            // Parse times using moment
+            const start = moment(slot.startTime, 'h:mm A');
+            const end = moment(slot.endTime, 'h:mm A');
+            
+            // Handle case where end time is on next day
+            let duration = end.diff(start, 'hours', true);
+            if (duration < 0) {
+              duration += 24;
+            }
+            
+            actualAdminHours += duration;
+
+            // Debug logging
+            console.log('Admin Hours Slot:', {
+              day: slot.day,
+              start: slot.startTime,
+              end: slot.endTime,
+              duration,
+              runningTotal: actualAdminHours
+            });
+          }
+        });
+      }
+
+      // Calculate teaching hours
       let totalTeachingHours = 0;
       const subjectCodes = new Set();
 
@@ -1392,13 +1623,24 @@ export default class SchedulesModel {
         subjectCodes.add(schedule.subjectInfo.subjectCode);
       });
 
-      const adminHours = isFullTime ? Math.max(0, maxHours - totalTeachingHours) : 0;
+      // Calculate potential admin hours
+      const potentialAdminHours = isFullTime ? Math.max(0, maxHours - totalTeachingHours - actualAdminHours) : 0;
+
+      // Debug logging
+      console.log('Faculty Load Calculation:', {
+        faculty: facultyId,
+        employmentType: facultyInfo.employmentType,
+        totalTeaching: totalTeachingHours,
+        potentialAdmin: potentialAdminHours,
+        actualAdmin: actualAdminHours
+      });
 
       return {
         employmentType: facultyInfo.employmentType || 'N/A',
         totalHours: maxHours,
         teachingHours: Math.round(totalTeachingHours * 100) / 100,
-        adminHours: Math.round(adminHours * 100) / 100,
+        adminHours: Math.round(potentialAdminHours * 100) / 100,
+        actualAdminHours: Math.round(actualAdminHours * 100) / 100,
         subjectCodes: Array.from(subjectCodes)
       };
     } catch (error) {
@@ -1408,6 +1650,7 @@ export default class SchedulesModel {
         totalHours: 0,
         teachingHours: 0,
         adminHours: 0,
+        actualAdminHours: 0,
         subjectCodes: []
       };
     }

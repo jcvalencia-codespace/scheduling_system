@@ -7,6 +7,7 @@ import { addRoom, editRoom } from '../_actions';
 import Swal from 'sweetalert2';
 import useAuthStore from '../../../../../store/useAuthStore';
 import Select from 'react-select';
+import RoomModalSidebar from './RoomModalSidebar';
 
 const FLOOR_OPTIONS = ['1st Floor', '2nd Floor', '3rd Floor', '4th Floor'].map(floor => ({
   value: floor,
@@ -65,7 +66,7 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
     }),
     menuList: (base) => ({
       ...base,
-      maxHeight: '120px',
+      maxHeight: '160px',
       overflowY: 'auto',
       '&::-webkit-scrollbar': {
         width: '8px'
@@ -209,28 +210,40 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
-                <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
+              <Dialog.Panel className="relative transform overflow-hidden rounded-xl bg-white text-left shadow-xl transition-all sm:my-8 w-full max-w-5xl">
+                <div className="absolute right-0 top-0 pr-4 pt-4 block z-[9999]">
                   <button
                     type="button"
-                    className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                    className="rounded-full bg-white text-gray-400 hover:text-gray-500 hover:bg-gray-100 p-1.5 transition-colors shadow-sm"
                     onClick={handleClose}
-                    disabled={isSubmitting}
                   >
                     <span className="sr-only">Close</span>
-                    <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                    <XMarkIcon className="h-5 w-5" aria-hidden="true" />
                   </button>
                 </div>
-                <div className="sm:flex sm:items-start">
-                  <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                    <Dialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900">
-                      {room ? 'Edit Room' : 'Add Room'}
-                    </Dialog.Title>
-                    <div className="mt-4">
-                      <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+
+                <div className="flex flex-col md:flex-row min-h-[600px]">
+                  <RoomModalSidebar room={room} />
+                  
+                  {/* Main content */}
+                  <div className="w-full md:w-2/3 flex flex-col">
+                    <form onSubmit={handleSubmit} className="flex-1 flex flex-col h-full">
+                      {/* Form content */}
+                      <div className="flex-1 p-8 space-y-8"> {/* Changed space-y-6 to space-y-8 */}
+                        {/* Title */}
+                        <div className="pt-4"> {/* Added padding top */}
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            Room Information
+                          </h3>
+                          <p className="mt-1 text-sm text-gray-500">
+                            Fill in the details for the room
+                          </p>
+                        </div>
+
+                        {/* Room Code & Name */}
+                        <div className="grid grid-cols-2 gap-6">
                           <div>
-                            <label htmlFor="roomCode" className="block text-sm font-medium text-gray-700">
+                            <label htmlFor="roomCode" className="block text-sm font-medium text-gray-700 mb-1">
                               Room Code
                             </label>
                             <input
@@ -240,13 +253,13 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                               value={formData.roomCode}
                               onChange={handleInputChange}
                               disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                              className="block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
                               required
                             />
                           </div>
 
                           <div>
-                            <label htmlFor="roomName" className="block text-sm font-medium text-gray-700">
+                            <label htmlFor="roomName" className="block text-sm font-medium text-gray-700 mb-1">
                               Room Name
                             </label>
                             <input
@@ -256,13 +269,16 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                               value={formData.roomName}
                               onChange={handleInputChange}
                               disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                              className="block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
                               required
                             />
                           </div>
+                        </div>
 
+                        {/* Room Type & Floor */}
+                        <div className="grid grid-cols-2 gap-6">
                           <div>
-                            <label htmlFor="type" className="block text-sm font-medium text-gray-700">
+                            <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">
                               Room Type
                             </label>
                             <Select
@@ -272,7 +288,6 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                               onChange={(option, action) => handleChange(option, { ...action, name: 'type' })}
                               options={ROOM_TYPES}
                               styles={customStyles}
-                              className="mt-1"
                               classNamePrefix="select"
                               placeholder="Select Room Type"
                               isClearable
@@ -283,7 +298,7 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                           </div>
 
                           <div>
-                            <label htmlFor="floor" className="block text-sm font-medium text-gray-700">
+                            <label htmlFor="floor" className="block text-sm font-medium text-gray-700 mb-1">
                               Floor
                             </label>
                             <Select
@@ -293,7 +308,6 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                               onChange={(option, action) => handleChange(option, { ...action, name: 'floor' })}
                               options={FLOOR_OPTIONS}
                               styles={customStyles}
-                              className="mt-1"
                               classNamePrefix="select"
                               placeholder="Select Floor"
                               isClearable
@@ -302,9 +316,12 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                               isDisabled={isSubmitting}
                             />
                           </div>
+                        </div>
 
+                        {/* Department & Capacity */}
+                        <div className="grid grid-cols-2 gap-6">
                           <div>
-                            <label htmlFor="departmentCode" className="block text-sm font-medium text-gray-700">
+                            <label htmlFor="departmentCode" className="block text-sm font-medium text-gray-700 mb-1">
                               Department
                             </label>
                             <Select
@@ -314,19 +331,17 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                               onChange={(option, action) => handleChange(option, { ...action, name: 'departmentCode' })}
                               options={departmentOptions}
                               styles={customStyles}
-                              className="mt-1"
                               classNamePrefix="select"
                               placeholder="Select Department"
                               isClearable
                               isSearchable
-                              menuPlacement="top" 
                               required
                               isDisabled={isSubmitting}
                             />
                           </div>
 
                           <div>
-                            <label htmlFor="capacity" className="block text-sm font-medium text-gray-700">
+                            <label htmlFor="capacity" className="block text-sm font-medium text-gray-700 mb-1">
                               Capacity
                             </label>
                             <input
@@ -336,32 +351,48 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                               value={formData.capacity}
                               onChange={handleInputChange}
                               disabled={isSubmitting}
-                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                              className="block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
                               min="0"
                               required
                             />
                           </div>
                         </div>
+                      </div>
 
-                        <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                          <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="inline-flex w-full justify-center rounded-md bg-[#323E8F] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#35408E] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:ml-3 sm:w-auto"
-                          >
-                            {room ? 'Update' : 'Add'}
-                          </button>
-                          <button
-                            type="button"
-                            disabled={isSubmitting}
-                            className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:mt-0 sm:w-auto"
-                            onClick={handleClose}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </form>
-                    </div>
+                      {/* Footer */}
+                      <div className="flex justify-end space-x-3 p-6 bg-gray-50 border-t border-gray-200">
+                        <button
+                          type="button"
+                          disabled={isSubmitting}
+                          className="inline-flex justify-center rounded-md bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors"
+                          onClick={handleClose}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={isSubmitting}
+                          className="inline-flex justify-center items-center rounded-md bg-[#323E8F] px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-[#35408E] transition-colors disabled:opacity-70"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <svg
+                                className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Processing...
+                            </>
+                          ) : (
+                            <>{room ? 'Update Room' : 'Add Room'}</>
+                          )}
+                        </button>
+                      </div>
+                    </form>
                   </div>
                 </div>
               </Dialog.Panel>

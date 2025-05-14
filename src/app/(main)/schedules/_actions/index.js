@@ -3,6 +3,7 @@
 import TermsModel from '@/app/models/Terms';
 import schedulesModel from '@/app/models/Schedules';
 import adminHoursModel from '@/app/models/AdminHours';
+import sectionsModel from '@/app/models/Sections'; // Add sectionsModel import
 import mongoose from 'mongoose';
 import moment from 'moment'; // Add moment import
 
@@ -10,46 +11,48 @@ export async function getActiveTerm() {
   try {
     const term = await TermsModel.getActiveTerm();
     if (!term) {
-      return { error: 'No active term found' };
+      throw new Error('No active term found');
     }
-    console.log('Active term in action:', term); // Debug log
-    return { term };
+
+    // Ensure we're returning an object with term property
+    return { 
+      term: {
+        id: term.id,
+        term: term.term,
+        academicYear: term.academicYear,
+        startDate: term.startDate,
+        endDate: term.endDate,
+        status: term.status,
+        isVisible: term.isVisible
+      }
+    };
   } catch (error) {
     console.error('Error getting active term:', error);
-    return { error: error.message || 'Failed to get active term' };
+    throw new Error('No active term found. Please contact an administrator.');
   }
 }
 
 export async function getScheduleFormData() {
   try {
-    const [sections, faculty, subjects, rooms] = await Promise.all([
-      schedulesModel.getSections(),
+    // Get the sections with proper department filtering
+    const sections = await schedulesModel.getSectionsForUser();
+    const [faculty, subjects, rooms] = await Promise.all([
       schedulesModel.getFaculty(),
       schedulesModel.getSubjects(),
       schedulesModel.getRooms(),
     ]);
 
-    // Serialize the data to handle MongoDB objects
-    const serializedData = {
-      sections: JSON.parse(JSON.stringify(sections || [])),
-      faculty: JSON.parse(JSON.stringify(faculty || [])),
-      subjects: JSON.parse(JSON.stringify(subjects || [])),
-      rooms: JSON.parse(JSON.stringify(rooms || [])),
-    };
+    console.log('Fetched sections:', sections); // Debug log
 
-    if (!sections?.length || !faculty?.length || !subjects?.length || !rooms?.length) {
-      console.warn('Some data collections are empty:', {
-        sectionsCount: sections?.length,
-        facultyCount: faculty?.length,
-        subjectsCount: subjects?.length,
-        roomsCount: rooms?.length
-      });
-    }
-
-    return serializedData;
+    return JSON.parse(JSON.stringify({
+      sections: sections || [],
+      faculty: faculty || [],
+      subjects: subjects || [],
+      rooms: rooms || [],
+    }));
   } catch (error) {
     console.error('Error fetching schedule form data:', error);
-    return { error: error.message || 'Failed to fetch form data' };
+    throw error;
   }
 }
 
@@ -185,34 +188,26 @@ export async function getAllSections() {
     if (!sections) {
       throw new Error('Failed to fetch sections');
     }
-    
-    // Ensure proper serialization of ObjectIds
-    const serializedSections = sections.map(section => ({
+
+    // Properly serialize the sections data
+    const serializedSections = JSON.parse(JSON.stringify(sections.map(section => ({
       ...section,
-      _id: section._id.toString(),
+      _id: section._id?.toString(),
       course: section.course ? {
         ...section.course,
-        _id: section.course._id.toString(),
+        _id: section.course._id?.toString(),
         department: section.course.department ? {
           ...section.course.department,
-          _id: section.course.department._id.toString()
+          _id: section.course.department._id?.toString()
         } : null
       } : null,
       department: section.department ? {
         ...section.department,
-        _id: section.department._id.toString()
+        _id: section.department._id?.toString()
       } : null
-    }));
+    }))));
 
-    // Remove duplicates
-    const uniqueSections = serializedSections.reduce((acc, section) => {
-      if (!acc.find(s => s.sectionName === section.sectionName)) {
-        acc.push(section);
-      }
-      return acc;
-    }, []);
-
-    return { sections: uniqueSections };
+    return { sections: serializedSections };
   } catch (error) {
     console.error('Error fetching all sections:', error);
     return { error: error.message || 'Failed to fetch sections' };
@@ -316,20 +311,23 @@ export async function approveAdminHours(adminHoursId, slotId, approverId, approv
   }
 }
 
-export async function cancelAdminHours(adminHoursId) {
+export async function cancelAdminHours(adminHoursId, slotId) {
   try {
-    if (!adminHoursId) {
-      throw new Error('Admin hours ID is required');
+    if (!adminHoursId || !slotId) {
+      throw new Error('Admin hours ID and slot ID are required');
     }
 
-    console.log('Attempting to cancel admin hours with ID:', adminHoursId);
-    
-    const result = await adminHoursModel.cancelAdminHours(adminHoursId);
-    if (!result) {
-      throw new Error('Failed to cancel admin hours - No result returned');
+    const response = await adminHoursModel.cancelAdminHours(adminHoursId, slotId);
+
+    if (!response) {
+      throw new Error('Failed to cancel admin hours');
     }
-    
-    return { success: true, message: 'Admin hours cancelled successfully' };
+
+    return { 
+      success: true, 
+      message: 'Admin hours slot cancelled successfully',
+      hours: JSON.parse(JSON.stringify(response))
+    };
   } catch (error) {
     console.error('Error in cancelAdminHours action:', error);
     return { 

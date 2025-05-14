@@ -43,7 +43,7 @@ class SubjectsModel {
   }
 
   async validateSubjectData(subjectData) {
-    const requiredFields = ['subjectCode', 'subjectName', 'lectureHours', 'labHours', 'department'];
+    const requiredFields = ['subjectCode', 'subjectName', 'department'];
     for (const field of requiredFields) {
       if (!subjectData[field] && subjectData[field] !== 0) {
         throw new Error(`${field} is required`);

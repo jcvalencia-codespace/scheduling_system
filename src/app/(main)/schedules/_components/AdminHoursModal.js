@@ -274,7 +274,7 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
 
       if (hours && hours.slots) {
         const activeSlots = hours.slots
-          .filter(slot => ["pending", "approved", "rejected"].includes(slot.status))
+          .filter(slot => ["pending", "approved", "rejected", "cancelled"].includes(slot.status))
           .map(slot => ({
             ...slot,
             adminHoursId: hours._id
@@ -347,10 +347,12 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
   };
 
   const handleRealTimeUpdate = (updatedRequest) => {
-    const newSlots = updatedRequest.slots.map(slot => ({
-      ...slot,
-      adminHoursId: updatedRequest._id
-    }));
+    const newSlots = updatedRequest.slots
+      .filter(slot => ["pending", "approved", "rejected", "cancelled"].includes(slot.status))
+      .map(slot => ({
+        ...slot,
+        adminHoursId: updatedRequest._id
+      }));
 
     setExistingSlots(prev => {
       // Remove any slots that match the updated request's slots
@@ -438,7 +440,7 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
     }
   };
 
-  const handleCancelRequest = async (adminHoursId) => {
+  const handleCancelRequest = async (adminHoursId, slotId) => {
     try {
       const result = await Swal.fire({
         title: "Cancel Request?",
@@ -453,7 +455,7 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
 
       if (result.isConfirmed) {
         setIsLoading(true)
-        const response = await cancelAdminHours(adminHoursId)
+        const response = await cancelAdminHours(adminHoursId, slotId)
 
         if (response.error) {
           throw new Error(response.error)
@@ -520,8 +522,8 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
             >
               <Dialog.Panel className="relative transform overflow-hidden rounded-xl bg-white text-left shadow-xl transition-all w-full max-w-6xl sm:my-8 flex flex-col md:flex-row">
                 {/* Left sidebar */}
-                <div className="bg-indigo-700 text-white p-8 md:w-80 flex flex-col">
-                  <div className="flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-full mb-6 mx-auto">
+                <div className="bg-[#35408E] text-white p-8 md:w-80 flex flex-col">
+                  <div className="flex items-center justify-center w-16 h-16 bg-white/20 rounded-full mb-6 mx-auto">
                     <ClockIcon className="h-8 w-8 text-white" aria-hidden="true" />
                   </div>
 
@@ -529,7 +531,7 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
 
                   {/* Add role badge */}
                   <div className="mb-6 flex justify-center">
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-600 text-white">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white/20 text-white">
                       {isAdmin ? "Administrator" : isDean ? "Dean" : currentUser?.role || "Faculty"}
                     </span>
                   </div>
@@ -542,25 +544,25 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
                       {isAdmin && (
                         <ol className="space-y-4 text-sm">
                           <li className="flex gap-3">
-                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-medium">
+                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-white/20 text-white text-xs font-medium">
                               1
                             </span>
                             <span>Select faculty member to review or assign hours</span>
                           </li>
                           <li className="flex gap-3">
-                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-medium">
+                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-white/20 text-white text-xs font-medium">
                               2
                             </span>
                             <span>Review pending admin hour requests</span>
                           </li>
                           <li className="flex gap-3">
-                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-medium">
+                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-white/20 text-white text-xs font-medium">
                               3
                             </span>
                             <span>Assign new admin hours for faculty members</span>
                           </li>
                           <li className="flex gap-3">
-                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-medium">
+                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-white/20 text-white text-xs font-medium">
                               4
                             </span>
                             <span>Approve or reject pending requests</span>
@@ -572,7 +574,7 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
                       {isDean && (
                         <ol className="space-y-4 text-sm">
                           <li className="flex gap-3">
-                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-medium">
+                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-white/20 text-white text-xs font-medium">
                               1
                             </span>
                             <span>
@@ -580,19 +582,19 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
                             </span>
                           </li>
                           <li className="flex gap-3">
-                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-medium">
+                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-white/20 text-white text-xs font-medium">
                               2
                             </span>
                             <span>Review existing admin hours</span>
                           </li>
                           <li className="flex gap-3">
-                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-medium">
+                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-white/20 text-white text-xs font-medium">
                               3
                             </span>
                             <span>Add new admin hours by day and time</span>
                           </li>
                           <li className="flex gap-3">
-                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-medium">
+                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-white/20 text-white text-xs font-medium">
                               4
                             </span>
                             <span>Save your changes (your hours are auto-approved)</span>
@@ -604,25 +606,25 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
                       {!isAdmin && !isDean && (
                         <ol className="space-y-4 text-sm">
                           <li className="flex gap-3">
-                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-medium">
+                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-white/20 text-white text-xs font-medium">
                               1
                             </span>
                             <span>Review your term information</span>
                           </li>
                           <li className="flex gap-3">
-                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-medium">
+                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-white/20 text-white text-xs font-medium">
                               2
                             </span>
                             <span>Review your submitted admin hours</span>
                           </li>
                           <li className="flex gap-3">
-                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-medium">
+                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-white/20 text-white text-xs font-medium">
                               3
                             </span>
                             <span>Add new admin hours by day and time</span>
                           </li>
                           <li className="flex gap-3">
-                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-medium">
+                            <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-white/20 text-white text-xs font-medium">
                               4
                             </span>
                             <span>Submit for approval (pending hours can be edited)</span>
@@ -739,12 +741,15 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
                                             </td>
                                             <td className="px-4 py-3">
                                               <span
-                                                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${slot.status === "approved"
+                                                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                                                  slot.status === "approved"
                                                     ? "bg-green-100 text-green-800"
                                                     : slot.status === "rejected"
                                                       ? "bg-red-100 text-red-800"
-                                                      : "bg-yellow-100 text-yellow-800"
-                                                  }`}
+                                                      : slot.status === "cancelled"
+                                                        ? "bg-gray-100 text-gray-800"
+                                                        : "bg-yellow-100 text-yellow-800"
+                                                }`}
                                               >
                                                 {slot.status.charAt(0).toUpperCase() + slot.status.slice(1)}
                                               </span>
@@ -760,7 +765,7 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
                                                       <PencilSquareIcon className="h-4 w-4" />
                                                     </button>
                                                     <button
-                                                      onClick={() => handleCancelRequest(slot.adminHoursId)}
+                                                      onClick={() => handleCancelRequest(slot.adminHoursId, slot._id)}
                                                       className="text-red-600 hover:text-red-800 transition-colors p-1 rounded-full hover:bg-red-50"
                                                     >
                                                       <XMarkIcon className="h-4 w-4" />
@@ -918,7 +923,7 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
                                   <button
                                     type="button"
                                     onClick={handleAddSlot}
-                                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-[#35408E] hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
                                   >
                                     <PlusIcon className="h-5 w-5 mr-2" aria-hidden="true" />
                                     Add New Row
@@ -958,7 +963,7 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
                         </button>
                         <button
                           type="button"
-                          className="px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-sm transition-colors"
+                          className="px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-[#35408E] hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-sm transition-colors"
                           onClick={handleSave}
                           disabled={isLoading}
                         >

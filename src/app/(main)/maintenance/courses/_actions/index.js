@@ -55,37 +55,32 @@ export async function getCourses() {
 export async function getDepartments() {
   try {
     const departments = await departmentsModel.getAllDepartments();
-    return { departments };
+    return { departments: JSON.parse(JSON.stringify(departments)) };
   } catch (error) {
-    console.error('Error in getDepartments:', error);
-    return { error: error.message || 'Failed to fetch departments' };
+    console.error('Error fetching departments:', error);
+    return { error: 'Failed to fetch departments' };
   }
 }
 
-export async function editCourse(courseCode, formData) {
+export async function editCourse(originalCourseCode, formData) {
   try {
-    const updateData = {
-      courseTitle: formData.get('courseTitle')?.trim(),
-      department: formData.get('departmentCode')?.trim(), // Keep form field name but map to department
-    };
-
-    // Validate required fields
-    if (!updateData.courseTitle || !updateData.department) {
-      throw new Error('All fields are required');
-    }
-
-    // Check if department exists and get its ObjectId
-    const department = await departmentsModel.getDepartmentByCode(updateData.department);
+    // Get department to get its _id
+    const department = await departmentsModel.getDepartmentByCode(
+      formData.get('departmentCode')?.trim()
+    );
     if (!department) {
       throw new Error('Selected department does not exist');
     }
-    updateData.department = department._id; // Use the department's ObjectId
 
-    const updatedCourse = await coursesModel.updateCourse(courseCode, updateData);
-    if (!updatedCourse) {
-      throw new Error('Course not found');
-    }
+    const updateData = {
+      courseCode: formData.get('courseCode')?.trim().toUpperCase(),
+      courseTitle: formData.get('courseTitle')?.trim(),
+      department: department._id // Use department's ObjectId
+    };
 
+    // Update course directly using the model
+    const updatedCourse = await coursesModel.updateCourse(originalCourseCode, updateData);
+    
     revalidatePath('/maintenance/courses');
     return { success: true, course: updatedCourse };
   } catch (error) {

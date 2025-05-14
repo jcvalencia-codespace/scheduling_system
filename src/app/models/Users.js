@@ -18,61 +18,28 @@ class UsersModel {
     return this.MODEL;
   }
 
-  async hashPassword(password) {
-    const salt = await bcrypt.genSalt(10);
-    return bcrypt.hash(password, salt);
-  }
-
-  toPlainObject(doc) {
-    if (!doc) return null;
-    const obj = typeof doc.toObject === 'function' ? doc.toObject() : doc;
-    return {
-      ...obj,
-      _id: obj._id.toString(),
-      createdAt: obj.createdAt?.toISOString(),
-      updatedAt: obj.updatedAt?.toISOString(),
-      department: obj.department?._id ? {
-        ...obj.department,
-        _id: obj.department._id.toString()
-      } : obj.department,
-      course: obj.course?._id ? {
-        ...obj.course,
-        _id: obj.course._id.toString()
-      } : obj.course,
-    };
-  }
-
   async createUser(userData) {
     try {
       const User = await this.initModel();
+      // Remove department and course if Administrator
       if (userData.role === 'Administrator') {
         delete userData.department;
         delete userData.course;
       }
-
-      if (userData.password) {
-        userData.password = await this.hashPassword(userData.password);
-      }
+      
+      // Hash the password before saving
+      const salt = await bcrypt.genSalt(10);
+      userData.password = await bcrypt.hash(userData.password, salt);
       
       const user = new User(userData);
       const savedUser = await user.save();
-      
-      // Convert to plain object and handle dates
+      // Convert to plain object and remove Mongoose specific fields
       const plainUser = savedUser.toObject();
-      return {
-        ...plainUser,
-        _id: plainUser._id.toString(),
-        createdAt: plainUser.createdAt?.toISOString(),
-        updatedAt: plainUser.updatedAt?.toISOString(),
-        department: plainUser.department?._id ? {
-          ...plainUser.department,
-          _id: plainUser.department._id.toString()
-        } : plainUser.department,
-        course: plainUser.course?._id ? {
-          ...plainUser.course,
-          _id: plainUser.course._id.toString()
-        } : plainUser.course,
-      };
+      delete plainUser.$__;
+      delete plainUser.$errors;
+      delete plainUser.$isNew;
+      
+      return plainUser;
     } catch (error) {
       console.error('Error in createUser:', error);
       throw error;
@@ -93,9 +60,8 @@ class UsersModel {
           path: 'course',
           model: Courses,
           select: 'courseCode courseTitle'
-        })
-        .lean();
-      return users.map(user => this.toPlainObject(user));
+        });
+      return JSON.parse(JSON.stringify(users));
     } catch (error) {
       console.error('Error in getAllUsers:', error);
       throw error;
@@ -105,7 +71,7 @@ class UsersModel {
   async getUserByEmail(email) {
     const User = await this.initModel();
     const user = await User.findOne({ email });
-    return user ? this.toPlainObject(user) : null;
+    return user ? JSON.parse(JSON.stringify(user)) : null;
   }
 
   async updateUser(userId, updateData) {
@@ -116,17 +82,18 @@ class UsersModel {
         delete updateData.course;
       }
 
-      // Hash password if it's being updated
+      // Hash the password if it's being updated
       if (updateData.password) {
-        updateData.password = await this.hashPassword(updateData.password);
+        const salt = await bcrypt.genSalt(10);
+        updateData.password = await bcrypt.hash(updateData.password, salt);
       }
 
       const user = await User.findByIdAndUpdate(userId, updateData, { 
         new: true, 
         runValidators: true 
-      }).lean();
+      }).lean(); // Use lean() to get plain JavaScript object
 
-      return this.toPlainObject(user);
+      return user;
     } catch (error) {
       console.error('Error in updateUser:', error);
       throw error;
@@ -135,8 +102,8 @@ class UsersModel {
 
   async deleteUser(userId) {
     const User = await this.initModel();
-    const deletedUser = await User.findByIdAndDelete(userId).lean();
-    return this.toPlainObject(deletedUser);
+    const deletedUser = await User.findByIdAndDelete(userId);
+    return deletedUser ? JSON.parse(JSON.stringify(deletedUser)) : null;
   }
 
   async validatePassword(user, password) {
@@ -203,36 +170,23 @@ class UsersModel {
   async getFacultyByDepartment(departmentId = null, isAdmin = false) {
     try {
       const User = await this.initModel();
-      
-      // Build the query based on parameters
+      // If admin, fetch all faculty regardless of department
       const query = isAdmin 
         ? { role: { $in: ['Faculty', 'Program Chair', 'Dean'] } }
-        : departmentId
-          ? {
-              role: { $in: ['Faculty', 'Program Chair'] },
-              $or: [
-                { department: new mongoose.Types.ObjectId(departmentId) },
-                { 'department._id': new mongoose.Types.ObjectId(departmentId) }
-              ]
-            }
-          : { role: { $in: ['Faculty', 'Program Chair'] } };
-
-      console.log('Faculty by department query:', JSON.stringify(query));
+        : {
+            role: { $in: ['Faculty', 'Program Chair', 'Dean'] },
+            ...(departmentId && { department: new mongoose.Types.ObjectId(departmentId) })
+          };
 
       const faculty = await User.find(query)
-        .select('firstName lastName employmentType department course')
+        .select('firstName lastName employmentType department')
         .populate({
           path: 'department',
           model: Departments
         })
-        .populate({
-          path: 'course',
-          model: Courses
-        })
         .sort({ lastName: 1, firstName: 1 });
 
-      console.log(`Found ${faculty.length} faculty members for department ${departmentId}`);
-      return faculty.map(member => this.toPlainObject(member));
+      return JSON.parse(JSON.stringify(faculty));
     } catch (error) {
       console.error('Error in getFacultyByDepartment:', error);
       throw error;
@@ -244,17 +198,10 @@ class UsersModel {
       const User = await this.initModel();
       const query = isAdmin 
         ? { role: { $in: ['Faculty', 'Program Chair', 'Dean'] } }
-        : courseId
-          ? {
-              role: { $in: ['Faculty', 'Program Chair'] },
-              $or: [
-                { course: new mongoose.Types.ObjectId(courseId) },
-                { 'course._id': new mongoose.Types.ObjectId(courseId) }
-              ]
-            }
-          : { role: { $in: ['Faculty', 'Program Chair'] } };
-
-      console.log('Faculty by course query:', JSON.stringify(query));
+        : {
+            role: { $in: ['Faculty', 'Program Chair'] },
+            ...(courseId && { course: new mongoose.Types.ObjectId(courseId) })
+          };
 
       const faculty = await User.find(query)
         .select('firstName lastName employmentType department course')
@@ -268,8 +215,7 @@ class UsersModel {
         })
         .sort({ lastName: 1, firstName: 1 });
 
-      console.log(`Found ${faculty.length} faculty members for course ${courseId}`);
-      return faculty.map(member => this.toPlainObject(member));
+      return JSON.parse(JSON.stringify(faculty));
     } catch (error) {
       console.error('Error in getFacultyByCourse:', error);
       throw error;
@@ -281,7 +227,7 @@ class UsersModel {
       const departments = await Departments.find({ isActive: true })
         .select('departmentCode departmentName')
         .sort({ departmentName: 1 });
-      return departments.map(department => this.toPlainObject(department));
+      return JSON.parse(JSON.stringify(departments));
     } catch (error) {
       console.error('Error fetching departments:', error);
       throw error;
@@ -298,7 +244,7 @@ class UsersModel {
       const courses = await Course.find({ isActive: true })
         .populate('department')
         .sort({ courseCode: 1 });
-      return courses.map(course => this.toPlainObject(course));
+      return courses;
     } catch (error) {
       console.error('Error in getAllCourses:', error);
       throw error;

@@ -60,7 +60,7 @@ function AssignSubjectsPageContent() {
   const loadAssignments = async () => {
     try {
       setIsLoading(true);
-      const data = await getAssignments();
+      const data = await getAssignments(user?._id); // Pass user ID here
       setAssignments(data);
     } catch (error) {
       console.error('Error loading assignments:', error);
@@ -228,11 +228,11 @@ function AssignSubjectsPageContent() {
     }
   };
 
-  // Add query to fetch subject assignments
+  // Update the query to include userId
   const { data: subjectAssignments = [] } = useQuery({
-    queryKey: ['subjectAssignments'],
+    queryKey: ['subjectAssignments', user?._id],
     queryFn: async () => {
-      const { success, assignments } = await getSubjectAssignments();
+      const { success, assignments } = await getSubjectAssignments(user?._id);
       if (success) return assignments;
       return [];
     }

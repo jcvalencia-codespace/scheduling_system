@@ -6,6 +6,7 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 import Swal from 'sweetalert2';
 import { addCourse, editCourse, getDepartments } from '../_actions';
 import Select from 'react-select';
+import CourseModalSidebar from './CourseModalSidebar';
 
 const initialFormState = {
   courseCode: '',
@@ -17,6 +18,7 @@ export default function AddEditCourseModal({ show, onClose, course, onSuccess })
   const [formData, setFormData] = useState(initialFormState);
   const [departments, setDepartments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const customStyles = {
     control: (base, state) => ({
@@ -47,7 +49,7 @@ export default function AddEditCourseModal({ show, onClose, course, onSuccess })
     }),
     menu: (base) => ({
       ...base,
-      zIndex: 100,
+      zIndex: 110, // Increased z-index for dropdown menu
     }),
     menuList: (base) => ({
       ...base,
@@ -107,7 +109,8 @@ export default function AddEditCourseModal({ show, onClose, course, onSuccess })
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    setIsSubmitting(true);
+
     try {
       const formDataToSend = new FormData();
       formDataToSend.append('courseCode', formData.courseCode);
@@ -139,6 +142,8 @@ export default function AddEditCourseModal({ show, onClose, course, onSuccess })
         text: error.message || `Failed to ${course ? 'update' : 'add'} course`,
         confirmButtonColor: '#323E8F',
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -167,7 +172,7 @@ export default function AddEditCourseModal({ show, onClose, course, onSuccess })
 
   return (
     <Transition.Root show={show} as={Fragment}>
-      <Dialog as="div" className="relative z-10" onClose={handleClose}>
+      <Dialog as="div" className="relative z-[100]" onClose={handleClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -191,88 +196,122 @@ export default function AddEditCourseModal({ show, onClose, course, onSuccess })
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
-                <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
+              <Dialog.Panel className="relative transform overflow-hidden rounded-xl bg-white text-left shadow-xl transition-all sm:my-8 w-full max-w-5xl">
+                <div className="absolute right-0 top-0 pr-4 pt-4 block z-[9999]">
                   <button
                     type="button"
-                    className="rounded-md bg-white text-gray-400 hover:text-gray-500"
+                    className="rounded-full bg-white text-gray-400 hover:text-gray-500 hover:bg-gray-100 p-1.5 transition-colors shadow-sm"
                     onClick={handleClose}
                   >
                     <span className="sr-only">Close</span>
-                    <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                    <XMarkIcon className="h-5 w-5" aria-hidden="true" />
                   </button>
                 </div>
-                <div className="sm:flex sm:items-start">
-                  <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                    <Dialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900">
-                      {course ? 'Edit Course' : 'Add Course'}
-                    </Dialog.Title>
-                    <form onSubmit={handleSubmit} className="mt-6 space-y-6">
-                      <div>
-                        <label htmlFor="courseCode" className="block text-sm font-medium text-gray-700">
-                          Course Code
-                        </label>
-                        <input
-                          type="text"
-                          name="courseCode"
-                          id="courseCode"
-                          value={formData.courseCode}
-                          onChange={(e) => setFormData({ ...formData, courseCode: e.target.value })}
-                          className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
-                          disabled={!!course}
-                          required
-                        />
+
+                <div className="flex flex-col md:flex-row min-h-[600px]">
+                  <CourseModalSidebar course={course} />
+                  
+                  {/* Main content */}
+                  <div className="w-full md:w-2/3 flex flex-col">
+                    <form onSubmit={handleSubmit} className="flex-1 flex flex-col h-full">
+                      {/* Form content */}
+                      <div className="flex-1 p-8 space-y-8">
+                        {/* Title */}
+                        <div className="pt-4">
+                          <h3 className="text-lg font-medium text-gray-900">
+                            Course Information
+                          </h3>
+                          <p className="mt-1 text-sm text-gray-500">
+                            Fill in the details for the course
+                          </p>
+                        </div>
+
+                        <div className="space-y-6">
+                          <div>
+                            <label htmlFor="courseCode" className="block text-sm font-medium text-gray-700">
+                              Course Code
+                            </label>
+                            <input
+                              type="text"
+                              name="courseCode"
+                              id="courseCode"
+                              value={formData.courseCode}
+                              onChange={(e) => setFormData({ ...formData, courseCode: e.target.value })}
+                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
+                              placeholder="Enter course code"
+                              required
+                            />
+                          </div>
+
+                          <div>
+                            <label htmlFor="courseTitle" className="block text-sm font-medium text-gray-700">
+                              Course Title
+                            </label>
+                            <input
+                              type="text"
+                              name="courseTitle"
+                              id="courseTitle"
+                              value={formData.courseTitle}
+                              onChange={(e) => setFormData({ ...formData, courseTitle: e.target.value })}
+                              className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
+                              required
+                            />
+                          </div>
+
+                          <div>
+                            <label htmlFor="departmentCode" className="block text-sm font-medium text-gray-700">
+                              Department
+                            </label>
+                            <Select
+                              id="departmentCode"
+                              name="departmentCode"
+                              value={departmentOptions.find(option => option.value === formData.departmentCode)}
+                              onChange={(option, action) => handleChange(option, { ...action, name: 'departmentCode' })}
+                              options={departmentOptions}
+                              styles={customStyles}
+                              className="mt-1"
+                              classNamePrefix="select"
+                              placeholder="Select a department"
+                              isClearable
+                              isSearchable
+                              menuPlacement="top"                           
+                              required
+                            />
+                          </div>
+                        </div>
                       </div>
 
-                      <div>
-                        <label htmlFor="courseTitle" className="block text-sm font-medium text-gray-700">
-                          Course Title
-                        </label>
-                        <input
-                          type="text"
-                          name="courseTitle"
-                          id="courseTitle"
-                          value={formData.courseTitle}
-                          onChange={(e) => setFormData({ ...formData, courseTitle: e.target.value })}
-                          className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor="departmentCode" className="block text-sm font-medium text-gray-700">
-                          Department
-                        </label>
-                        <Select
-                          id="departmentCode"
-                          name="departmentCode"
-                          value={departmentOptions.find(option => option.value === formData.departmentCode)}
-                          onChange={(option, action) => handleChange(option, { ...action, name: 'departmentCode' })}
-                          options={departmentOptions}
-                          styles={customStyles}
-                          className="mt-1"
-                          classNamePrefix="select"
-                          placeholder="Select a department"
-                          isClearable
-                          isSearchable
-                          menuPlacement="top"                           
-                          required
-                        />
-                      </div>
-
-                      <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                        <button
-                          type="submit"
-                          className="inline-flex w-full justify-center rounded-md bg-[#323E8F] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#35408E] sm:ml-3 sm:w-auto"
-                        >
-                          {course ? 'Update' : 'Add'}
-                        </button>
+                      {/* Footer */}
+                      <div className="flex justify-end space-x-3 p-6 bg-gray-50 border-t border-gray-200">
                         <button
                           type="button"
-                          className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+                          disabled={isSubmitting}
+                          className="inline-flex justify-center rounded-md bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors"
                           onClick={handleClose}
                         >
                           Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={isSubmitting}
+                          className="inline-flex justify-center items-center rounded-md bg-[#323E8F] px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-[#35408E] transition-colors disabled:opacity-70"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <svg
+                                className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Processing...
+                            </>
+                          ) : (
+                            <>{course ? 'Update Course' : 'Add Course'}</>
+                          )}
                         </button>
                       </div>
                     </form>

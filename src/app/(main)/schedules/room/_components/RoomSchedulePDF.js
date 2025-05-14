@@ -1,138 +1,146 @@
 import { jsPDF } from "jspdf";
 import autoTable from 'jspdf-autotable';
 
+// Add helper function for loading images
+const loadImage = (src) => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = src;
+    img.onload = () => resolve(img);
+  });
+};
+
 const RoomSchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
-  const generatePDF = () => {
+  const generatePDF = async () => {
     const doc = new jsPDF();
-    // Center logo calculation
-    const pageWidth = doc.internal.pageSize.width;
-    const logoWidth = 40;
-    const logoX = (pageWidth - logoWidth) / 2;
 
-    // Load and add image using canvas
-    const logo = new Image();
-    logo.src = 'https://i.imgur.com/6yZFd27.png';
+    try {
+      // Load header image first
+      const headerImg = await loadImage("https://i.imgur.com/6yZFd27.png").catch(() => null);
+      const imgWidth = 40;
+      const imgHeight = 12;
+      
+      if (headerImg) {
+        // Center the image horizontally
+        const xPosition = (doc.internal.pageSize.width - imgWidth) / 2;
+        doc.addImage(headerImg, "PNG", xPosition, 2, imgWidth, imgHeight);
+      }
 
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    logo.onload = () => {
-      canvas.width = logo.width;
-      canvas.height = logo.height;
-      ctx.drawImage(logo, 0, 0);
-      const dataUrl = canvas.toDataURL('image/png');
-      doc.addImage(dataUrl, 'PNG', logoX, 5, logoWidth, 12);
-    };
-    // Add header text directly without logo
-    doc.setFontSize(16);
-    doc.setTextColor(26, 35, 126);
-    doc.text('Room Schedule', doc.internal.pageSize.width / 2, 20, { align: 'center' });
+      // Add header text directly without logo
+      doc.setFontSize(12); // Changed from 16
+      doc.setTextColor(26, 35, 126);
+      doc.text('Room Schedule', doc.internal.pageSize.width / 2, 20, { align: 'center' });
 
-    doc.setFontSize(10);
-    doc.setTextColor(0);
-    doc.text(`Room: ${selectedSection}`, doc.internal.pageSize.width / 2, 27, { align: 'center' });
-    doc.text(`${activeTerm.term} - AY ${activeTerm.academicYear}`, doc.internal.pageSize.width / 2, 32, { align: 'center' });
+      doc.setFontSize(8); // Changed from 10
+      doc.setTextColor(0);
+      doc.text(`Room: ${selectedSection}`, doc.internal.pageSize.width / 2, 26, { align: 'center' });
+      doc.text(`${activeTerm.term} - AY ${activeTerm.academicYear}`, doc.internal.pageSize.width / 2, 31, { align: 'center' });
 
-    // Prepare and generate table
-    const timeSlots = generateTimeSlots();
-    const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    const scheduleSpans = calculateScheduleSpans(timeSlots, weekDays);
+      // Prepare and generate table
+      const timeSlots = generateTimeSlots();
+      const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      const scheduleSpans = calculateScheduleSpans(timeSlots, weekDays);
 
-    // Prepare table data with rowspans
-    const tableData = [];
-    timeSlots.forEach((time, timeIndex) => {
-      const row = [time];
+      // Prepare table data with rowspans
+      const tableData = [];
+      timeSlots.forEach((time, timeIndex) => {
+        const row = [time];
 
-      weekDays.forEach((day, dayIndex) => {
-        const schedule = getScheduleForTimeAndDay(time, day);
-        const slot = getSlotForTimeAndDay(schedule, time, day);
+        weekDays.forEach((day, dayIndex) => {
+          const schedule = getScheduleForTimeAndDay(time, day);
+          const slot = getSlotForTimeAndDay(schedule, time, day);
 
-        const spanInfo = scheduleSpans[`${timeIndex}-${dayIndex}`];
-
-        if (spanInfo && spanInfo.isStart) {
-          const content = generateTableContent(schedule, spanInfo.slot);
-
-          row.push({ content, rowSpan: spanInfo.span });
-        } else if (spanInfo && !spanInfo.isStart) {
-          row.push({ content: '', rowSpan: 0 });
-        } else {
-          row.push('');
-        }
-      });
-
-      tableData.push(row);
-    });
-
-    // Add table with adjusted starting position
-    autoTable(doc, {
-      startY: 37, // Adjusted to account for added logo
-      margin: { left: 3, right: 3, top: 40 },
-      head: [['Time', ...weekDays]],
-      body: tableData,
-      theme: 'plain',
-      headStyles: {
-        fillColor: [26, 35, 126],
-        textColor: [255, 255, 255],
-        fontSize: 7,
-        fontStyle: 'bold',
-        lineWidth: 0.2,
-        lineColor: [0, 0, 0],
-        halign: 'center',
-        valign: 'middle'
-      },
-      bodyStyles: {
-        fontSize: 8,
-        lineWidth: 0.2,
-        lineColor: [0, 0, 0],
-        cellPadding: 1
-      },
-      columnStyles: getColumnStyles(weekDays.length),
-      styles: {
-        cellPadding: 3,
-        valign: 'middle',
-        halign: 'center',
-        overflow: 'linebreak',
-        lineColor: [0, 0, 0]
-      },
-      didParseCell: function (data) {
-        if (data.section === 'head') {
-          data.cell.styles.fillColor = [26, 35, 126];
-          data.cell.styles.textColor = [255, 255, 255];
-          data.cell.styles.fontStyle = 'bold';
-        }
-
-        if (data.section === 'body' && data.column.index > 0) {
-          const timeIndex = data.row.index;
-          const dayIndex = data.column.index - 1;
           const spanInfo = scheduleSpans[`${timeIndex}-${dayIndex}`];
 
           if (spanInfo && spanInfo.isStart) {
-            data.cell.styles.fillColor = [255, 215, 0];
-            data.cell.styles.lineWidth = 0.1;
-            data.cell.styles.lineColor = [0, 0, 0];
+            const content = generateTableContent(schedule, spanInfo.slot);
+
+            row.push({ content, rowSpan: spanInfo.span });
+          } else if (spanInfo && !spanInfo.isStart) {
+            row.push({ content: '', rowSpan: 0 });
+          } else {
+            row.push('');
+          }
+        });
+
+        tableData.push(row);
+      });
+
+      // Add table with adjusted starting position
+      autoTable(doc, {
+        startY: 35, // Changed from 37
+        margin: { left: 3, right: 3, top: 35 }, // Changed from 40
+        head: [['Time', ...weekDays]],
+        body: tableData,
+        theme: 'plain',
+        headStyles: {
+          fillColor: [26, 35, 126],
+          textColor: [255, 255, 255],
+          fontSize: 7,
+          fontStyle: 'bold',
+          lineWidth: 0.2,
+          lineColor: [0, 0, 0],
+          halign: 'center',
+          valign: 'middle'
+        },
+        bodyStyles: {
+          fontSize: 8,
+          lineWidth: 0.2,
+          lineColor: [0, 0, 0],
+          cellPadding: 1
+        },
+        columnStyles: getColumnStyles(weekDays.length),
+        styles: {
+          cellPadding: 3,
+          valign: 'middle',
+          halign: 'center',
+          overflow: 'linebreak',
+          lineColor: [0, 0, 0]
+        },
+        didParseCell: function (data) {
+          if (data.section === 'head') {
+            data.cell.styles.fillColor = [26, 35, 126];
+            data.cell.styles.textColor = [255, 255, 255];
+            data.cell.styles.fontStyle = 'bold';
+          }
+
+          if (data.section === 'body' && data.column.index > 0) {
+            const timeIndex = data.row.index;
+            const dayIndex = data.column.index - 1;
+            const spanInfo = scheduleSpans[`${timeIndex}-${dayIndex}`];
+
+            if (spanInfo && spanInfo.isStart) {
+              data.cell.styles.fillColor = [255, 215, 0];
+              data.cell.styles.lineWidth = 0.1;
+              data.cell.styles.lineColor = [0, 0, 0];
+            }
           }
         }
-      }
-    });
+      });
 
 
-    // Add issue date and time at the bottom
-    const currentDate = new Date();
-    const dateStr = currentDate.toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric'
-    });
-    const timeStr = currentDate.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
+      // Add issue date and time at the bottom
+      const currentDate = new Date();
+      const dateStr = currentDate.toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      });
+      const timeStr = currentDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
 
-    doc.setFontSize(10);
-    doc.setTextColor(0);
-    doc.text(`Issued on ${dateStr} at ${timeStr}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+      doc.setFontSize(10);
+      doc.setTextColor(0);
+      doc.text(`Issued on ${dateStr} at ${timeStr}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
 
-    return doc;
+      return doc;
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      throw new Error("Failed to generate PDF");
+    }
   };
 
   const calculateScheduleSpans = (timeSlots, weekDays) => {

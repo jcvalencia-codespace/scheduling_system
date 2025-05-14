@@ -3,7 +3,7 @@
 import { Fragment, useState, useEffect } from "react"
 import { Dialog, Transition } from "@headlessui/react"
 import { XMarkIcon, PlusIcon, TrashIcon, BookOpenIcon } from "@heroicons/react/24/outline"
-import { getClasses, getSubjects, createAssignment, updateAssignment, getActiveTerm } from "../_actions"
+import { getClasses, getSubjects, createAssignment, updateAssignment, getActiveTerm, getTermDetails } from "../_actions"
 import { DropdownSkeleton } from "./SkeletonLoader"
 import Swal from "sweetalert2"
 import Select from "react-select"
@@ -93,6 +93,8 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
   const [allSubjects, setAllSubjects] = useState([])
   const [termInfo, setTermInfo] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [termDetails, setTermDetails] = useState([]);
+  const [isTermLoading, setIsTermLoading] = useState(true);
 
   const yearLevels = [
     { id: "1st Year", label: "1st Year" },
@@ -101,11 +103,35 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
     { id: "4th Year", label: "4th Year" },
   ]
 
-  const terms = [
-    { id: 1, label: "Term 1" },
-    { id: 2, label: "Term 2" },
-    { id: 3, label: "Term 3" },
-  ]
+  useEffect(() => {
+    const loadTermDetails = async () => {
+      try {
+        setIsTermLoading(true);
+        const { success, terms } = await getTermDetails([1, 2, 3]);
+        if (success) {
+          setTermDetails(terms);
+        }
+      } catch (error) {
+        console.error('Error loading terms:', error);
+      } finally {
+        setIsTermLoading(false);
+      }
+    };
+
+    if (isOpen) {
+      loadTermDetails();
+    }
+  }, [isOpen]);
+
+  const termOptions = [1, 2, 3].map(termNum => {
+    const termDetail = termDetails.find(t => t.term === `Term ${termNum}`);
+    return {
+      id: termNum,
+      label: `Term ${termNum}`,
+      isAvailable: termDetail?.isVisible || false,
+      academicYear: termDetail?.academicYear
+    };
+  });
 
   const handleYearLevelChange = async (e) => {
     const yearLevel = e.target.value
@@ -114,7 +140,7 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
     if (yearLevel) {
       try {
         setIsLoadingClasses(true)
-        const classes = await getClasses(yearLevel)
+        const classes = await getClasses(yearLevel, userId) // Pass userId here
 
         if (Array.isArray(classes) && classes.length > 0) {
           setAvailableClasses(classes)
@@ -368,7 +394,7 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
 
   return (
     <Transition.Root show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-10" onClose={onClose}>
+      <Dialog as="div" className="relative z-[9999]" onClose={onClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -378,10 +404,10 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity backdrop-blur-sm" />
+          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity backdrop-blur-sm z-[9999]" />
         </Transition.Child>
 
-        <div className="fixed inset-0 z-10 overflow-y-auto">
+        <div className="fixed inset-0 z-[9999] overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
             <Transition.Child
               as={Fragment}
@@ -393,7 +419,7 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
               <Dialog.Panel className="relative transform overflow-hidden rounded-xl bg-white text-left shadow-xl transition-all sm:my-8 w-full max-w-5xl">
-                <div className="absolute right-0 top-0 pr-4 pt-4 block z-10">
+                <div className="absolute right-0 top-0 pr-4 pt-4 block z-[9999]">
                   <button
                     type="button"
                     className="rounded-full bg-white text-gray-400 hover:text-gray-500 hover:bg-gray-100 p-1.5 transition-colors shadow-sm"
@@ -436,11 +462,17 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                             value={formData.term}
                             className="block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm h-[42px]"
                             required
+                            disabled={isTermLoading}
                           >
                             <option value="">Select Term</option>
-                            {terms.map((term) => (
-                              <option key={term.id} value={term.id} className="text-black">
-                                {term.label}
+                            {termOptions.map((term) => (
+                              <option 
+                                key={term.id} 
+                                value={term.id} 
+                                disabled={!term.isAvailable}
+                                className={!term.isAvailable ? "text-gray-400" : "text-black"}
+                              >
+                                {term.label} {!term.isAvailable ? "(Not Set)" : `(${term.academicYear})`}
                               </option>
                             ))}
                           </select>

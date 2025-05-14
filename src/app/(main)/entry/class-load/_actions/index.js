@@ -4,9 +4,9 @@ import AssignSubjectsModel from '@/app/models/AssignSubjects';
 import TermsModel from '@/app/models/Terms';
 import sectionsModel from '@/app/models/Sections';
 
-export async function getClasses(yearLevel) {
+export async function getClasses(yearLevel, userId) {
   try {
-    const classes = await AssignSubjectsModel.fetchClasses(yearLevel);
+    const classes = await AssignSubjectsModel.fetchClasses(yearLevel, userId);
     return classes || [];
   } catch (error) {
     console.error('Error fetching classes:', error);
@@ -34,9 +34,9 @@ export async function getAllSubjects() {
   }
 }
 
-export async function getAssignments() {
+export async function getAssignments(userId = null) {
   try {
-    const groupedAssignments = await AssignSubjectsModel.getGroupedAssignments();
+    const groupedAssignments = await AssignSubjectsModel.getGroupedAssignments(userId);
     return Object.values(groupedAssignments);
   } catch (error) {
     console.error('Error fetching assignments:', error);
@@ -235,12 +235,23 @@ export async function getSectionsByDepartment(departmentId = null) {
   }
 }
 
-export const getSubjectAssignments = async () => {
+export const getSubjectAssignments = async (userId = null) => {
   try {
-    const assignments = await AssignSubjectsModel.fetchAssignments();
+    const assignments = await AssignSubjectsModel.fetchAssignments(userId);
     return { success: true, assignments };
   } catch (error) {
     console.error('Error fetching subject assignments:', error);
     return { success: false, assignments: [] };
   }
 };
+
+export async function getVisibleTerms() {
+  try {
+    const terms = await Term.find({ isVisible: true })
+      .sort({ term: 1 });
+    return { success: true, terms: JSON.parse(JSON.stringify(terms)) };
+  } catch (error) {
+    console.error('Error fetching visible terms:', error);
+    return { error: 'Failed to fetch terms' };
+  }
+}

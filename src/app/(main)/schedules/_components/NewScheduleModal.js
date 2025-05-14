@@ -7,9 +7,10 @@ import Swal from 'sweetalert2';
 import Select from 'react-select';
 import useAuthStore from '@/store/useAuthStore';
 import ScheduleModalSkeleton from './Skeleton';
-import { XCircleIcon } from '@heroicons/react/24/outline';
+import { XCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import ConflictAlert from './ConflictAlert';
 import { useAccessSettings } from '@/app/hooks/useAccessSettings';
+import ScheduleModalSidebar from './ScheduleModalSidebar';
 
 export default function NewScheduleModal({
   isOpen,
@@ -19,7 +20,7 @@ export default function NewScheduleModal({
   scheduleData = null,
   selectedSection = '',
   selectedRoom = null,
-  selectedFaculty = null // Add this prop
+  selectedFaculty = null
 }) {
   const { user } = useAuthStore();
   const { isMultipleSectionsEnabled, isFacultyDropdownEnabled } = useAccessSettings();
@@ -40,6 +41,8 @@ export default function NewScheduleModal({
     scheduleType: 'lecture'
   });
   const [overrideEnabled, setOverrideEnabled] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingFaculty, setIsLoadingFaculty] = useState(false);
   const customStyles = {
     control: (base, state) => ({
       ...base,
@@ -157,10 +160,22 @@ export default function NewScheduleModal({
   useEffect(() => {
     const loadFacultyData = async () => {
       if (selectedValues.faculty && termInfo?._id) {
-        const loadData = await getFacultyLoad(selectedValues.faculty, termInfo._id);
-        setFacultyLoad(loadData);
+        setIsLoadingFaculty(true);
+        try {
+          const loadData = await getFacultyLoad(selectedValues.faculty, termInfo._id);
+          setFacultyLoad(loadData);
+        } catch (error) {
+          console.error('Error loading faculty data:', error);
+          setFacultyLoad({
+            employmentType: 'N/A',
+            totalHours: 0,
+            teachingHours: 0,
+            adminHours: 0
+          });
+        } finally {
+          setIsLoadingFaculty(false);
+        }
       } else {
-        // Clear faculty load if no faculty selected or no term
         setFacultyLoad({
           employmentType: 'N/A',
           totalHours: 0,
@@ -179,17 +194,21 @@ export default function NewScheduleModal({
   };
 
   const getFacultyLoadDisplay = () => {
+    if (!facultyLoad) return null;
+
     const employmentType = facultyLoad.employmentType?.toLowerCase();
     const isFullTime = employmentType === 'full-time';
     const maxHours = isFullTime ? 40 : 24;
     const teachingHours = facultyLoad.teachingHours || 0;
-    const adminHours = isFullTime ? maxHours - teachingHours : 0;
+    const actualAdminHours = facultyLoad.actualAdminHours || 0;
+    const adminHours = isFullTime ? maxHours - teachingHours - actualAdminHours: 0;
     const subjectCodes = facultyLoad.subjectCodes || [];
 
     return {
       employmentType: capitalizeFirstLetter(facultyLoad.employmentType),
       teachingHours,
       adminHours,
+      actualAdminHours,
       totalHours: maxHours,
       subjectCodes,
       subjectCount: subjectCodes.length
@@ -198,40 +217,41 @@ export default function NewScheduleModal({
 
   useEffect(() => {
     async function fetchData() {
-      try {
-        setLoading(true);
-        const [formResponse, termResponse] = await Promise.all([
-          getScheduleFormData(),
-          getActiveTerm()
-        ]);
+      if (isOpen) {
+        try {
+          setLoading(true);
+          const [formResponse, termResponse] = await Promise.all([
+            getScheduleFormData(),
+            getActiveTerm()
+          ]);
 
-        if (formResponse.error) {
-          throw new Error(formResponse.error);
+          // Check if there's an error or no term data
+          if (!termResponse || !termResponse.term) {
+            throw new Error('No active term found. Please contact an administrator.');
+          }
+
+          setFormData(formResponse);
+          setTermInfo({
+            _id: termResponse.term.id,
+            academicYear: termResponse.term.academicYear,
+            term: termResponse.term.term
+          });
+        } catch (error) {
+          console.error('Fetch error:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: error.message || 'Failed to load schedule data',
+            confirmButtonColor: '#323E8F'
+          });
+          onClose(); // Close modal on error
+        } finally {
+          setLoading(false);
         }
-
-        console.log('Term Response:', termResponse);
-
-        if (!termResponse.term || !termResponse.term.id) {
-          throw new Error('No active term found');
-        }
-
-        setFormData(formResponse);
-        setTermInfo({
-          _id: termResponse.term.id,
-          academicYear: termResponse.term.academicYear,
-          term: termResponse.term.term
-        });
-      } catch (error) {
-        console.error('Fetch error:', error);
-        setError(error.message);
-      } finally {
-        setLoading(false);
       }
     }
 
-    if (isOpen) {
-      fetchData();
-    }
+    fetchData();
   }, [isOpen]);
 
   const roomOptions = useMemo(() => {
@@ -278,6 +298,44 @@ export default function NewScheduleModal({
     return options;
   }, [formData.rooms, user]);
 
+  const filteredSectionOptions = useMemo(() => {
+    if (!user || !formData.sections) return [];
+
+    let filteredSections = formData.sections;
+
+    // Only filter sections if multiple sections is not enabled
+    if (!selectedValues.isMultipleSections) {
+      if (user.role === 'Dean') {
+        // For Dean, only show sections from their department
+        const userDeptId = user.department?._id || user.department;
+        filteredSections = formData.sections.filter(section => {
+          const sectionDeptId = section.department?._id || section.department;
+          return sectionDeptId && sectionDeptId.toString() === userDeptId.toString();
+        });
+      } else if (user.role === 'Program Chair') {
+        // For Program Chair, only show sections from their course
+        const userCourseId = user.course?._id || user.course;
+        filteredSections = formData.sections.filter(section => {
+          const sectionCourseId = section.course?._id || section.course;
+          return sectionCourseId && sectionCourseId.toString() === userCourseId.toString();
+        });
+      }
+    }
+
+    console.log('Section filtering:', {
+      isMultipleSections: selectedValues.isMultipleSections,
+      totalSections: formData.sections.length,
+      filteredCount: filteredSections.length
+    });
+
+    return filteredSections.map(section => ({
+      value: section._id,
+      label: section.displayName || section.sectionName,
+      courseInfo: section.course,
+      yearLevel: section.yearLevel
+    }));
+  }, [formData.sections, user, selectedValues.isMultipleSections]);
+
   useEffect(() => {
     if (isOpen) {
       // Set initial values
@@ -314,12 +372,6 @@ export default function NewScheduleModal({
       [name]: type === 'checkbox' ? checked : value
     }));
   };
-  const sectionOptions = formData.sections.map(section => ({
-    value: section._id,
-    label: section.displayName,
-    courseInfo: section.course,
-    yearLevel: section.yearLevel
-  }));
 
   const facultyOptions = formData.faculty.map(f => ({
     value: f._id,
@@ -477,7 +529,7 @@ export default function NewScheduleModal({
         icon: 'success',
         timer: 1500
       });
-
+      
       onClose();
       clearForm();
       onScheduleCreated();
@@ -679,12 +731,16 @@ export default function NewScheduleModal({
     setConflicts(null);
   };
 
+  const handleClose = () => {
+    if (!isSubmitting) {
+      clearForm();
+      onClose();
+    }
+  };
+
   return (
     <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={() => {
-        clearForm();
-        onClose();
-      }}>
+      <Dialog as="div" className="relative z-50" onClose={handleClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -708,301 +764,216 @@ export default function NewScheduleModal({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-3xl transform overflow-hidden rounded-lg bg-white p-6 text-left align-middle shadow-xl transition-all">
-                <Dialog.Title as="h3" className="text-xl font-semibold text-gray-900 mb-5">
-                  {editMode ? 'Edit Schedule' : 'New Schedule Entry'}
-                </Dialog.Title>
+              <Dialog.Panel className="relative transform overflow-hidden rounded-xl bg-white text-left shadow-xl transition-all sm:my-8 w-full max-w-6xl max-h-[90vh] flex flex-col mx-4">
+                <div className="absolute right-0 top-0 pr-4 pt-4 block z-50">
+                  <button
+                    type="button"
+                    className="rounded-full bg-white text-gray-400 hover:text-gray-500 hover:bg-gray-100 p-1.5 transition-colors shadow-sm"
+                    onClick={handleClose}
+                  >
+                    <span className="sr-only">Close</span>
+                    <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                </div>
 
-                <div className="max-h-[70vh] overflow-y-auto p-6">
-                  {loading ? (
-                    <ScheduleModalSkeleton />
-                  ) : (
-                    <>
-                      <div className="bg-[#1a237e] p-4 rounded-lg mb-6">
-                        <div className="grid grid-cols-1 gap-4">
-                          <div className="space-y-1 text-white">
-                            <div className="flex gap-2">
-                              <span className="font-medium">Academic Year:</span>
-                              <span>{termInfo?.academicYear || schoolYear}</span>
-                            </div>
-                            <div className="flex gap-2">
-                              <span className="font-medium">Term:</span>
-                              <span className="term-display">{termInfo?.term || 'Loading...'}</span>
-                            </div>
+                <div className="flex flex-col md:flex-row h-[calc(90vh-2rem)]">
+                  <ScheduleModalSidebar 
+                    editMode={editMode}
+                    termInfo={termInfo}
+                    facultyLoadDisplay={selectedValues.faculty ? getFacultyLoadDisplay() : null}
+                    schoolYear={schoolYear}
+                    isLoadingFaculty={isLoadingFaculty}
+                    className="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-gray-200"
+                  />
+
+                  {/* Main content */}
+                  <div className="w-full md:w-2/3 flex flex-col overflow-hidden">
+                    <div className="flex-1 p-4 md:p-8 overflow-y-auto">
+                      {/* Title */}
+                      <div className="pt-2 md:pt-4 mb-4 md:mb-6">
+                        <h3 className="text-base md:text-lg font-medium text-gray-900">
+                          Schedule Information
+                        </h3>
+                        <p className="mt-1 text-sm text-gray-500">
+                          Fill in the details for the schedule
+                        </p>
+                      </div>
+
+                      {loading ? (
+                        <ScheduleModalSkeleton />
+                      ) : (
+                        <>
+                          <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 mb-4 sm:mb-6">
+                            {isMultipleSectionsEnabled && (
+                              <label className="flex items-center gap-2 text-black text-sm md:text-base">
+                                <input
+                                  type="checkbox"
+                                  name="isMultipleSections"
+                                  checked={selectedValues.isMultipleSections}
+                                  onChange={handleInputChange}
+                                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span>Multiple Sections</span>
+                              </label>
+                            )}
+                            <label className="flex items-center gap-2 text-black text-sm md:text-base">
+                              <input
+                                type="checkbox"
+                                name="isPaired"
+                                checked={selectedValues.isPaired}
+                                onChange={handleInputChange}
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                              <span>Pairing Schedule</span>
+                            </label>
                           </div>
-                          {selectedValues.faculty && (
-                            <div className="space-y-2 text-white">
-                              <div className="flex flex-col gap-2">
-                                <hr />
-                                <div className="flex gap-2">
-                                  <span className="text-lg font-bold">Selected Faculty Load Information</span>
+
+                          {conflicts && (
+                            <ConflictAlert
+                              conflicts={conflicts}
+                              onDismiss={() => setConflicts(null)}
+                              onOverride={handleOverride}
+                              overrideEnabled={overrideEnabled}
+                              setOverrideEnabled={setOverrideEnabled}
+                              hasShortDuration={!checkScheduleDuration(conflicts).isValid}
+                              currentScheduleDuration={getCurrentScheduleDuration()}
+                            />
+                          )}
+
+                          {/* Update grid layout for mobile */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <div className="space-y-4">
+                              <div>
+                                <label className="block text-sm font-medium text-black mb-1">Section</label>
+                                <Select
+                                  name="section"
+                                  value={selectedValues.isMultipleSections
+                                    ? filteredSectionOptions.filter(option => selectedValues.section?.includes(option.value))
+                                    : filteredSectionOptions.find(option => option.value === selectedValues.section)
+                                  }
+                                  onChange={(option) => handleSelectChange(option, { name: 'section' })}
+                                  options={filteredSectionOptions}
+                                  styles={customStyles}
+                                  className="text-black"
+                                  placeholder={
+                                    filteredSectionOptions.length === 0 
+                                      ? "No sections available for your department" 
+                                      : "Select a Section"
+                                  }
+                                  isClearable
+                                  isMulti={selectedValues.isMultipleSections}
+                                  isSearchable={true}
+                                />
+                              </div>
+
+                              {isFacultyDropdownEnabled && (
+                                <div>
+                                  <label className="block text-sm font-medium text-black mb-1">Faculty</label>
+                                  <Select
+                                    name="faculty"
+                                    value={facultyOptions.find(option => option.value === selectedValues.faculty)}
+                                    onChange={(option) => handleSelectChange(option, { name: 'faculty' })}
+                                    options={facultyOptions}
+                                    styles={customStyles}
+                                    className="text-black"
+                                    placeholder="Select a Faculty"
+                                    isClearable
+                                  />
                                 </div>
-                                <ul className="list-disc list-inside space-y-1 pl-4">
-                                  <li>
-                                    <span className="font-medium">Employment Type:</span>
-                                    <span className="ml-2">{getFacultyLoadDisplay().employmentType}</span>
-                                  </li>
-                                  <li>
-                                    <span className="font-medium">Total Teaching Hours:</span>
-                                    <span className="ml-2">
-                                      {getFacultyLoadDisplay().subjectCount} subject(s), {getFacultyLoadDisplay().teachingHours} hrs
-                                      {getFacultyLoadDisplay().subjectCodes.length > 0 && (
-                                        <span className="ml-2">[{getFacultyLoadDisplay().subjectCodes.join(', ')}]</span>
-                                      )}
-                                    </span>
-                                  </li>
-                                  {getFacultyLoadDisplay().employmentType.toLowerCase() === 'full-time' && (
-                                    <li>
-                                      <span className="font-medium">Total Admin Hours:</span>
-                                      <span className="ml-2">{getFacultyLoadDisplay().adminHours} hrs</span>
-                                    </li>
-                                  )}
-                                  <li>
-                                    <span className="font-medium">Maximum Load:</span>
-                                    <span className="ml-2">{getFacultyLoadDisplay().totalHours} hrs</span>
-                                  </li>
-                                </ul>
+                              )}
+
+                              <div>
+                                <label className="block text-sm font-medium text-black mb-1">Subject</label>
+                                <Select
+                                  name="subject"
+                                  value={subjectOptions.find(option => option.value === selectedValues.subject)}
+                                  onChange={(option) => handleSelectChange(option, { name: 'subject' })}
+                                  options={subjectOptions}
+                                  styles={customStyles}
+                                  className="text-black"
+                                  placeholder="Select a Subject"
+                                  isClearable
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-black mb-1">Class Limit</label>
+                                <input
+                                  type="number"
+                                  name="classLimit"
+                                  value={selectedValues.classLimit}
+                                  onChange={handleInputChange}
+                                  className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-[#323E8F] focus:ring-[#323E8F] shadow-sm"
+                                  placeholder="Enter class limit"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-black mb-1">Student Type</label>
+                                <Select
+                                  name="studentType"
+                                  value={studentTypeOptions.find(option => option.value === selectedValues.studentType)}
+                                  onChange={(option) => handleSelectChange(option, { name: 'studentType' })}
+                                  options={studentTypeOptions}
+                                  styles={customStyles}
+                                  className="text-black"
+                                  placeholder="Select Student Type"
+                                  isClearable
+                                  isSearchable={true}
+                                  menuPlacement="top"
+                                  maxMenuHeight={200}
+                                />
                               </div>
                             </div>
 
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex gap-6 mb-6">
-                        {isMultipleSectionsEnabled && (
-                          <label className="flex items-center gap-2 text-black">
-                            <input
-                              type="checkbox"
-                              name="isMultipleSections"
-                              checked={selectedValues.isMultipleSections}
-                              onChange={handleInputChange}
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <span>Multiple Sections</span>
-                          </label>
-                        )}
-                        <label className="flex items-center gap-2 text-black">
-                          <input
-                            type="checkbox"
-                            name="isPaired"
-                            checked={selectedValues.isPaired}
-                            onChange={handleInputChange}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <span>Pairing Schedule</span>
-                        </label>
-                      </div>
-
-                      {conflicts && (
-                        <ConflictAlert
-                          conflicts={conflicts}
-                          onDismiss={() => setConflicts(null)}
-                          onOverride={handleOverride}
-                          overrideEnabled={overrideEnabled}
-                          setOverrideEnabled={setOverrideEnabled}
-                          hasShortDuration={!checkScheduleDuration(conflicts).isValid}
-                          currentScheduleDuration={getCurrentScheduleDuration()}
-                        />
-                      )}
-
-                      <div className="grid grid-cols-2 gap-4 mb-6">
-                        <div className="space-y-4">
-                          <div>
-                            <label className="block text-sm font-medium text-black mb-1">Section</label>
-                            <Select
-                              name="section"
-                              value={selectedValues.isMultipleSections
-                                ? sectionOptions.filter(option => selectedValues.section?.includes(option.value))
-                                : sectionOptions.find(option => option.value === selectedValues.section)
-                              }
-                              onChange={(option) => handleSelectChange(option, { name: 'section' })}
-                              options={sectionOptions}
-                              styles={customStyles}
-                              className="text-black"
-                              placeholder="Select a Section"
-                              isClearable
-                              isMulti={selectedValues.isMultipleSections}
-                              isSearchable={true}
-                            />
-                          </div>
-
-                          {isFacultyDropdownEnabled && (
-                            <div>
-                              <label className="block text-sm font-medium text-black mb-1">Faculty</label>
-                              <Select
-                                name="faculty"
-                                value={facultyOptions.find(option => option.value === selectedValues.faculty)}
-                                onChange={(option) => handleSelectChange(option, { name: 'faculty' })}
-                                options={facultyOptions}
-                                styles={customStyles}
-                                className="text-black"
-                                placeholder="Select a Faculty"
-                                isClearable
-                              />
-                            </div>
-                          )}
-
-                          <div>
-                            <label className="block text-sm font-medium text-black mb-1">Subject</label>
-                            <Select
-                              name="subject"
-                              value={subjectOptions.find(option => option.value === selectedValues.subject)}
-                              onChange={(option) => handleSelectChange(option, { name: 'subject' })}
-                              options={subjectOptions}
-                              styles={customStyles}
-                              className="text-black"
-                              placeholder="Select a Subject"
-                              isClearable
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-black mb-1">Class Limit</label>
-                            <input
-                              type="number"
-                              name="classLimit"
-                              value={selectedValues.classLimit}
-                              onChange={handleInputChange}
-                              className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-[#323E8F] focus:ring-[#323E8F] shadow-sm"
-                              placeholder="Enter class limit"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-black mb-1">Student Type</label>
-                            <Select
-                              name="studentType"
-                              value={studentTypeOptions.find(option => option.value === selectedValues.studentType)}
-                              onChange={(option) => handleSelectChange(option, { name: 'studentType' })}
-                              options={studentTypeOptions}
-                              styles={customStyles}
-                              className="text-black"
-                              placeholder="Select Student Type"
-                              isClearable
-                              isSearchable={true}
-                              menuPlacement="top"
-                              maxMenuHeight={200}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-4">
-                          <div>
-                            <div>
-                              <label className="block text-sm font-medium text-black mb-1">Days of Week</label>
-                              <Select
-                                name="days"
-                                value={dayOptions.find(option => option.value === selectedValues.days)}
-                                onChange={(option) => handleSelectChange(option, { name: 'days' })}
-                                options={dayOptions}
-                                styles={customStyles}
-                                className="text-black"
-                                placeholder="Select a Day"
-                                isClearable
-                              />
-                            </div>
-
-                            <div className="pt-4">
-                              <label className="block text-sm font-medium text-black mb-1">Time From</label>
-                              <Select
-                                name="timeFrom"
-                                value={timeSlotOptions.find(option => option.value === selectedValues.timeFrom)}
-                                onChange={(option) => handleSelectChange(option, { name: 'timeFrom' })}
-                                options={timeSlotOptions}
-                                styles={customStyles}
-                                className="text-black"
-                                placeholder="Select Time From"
-                                isClearable
-                              />
-                            </div>
-
-                            <div className="pt-4">
-                              <label className="block text-sm font-medium text-black mb-1">Time To</label>
-                              <Select
-                                name="timeTo"
-                                value={timeSlotOptions.find(option => option.value === selectedValues.timeTo)}
-                                onChange={(option) => handleSelectChange(option, { name: 'timeTo' })}
-                                options={timeSlotOptions}
-                                styles={customStyles}
-                                className="text-black"
-                                placeholder="Select Time To"
-                                isClearable
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-black mb-1">Room</label>
-                            <Select
-                              name="room"
-                              value={roomOptions.flatMap(group => group.options).find(option => option.value === selectedValues.room)}
-                              onChange={(option) => handleSelectChange(option, { name: 'room' })}
-                              options={roomOptions}
-                              styles={{
-                                ...customStyles,
-                                group: (base) => ({
-                                  ...base,
-                                  paddingTop: 8,
-                                  paddingBottom: 8
-                                }),
-                                groupHeading: (base) => ({
-                                  ...base,
-                                  color: '#323E8F',
-                                  fontWeight: 600,
-                                  fontSize: '0.875rem',
-                                  textTransform: 'uppercase',
-                                  padding: '8px 12px',
-                                  backgroundColor: '#f8fafc'
-                                })
-                              }}
-                              className="text-black"
-                              placeholder="Select a Room"
-                              menuPlacement="top"
-                              maxMenuHeight={200}
-                              isSearchable={true}
-                              isClearable
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-black mb-1">Schedule Type</label>
-                            <Select
-                              name="scheduleType"
-                              value={scheduleTypeOptions.find(option => option.value === selectedValues.scheduleType)}
-                              onChange={(option) => handleSelectChange(option, { name: 'scheduleType' })}
-                              options={scheduleTypeOptions}
-                              styles={customStyles}
-                              className="text-black"
-                              placeholder="Select Schedule Type"
-                              isClearable
-                              isSearchable={true}
-                              menuPlacement="top"
-                              maxMenuHeight={200}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                      {selectedValues.isPaired && (
-                        <div className="mt-6 border-t pt-6">
-                          <h4 className="text-lg font-semibold text-gray-900 mb-4">Paired Schedule Details</h4>
-                          <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-4">
                               <div>
-                                <label className="block text-sm font-medium text-black mb-1">Days of Week</label>
-                                <Select
-                                  name="days"
-                                  value={dayOptions.find(option => option.value === pairedSchedule.days)}
-                                  onChange={(option) => handlePairedScheduleChange(option, { name: 'days' })}
-                                  options={dayOptions}
-                                  styles={customStyles}
-                                  className="text-black"
-                                  placeholder="Select a Day"
-                                  isClearable
-                                />
+                                <div>
+                                  <label className="block text-sm font-medium text-black mb-1">Days of Week</label>
+                                  <Select
+                                    name="days"
+                                    value={dayOptions.find(option => option.value === selectedValues.days)}
+                                    onChange={(option) => handleSelectChange(option, { name: 'days' })}
+                                    options={dayOptions}
+                                    styles={customStyles}
+                                    className="text-black"
+                                    placeholder="Select a Day"
+                                    isClearable
+                                  />
+                                </div>
+
+                                <div className="pt-4">
+                                  <label className="block text-sm font-medium text-black mb-1">Time From</label>
+                                  <Select
+                                    name="timeFrom"
+                                    value={timeSlotOptions.find(option => option.value === selectedValues.timeFrom)}
+                                    onChange={(option) => handleSelectChange(option, { name: 'timeFrom' })}
+                                    options={timeSlotOptions}
+                                    styles={customStyles}
+                                    className="text-black"
+                                    placeholder="Select Time From"
+                                    isClearable
+                                  />
+                                </div>
+
+                                <div className="pt-4">
+                                  <label className="block text-sm font-medium text-black mb-1">Time To</label>
+                                  <Select
+                                    name="timeTo"
+                                    value={timeSlotOptions.find(option => option.value === selectedValues.timeTo)}
+                                    onChange={(option) => handleSelectChange(option, { name: 'timeTo' })}
+                                    options={timeSlotOptions}
+                                    styles={customStyles}
+                                    className="text-black"
+                                    placeholder="Select Time To"
+                                    isClearable
+                                  />
+                                </div>
                               </div>
                               <div>
                                 <label className="block text-sm font-medium text-black mb-1">Room</label>
                                 <Select
                                   name="room"
-                                  value={roomOptions.flatMap(group => group.options).find(option => option.value === pairedSchedule.room)}
-                                  onChange={(option) => handlePairedScheduleChange(option, { name: 'room' })}
+                                  value={roomOptions.flatMap(group => group.options).find(option => option.value === selectedValues.room)}
+                                  onChange={(option) => handleSelectChange(option, { name: 'room' })}
                                   options={roomOptions}
                                   styles={{
                                     ...customStyles,
@@ -1023,34 +994,9 @@ export default function NewScheduleModal({
                                   }}
                                   className="text-black"
                                   placeholder="Select a Room"
-                                  isClearable
-                                />
-                              </div>
-                            </div>
-                            <div className="space-y-4">
-                              <div>
-                                <label className="block text-sm font-medium text-black mb-1">Time From</label>
-                                <Select
-                                  name="timeFrom"
-                                  value={timeSlotOptions.find(option => option.value === pairedSchedule.timeFrom)}
-                                  onChange={(option) => handlePairedScheduleChange(option, { name: 'timeFrom' })}
-                                  options={timeSlotOptions}
-                                  styles={customStyles}
-                                  className="text-black"
-                                  placeholder="Select Time From"
-                                  isClearable
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-black mb-1">Time To</label>
-                                <Select
-                                  name="timeTo"
-                                  value={timeSlotOptions.find(option => option.value === pairedSchedule.timeTo)}
-                                  onChange={(option) => handlePairedScheduleChange(option, { name: 'timeTo' })}
-                                  options={timeSlotOptions}
-                                  styles={customStyles}
-                                  className="text-black"
-                                  placeholder="Select Time To"
+                                  menuPlacement="top"
+                                  maxMenuHeight={200}
+                                  isSearchable={true}
                                   isClearable
                                 />
                               </div>
@@ -1058,41 +1004,155 @@ export default function NewScheduleModal({
                                 <label className="block text-sm font-medium text-black mb-1">Schedule Type</label>
                                 <Select
                                   name="scheduleType"
-                                  value={scheduleTypeOptions.find(option => option.value === pairedSchedule.scheduleType)}
-                                  onChange={(option) => handlePairedScheduleChange(option, { name: 'scheduleType' })}
+                                  value={scheduleTypeOptions.find(option => option.value === selectedValues.scheduleType)}
+                                  onChange={(option) => handleSelectChange(option, { name: 'scheduleType' })}
                                   options={scheduleTypeOptions}
                                   styles={customStyles}
-                                  className="text-black "
+                                  className="text-black"
                                   placeholder="Select Schedule Type"
                                   isClearable
+                                  isSearchable={true}
+                                  menuPlacement="top"
+                                  maxMenuHeight={200}
                                 />
                               </div>
                             </div>
                           </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
 
-                <div className="flex justify-end gap-3 pt-4">
-                  <button
-                    type="button"
-                    className="rounded-md bg-white px-4 py-2 text-sm font-medium text-black hover:bg-gray-50 border border-gray-300"
-                    onClick={() => {
-                      clearForm();
-                      onClose();
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-md bg-[#1a237e] px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-[#323E8F] focus:ring-offset-2"
-                    onClick={handleSave}
-                  >
-                    Save
-                  </button>
+                          {/* Update paired schedule section for mobile */}
+                          {selectedValues.isPaired && (
+                            <div className="mt-4 md:mt-6 border-t pt-4 md:pt-6">
+                              <h4 className="text-base md:text-lg font-semibold text-gray-900 mb-4">
+                                Paired Schedule Details
+                              </h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-4">
+                                  <div>
+                                    <label className="block text-sm font-medium text-black mb-1">Days of Week</label>
+                                    <Select
+                                      name="days"
+                                      value={dayOptions.find(option => option.value === pairedSchedule.days)}
+                                      onChange={(option) => handlePairedScheduleChange(option, { name: 'days' })}
+                                      options={dayOptions}
+                                      styles={customStyles}
+                                      className="text-black"
+                                      placeholder="Select a Day"
+                                      isClearable
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-black mb-1">Room</label>
+                                    <Select
+                                      name="room"
+                                      value={roomOptions.flatMap(group => group.options).find(option => option.value === pairedSchedule.room)}
+                                      onChange={(option) => handlePairedScheduleChange(option, { name: 'room' })}
+                                      options={roomOptions}
+                                      styles={{
+                                        ...customStyles,
+                                        group: (base) => ({
+                                          ...base,
+                                          paddingTop: 8,
+                                          paddingBottom: 8
+                                        }),
+                                        groupHeading: (base) => ({
+                                          ...base,
+                                          color: '#323E8F',
+                                          fontWeight: 600,
+                                          fontSize: '0.875rem',
+                                          textTransform: 'uppercase',
+                                          padding: '8px 12px',
+                                          backgroundColor: '#f8fafc'
+                                        })
+                                      }}
+                                      className="text-black"
+                                      placeholder="Select a Room"
+                                      isClearable
+                                    />
+                                  </div>
+                                </div>
+                                <div className="space-y-4">
+                                  <div>
+                                    <label className="block text-sm font-medium text-black mb-1">Time From</label>
+                                    <Select
+                                      name="timeFrom"
+                                      value={timeSlotOptions.find(option => option.value === pairedSchedule.timeFrom)}
+                                      onChange={(option) => handlePairedScheduleChange(option, { name: 'timeFrom' })}
+                                      options={timeSlotOptions}
+                                      styles={customStyles}
+                                      className="text-black"
+                                      placeholder="Select Time From"
+                                      isClearable
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-black mb-1">Time To</label>
+                                    <Select
+                                      name="timeTo"
+                                      value={timeSlotOptions.find(option => option.value === pairedSchedule.timeTo)}
+                                      onChange={(option) => handlePairedScheduleChange(option, { name: 'timeTo' })}
+                                      options={timeSlotOptions}
+                                      styles={customStyles}
+                                      className="text-black"
+                                      placeholder="Select Time To"
+                                      isClearable
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-black mb-1">Schedule Type</label>
+                                    <Select
+                                      name="scheduleType"
+                                      value={scheduleTypeOptions.find(option => option.value === pairedSchedule.scheduleType)}
+                                      onChange={(option) => handlePairedScheduleChange(option, { name: 'scheduleType' })}
+                                      options={scheduleTypeOptions}
+                                      styles={customStyles}
+                                      className="text-black "
+                                      placeholder="Select Schedule Type"
+                                      isClearable
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="flex justify-end space-x-3 p-4 md:p-6 bg-gray-50 border-t border-gray-200 shrink-0">
+                      <button
+                        type="button"
+                        disabled={isSubmitting}
+                        className="inline-flex justify-center rounded-md bg-white px-3 md:px-4 py-2 md:py-2.5 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors"
+                        onClick={handleClose}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isSubmitting}
+                        className="inline-flex justify-center items-center rounded-md bg-[#323E8F] px-3 md:px-4 py-2 md:py-2.5 text-sm font-medium text-white shadow-sm hover:bg-[#35408E] transition-colors disabled:opacity-70"
+                        onClick={handleSave}
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <svg
+                              className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Processing...
+                          </>
+                        ) : (
+                          <>{editMode ? 'Update Schedule' : 'Save Schedule'}</>
+                        )}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </Dialog.Panel>
             </Transition.Child>

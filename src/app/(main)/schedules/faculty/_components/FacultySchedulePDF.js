@@ -1,135 +1,160 @@
 import { jsPDF } from "jspdf";
 import autoTable from 'jspdf-autotable';
 
+// Add helper function for loading images
+const loadImage = (src) => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = src;
+    img.onload = () => resolve(img);
+  });
+};
+
 const FacultySchedulePDF = ({ activeTerm, schedules, selectedSection, adminHours = [] }) => {
-  const generatePDF = () => {
+  const generatePDF = async () => {
     const doc = new jsPDF();
-    // Remove logo handling since it causes CORS issues
-    // Just add header text directly
-    doc.setFontSize(14);
-    doc.setTextColor(26, 35, 126);
-    doc.text('Faculty Schedule', doc.internal.pageSize.width / 2, 15, { align: 'center' });
-    
-    doc.setFontSize(8);
-    doc.setTextColor(0);
-    doc.text(`Faculty: ${selectedSection}`, doc.internal.pageSize.width / 2, 22, { align: 'center' });
-    doc.text(`${activeTerm.term} - AY ${activeTerm.academicYear}`, doc.internal.pageSize.width / 2, 27, { align: 'center' });
 
-    // Generate time slots
-    const timeSlots = generateTimeSlots();
-    const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    
-    // Calculate rowspan for each schedule
-    const scheduleSpans = calculateScheduleSpans(timeSlots, weekDays);
-    
-    // Prepare table data with rowspans
-    const tableData = [];
-    timeSlots.forEach((time, timeIndex) => {
-      const row = [time];
+    try {
+      // Load header image first
+      const headerImg = await loadImage("https://i.imgur.com/6yZFd27.png").catch(() => null);
+      const imgWidth = 40;
+      const imgHeight = 12;
       
-      weekDays.forEach((day, dayIndex) => {
-        const schedule = getScheduleForTimeAndDay(time, day);
-        const slot = getSlotForTimeAndDay(schedule, time, day);
+      if (headerImg) {
+        // Center the image horizontally
+        const xPosition = (doc.internal.pageSize.width - imgWidth) / 2;
+        doc.addImage(headerImg, "PNG", xPosition, 2, imgWidth, imgHeight);
+      }
+
+      // Add header text
+      doc.setFontSize(12);
+      doc.setTextColor(26, 35, 126);
+      doc.text('Faculty Schedule', doc.internal.pageSize.width / 2, 20, { align: 'center' });
+      
+      doc.setFontSize(8);
+      doc.setTextColor(0);
+      doc.text(`Faculty: ${selectedSection}`, doc.internal.pageSize.width / 2, 26, { align: 'center' });
+      doc.text(`${activeTerm.term} - AY ${activeTerm.academicYear}`, doc.internal.pageSize.width / 2, 31, { align: 'center' });
+
+      // Generate time slots
+      const timeSlots = generateTimeSlots();
+      const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      
+      // Calculate rowspan for each schedule
+      const scheduleSpans = calculateScheduleSpans(timeSlots, weekDays);
+      
+      // Prepare table data with rowspans
+      const tableData = [];
+      timeSlots.forEach((time, timeIndex) => {
+        const row = [time];
         
-        const spanInfo = scheduleSpans[`${timeIndex}-${dayIndex}`];
-        
-        if (spanInfo && spanInfo.isStart) {
-          // Simplified content based on whether it's admin hours or regular schedule
-          const content = schedule.isAdminHours 
-            ? [
-                `${spanInfo.slot.timeFrom} - ${spanInfo.slot.timeTo}`,
-                'Admin Hours'
-              ].join('\n')
-            : [
-                `${spanInfo.slot.timeFrom} - ${spanInfo.slot.timeTo}`,
-                schedule.subject?.subjectCode || '',
-                `${schedule.section?.sectionName || 'N/A'}`,
-                `${spanInfo.slot.room?.roomCode || 'N/A'}`,
-              ].join('\n');
+        weekDays.forEach((day, dayIndex) => {
+          const schedule = getScheduleForTimeAndDay(time, day);
+          const slot = getSlotForTimeAndDay(schedule, time, day);
           
-          row.push({ content, rowSpan: spanInfo.span });
-        } else if (spanInfo && !spanInfo.isStart) {
-          row.push({ content: '', rowSpan: 0 });
-        } else {
-          row.push('');
-        }
-      });
-      
-      tableData.push(row);
-    });
-
-    // Use the same table styling as SchedulePDF
-    autoTable(doc, {
-      startY: 30, // Adjusted starting position since we removed the logo
-      margin: { left: 3, right: 3, top: 40 },
-      head: [['Time', ...weekDays]],
-      body: tableData,
-      theme: 'plain',
-      headStyles: {
-        fillColor: [26, 35, 126],
-        textColor: [255, 255, 255],
-        fontSize: 7,
-        fontStyle: 'bold',
-        lineWidth: 0.2,
-        lineColor: [0, 0, 0],
-        halign: 'center',
-        valign: 'middle'
-      },
-      bodyStyles: {
-        fontSize: 8,
-        lineWidth: 0.2,
-        lineColor: [0, 0, 0],
-        cellPadding: 1
-      },
-      columnStyles: getColumnStyles(weekDays.length),
-      styles: {
-        cellPadding: 3,
-        valign: 'middle',
-        halign: 'center',
-        overflow: 'linebreak',
-        lineColor: [0, 0, 0]
-      },
-      didParseCell: function(data) {
-        if (data.section === 'head') {
-          data.cell.styles.fillColor = [26, 35, 126];
-          data.cell.styles.textColor = [255, 255, 255];
-          data.cell.styles.fontStyle = 'bold';
-        }
-        
-        if (data.section === 'body' && data.column.index > 0) {
-          const timeIndex = data.row.index;
-          const dayIndex = data.column.index - 1;
           const spanInfo = scheduleSpans[`${timeIndex}-${dayIndex}`];
           
           if (spanInfo && spanInfo.isStart) {
-            data.cell.styles.fillColor = spanInfo.isAdminHours 
-              ? [155, 233, 203] //rgb(155, 233, 203) for admin hours
-              : [255, 215, 0];  // Original color for regular schedules
-            data.cell.styles.lineWidth = 0.1;
-            data.cell.styles.lineColor = [0, 0, 0];
+            // Simplified content based on whether it's admin hours or regular schedule
+            const content = schedule.isAdminHours 
+              ? [
+                  `${spanInfo.slot.timeFrom} - ${spanInfo.slot.timeTo}`,
+                  'Admin Hours'
+                ].join('\n')
+              : [
+                  `${spanInfo.slot.timeFrom} - ${spanInfo.slot.timeTo}`,
+                  schedule.subject?.subjectCode || '',
+                  `${schedule.section?.sectionName || 'N/A'}`,
+                  `${spanInfo.slot.room?.roomCode || 'N/A'}`,
+                ].join('\n');
+            
+            row.push({ content, rowSpan: spanInfo.span });
+          } else if (spanInfo && !spanInfo.isStart) {
+            row.push({ content: '', rowSpan: 0 });
+          } else {
+            row.push('');
+          }
+        });
+        
+        tableData.push(row);
+      });
+
+      // Use the same table styling as SchedulePDF
+      autoTable(doc, {
+        startY: 35, // Changed from 38
+        margin: { left: 3, right: 3, top: 35 }, // Changed from 38
+        head: [['Time', ...weekDays]],
+        body: tableData,
+        theme: 'plain',
+        headStyles: {
+          fillColor: [26, 35, 126],
+          textColor: [255, 255, 255],
+          fontSize: 7,
+          fontStyle: 'bold',
+          lineWidth: 0.2,
+          lineColor: [0, 0, 0],
+          halign: 'center',
+          valign: 'middle'
+        },
+        bodyStyles: {
+          fontSize: 8,
+          lineWidth: 0.2,
+          lineColor: [0, 0, 0],
+          cellPadding: 1
+        },
+        columnStyles: getColumnStyles(weekDays.length),
+        styles: {
+          cellPadding: 3,
+          valign: 'middle',
+          halign: 'center',
+          overflow: 'linebreak',
+          lineColor: [0, 0, 0]
+        },
+        didParseCell: function(data) {
+          if (data.section === 'head') {
+            data.cell.styles.fillColor = [26, 35, 126];
+            data.cell.styles.textColor = [255, 255, 255];
+            data.cell.styles.fontStyle = 'bold';
+          }
+          
+          if (data.section === 'body' && data.column.index > 0) {
+            const timeIndex = data.row.index;
+            const dayIndex = data.column.index - 1;
+            const spanInfo = scheduleSpans[`${timeIndex}-${dayIndex}`];
+            
+            if (spanInfo && spanInfo.isStart) {
+              data.cell.styles.fillColor = spanInfo.isAdminHours 
+                ? [155, 233, 203] //rgb(155, 233, 203) for admin hours
+                : [255, 215, 0];  // Original color for regular schedules
+              data.cell.styles.lineWidth = 0.1;
+              data.cell.styles.lineColor = [0, 0, 0];
+            }
           }
         }
-      }
-    });
+      });
 
-    // Add issue date and time at the bottom
-    const currentDate = new Date();
-    const dateStr = currentDate.toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric'
-    });
-    const timeStr = currentDate.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
+      // Add issue date and time at the bottom
+      const currentDate = new Date();
+      const dateStr = currentDate.toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      });
+      const timeStr = currentDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
 
-    doc.setFontSize(10);
-    doc.setTextColor(0);
-    doc.text(`Issued on ${dateStr} at ${timeStr}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+      doc.setFontSize(10);
+      doc.setTextColor(0);
+      doc.text(`Issued on ${dateStr} at ${timeStr}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
 
-    return doc;
+      return doc;
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      throw new Error("Failed to generate PDF");
+    }
   };
 
   const calculateScheduleSpans = (timeSlots, weekDays) => {
