@@ -68,10 +68,50 @@ export default class SchedulesModel {
         { $sort: { sectionName: 1 } }
       ]);
 
-      return sections;
+      return JSON.parse(JSON.stringify(sections));
     } catch (error) {
       console.error('Section fetch error:', error);
       throw new Error('Failed to fetch sections');
+    }
+  }
+
+  static async getSectionsForUser() {
+    try {
+      const Section = mongoose.models.Sections || mongoose.model('Sections', SectionSchema);
+      
+      const sections = await Section.find({ isActive: true })
+        .populate({
+          path: 'course',
+          select: 'courseCode courseTitle department',
+          populate: {
+            path: 'department',
+            select: 'departmentCode departmentName'
+          }
+        })
+        .populate('department', 'departmentCode departmentName')
+        .lean();
+
+      // Format sections for display
+      return sections.map(section => ({
+        ...section,
+        _id: section._id.toString(),
+        course: section.course ? {
+          ...section.course,
+          _id: section.course._id.toString(),
+          department: section.course.department ? {
+            ...section.course.department,
+            _id: section.course.department._id.toString()
+          } : null
+        } : null,
+        department: section.department ? {
+          ...section.department,
+          _id: section.department._id.toString()
+        } : null,
+        displayName: `${section.sectionName} - ${section.course?.courseCode || 'No Course'}`
+      }));
+    } catch (error) {
+      console.error('Error in getSectionsForUser:', error);
+      throw error;
     }
   }
 
