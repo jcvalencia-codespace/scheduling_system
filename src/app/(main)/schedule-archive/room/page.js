@@ -21,6 +21,11 @@ export default function RoomArchive() {
   const [selectedYear, setSelectedYear] = useState(null)
   const [selectedTerm, setSelectedTerm] = useState(null)
   const [selectedRoom, setSelectedRoom] = useState(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     if (user?._id) {
@@ -241,7 +246,7 @@ export default function RoomArchive() {
                   placeholder="Select Academic Year"
                   className="w-full"
                   styles={selectStyles}
-                  menuPortalTarget={document.body}
+                  menuPortalTarget={mounted ? document.body : null}
                   menuPosition="fixed"
                 />
               </div>
@@ -265,7 +270,7 @@ export default function RoomArchive() {
                   className="w-full"
                   isDisabled={!selectedYear}
                   styles={selectStyles}
-                  menuPortalTarget={document.body}
+                  menuPortalTarget={mounted ? document.body : null}
                   menuPosition="fixed"
                 />
               </div>
@@ -289,7 +294,7 @@ export default function RoomArchive() {
                     Option: RoomOption
                   }}
                   styles={selectStyles}
-                  menuPortalTarget={document.body}
+                  menuPortalTarget={mounted ? document.body : null}
                   menuPosition="fixed"
                 />
               </div>
