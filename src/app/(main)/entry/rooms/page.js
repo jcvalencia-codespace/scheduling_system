@@ -13,8 +13,10 @@ import { getRooms, getDepartments, removeRoom } from './_actions';
 import Swal from 'sweetalert2';
 import { useLoading } from '../../../context/LoadingContext';
 import NoData from '@/app/components/NoData';
+import useAuthStore from '../../../../store/useAuthStore';
 
 export default function RoomsPage() {
+  const { user } = useAuthStore();
   const [rooms, setRooms] = useState([]);
   const [departments, setDepartments] = useState([]);
   const { isLoading, setIsLoading } = useLoading();
@@ -104,7 +106,7 @@ export default function RoomsPage() {
 
     if (result.isConfirmed) {
       try {
-        const response = await removeRoom(roomCode);
+        const response = await removeRoom(roomCode, user._id);
         if (response.error) {
           throw new Error(response.error);
         }

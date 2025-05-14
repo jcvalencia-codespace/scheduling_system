@@ -212,7 +212,7 @@ const RoomSchema = new Schema({
     },
     action: {
       type: String,
-      enum: ['created', 'updated', 'deleted'],
+      enum: ['created', 'updated', 'deleted', 'reactivated'],
       required: true
     },
     academicYear: {

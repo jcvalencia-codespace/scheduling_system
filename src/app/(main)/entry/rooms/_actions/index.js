@@ -25,9 +25,15 @@ export async function addRoom(formData) {
       roomName: formData.get('roomName')?.trim(),
       type: formData.get('type')?.trim(),
       floor: formData.get('floor')?.trim(),
-      department: department._id, // Use department ObjectId instead of code
+      department: department._id,
       capacity: parseInt(formData.get('capacity') || '0', 10),
-      updatedBy: userId // Changed from formData.get('userId') to already validated userId
+      updatedBy: userId,
+      updateHistory: [{
+        updatedBy: userId,
+        action: 'created',
+        updatedAt: new Date(),
+        academicYear: new Date().getFullYear()
+      }]
     };
 
     // Validate required fields
@@ -43,15 +49,9 @@ export async function addRoom(formData) {
       throw new Error('Capacity must be a positive number');
     }
 
-    // Check if room code already exists
-    const existingRoom = await roomsModel.getRoomByCode(roomData.roomCode);
-    if (existingRoom) {
-      throw new Error('Room code already exists');
-    }
-
-    const savedRoom = await roomsModel.processRoomCreation(roomData);
+    const savedRoom = await roomsModel.createRoom(roomData);
     revalidatePath('/entry/rooms');
-    return { success: true, room: JSON.parse(JSON.stringify(savedRoom)) };
+    return { success: true, room: savedRoom };
   } catch (error) {
     console.error('Error in addRoom:', error);
     return { error: error.message || 'Failed to create room' };
@@ -100,7 +100,15 @@ export async function editRoom(roomCode, formData) {
       floor: formData.get('floor')?.trim(),
       department: department._id,
       capacity: parseInt(formData.get('capacity') || '0', 10),
-      updatedBy: userId
+      updatedBy: userId,
+      $push: {
+        updateHistory: {
+          updatedBy: userId,
+          action: 'updated',
+          updatedAt: new Date(),
+          academicYear: new Date().getFullYear()
+        }
+      }
     };
 
     // Validate required fields
@@ -125,9 +133,13 @@ export async function editRoom(roomCode, formData) {
   }
 }
 
-export async function removeRoom(roomCode) {
+export async function removeRoom(roomCode, userId) {
   try {
-    const deletedRoom = await roomsModel.deleteRoom(roomCode);
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return { error: 'Invalid user ID' };
+    }
+
+    const deletedRoom = await roomsModel.deleteRoom(roomCode, userId);
     revalidatePath('/entry/rooms');
     return { success: true, room: JSON.parse(JSON.stringify(deletedRoom)) };
   } catch (error) {

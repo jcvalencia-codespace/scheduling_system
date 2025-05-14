@@ -34,29 +34,58 @@ class RoomsModel {
 
   async createRoom(roomData) {
     const Room = await this.initModel();
+    
+    // Get active term
+    const Term = mongoose.models.Term || mongoose.model('Term', TermSchema);
+    const activeTerm = await Term.findOne({ status: 'Active' });
+    if (!activeTerm) {
+      throw new Error('No active term found');
+    }
+
     roomData.academicYear = activeTerm.academicYear;
 
-    // Check for existing active room
-    const existingActive = await this.getRoomByCode(roomData.roomCode);
-    if (existingActive) {
-      throw new Error('Room code already exists');
+    // Find the most recent room with this code
+    const existingRoom = await Room.findOne({ 
+      roomCode: roomData.roomCode,
+      isActive: false
+    }).sort({ createdAt: -1 });
+
+    // Add timestamps to updateHistory
+    if (!roomData.updateHistory) {
+      roomData.updateHistory = [];
+    }
+    roomData.updateHistory.push({
+      updatedBy: roomData.updatedBy,
+      action: 'created',
+      updatedAt: new Date(),
+      academicYear: activeTerm.academicYear
+    });
+
+    // If there's an inactive room, reactivate it instead of creating a new one
+    if (existingRoom) {
+      existingRoom.isActive = true;
+      existingRoom.roomName = roomData.roomName;
+      existingRoom.type = roomData.type;
+      existingRoom.floor = roomData.floor;
+      existingRoom.department = roomData.department;
+      existingRoom.capacity = roomData.capacity;
+      existingRoom.updateHistory.push({
+        updatedBy: roomData.updatedBy,
+        action: 'reactivated',
+        updatedAt: new Date(),
+        academicYear: activeTerm.academicYear
+      });
+      await existingRoom.save();
+      const populatedRoom = await Room.findById(existingRoom._id)
+        .populate('department', 'departmentCode departmentName');
+      return this.toPlainObject(populatedRoom);
     }
 
-    // Check for inactive room
-    const existingInactive = await this.getInactiveRoomByCode(roomData.roomCode);
-    if (existingInactive) {
-      return await this.reactivateRoom(roomData.roomCode, roomData.userId);
-    }
-
-    return await this.createRoom(roomData);
-  }
-
-  async processRoomCreation(roomData) {
-    const Room = await this.initModel();
     const savedRoom = await Room.create(roomData);
     const populatedRoom = await Room.findById(savedRoom._id)
       .populate('department', 'departmentCode departmentName');
-    return JSON.parse(JSON.stringify(populatedRoom));
+    
+    return this.toPlainObject(populatedRoom);
   }
 
   async getInactiveRoomByCode(roomCode) {
@@ -152,7 +181,7 @@ class RoomsModel {
   async updateRoom(roomCode, updateData) {
     const Room = await this.initModel();
     
-    // Check if trying to change roomCode and if new code already exists
+    // Check if trying to change roomCode and if new code already exists among active rooms
     const newRoomCode = updateData.roomCode?.trim().toUpperCase();
     if (newRoomCode && newRoomCode !== roomCode) {
       const existingRoom = await Room.findOne({ 
@@ -184,10 +213,17 @@ class RoomsModel {
     }
 
     const room = await Room.findOneAndUpdate(
-      { roomCode, isActive: true },
+      { roomCode },
       {
         $set: plainUpdateData,
-        ...(updateHistory && { $push: { updateHistory } })
+        $push: {
+          updateHistory: {
+            updatedBy: updateData.updatedBy,
+            action: 'updated',
+            updatedAt: new Date(),
+            academicYear: new Date().getFullYear()
+          }
+        }
       },
       { new: true, runValidators: true }
     )
@@ -208,11 +244,29 @@ class RoomsModel {
     return updatedRoom;
   }
 
-  async deleteRoom(roomCode) {
+  async deleteRoom(roomCode, userId) {
     const Room = await this.initModel();
+    
+    // Get active term for academic year
+    const Term = mongoose.models.Term || mongoose.model('Term', TermSchema);
+    const activeTerm = await Term.findOne({ status: 'Active' });
+    if (!activeTerm) {
+      throw new Error('No active term found');
+    }
+
     const room = await Room.findOneAndUpdate(
       { roomCode, isActive: true },
-      { isActive: false },
+      { 
+        isActive: false,
+        $push: {
+          updateHistory: {
+            updatedBy: userId,
+            action: 'deleted',
+            updatedAt: new Date(),
+            academicYear: activeTerm.academicYear
+          }
+        }
+      },
       { new: true }
     );
     
@@ -243,7 +297,7 @@ class RoomsModel {
       }
     };
 
-    const deletedRoom = await this.deleteRoom(roomCode);
+    const deletedRoom = await this.deleteRoom(roomCode, userId);
     if (!deletedRoom) {
       throw new Error('Failed to delete room');
     }
@@ -358,17 +412,6 @@ class RoomsModel {
       console.error('Rooms fetch error:', error);
       throw new Error('Failed to fetch rooms');
     }
-  }
-
-  toPlainObject(document) {
-    const plainObject = document.toObject();
-    if (plainObject.updateHistory) {
-      plainObject.updateHistory = plainObject.updateHistory.map(history => ({
-        ...history,
-        updatedAt: history.updatedAt instanceof Date ? history.updatedAt : new Date(history.updatedAt)
-      }));
-    }
-    return plainObject;
   }
 }
 
