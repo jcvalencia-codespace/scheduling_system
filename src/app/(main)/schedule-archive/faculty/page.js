@@ -21,6 +21,7 @@ export default function FacultyArchive() {
   const [selectedYear, setSelectedYear] = useState(null)
   const [selectedTerm, setSelectedTerm] = useState(null)
   const [selectedFaculty, setSelectedFaculty] = useState(null)
+  const [portalTarget, setPortalTarget] = useState(null)
 
   useEffect(() => {
     if (user?._id) {
@@ -42,6 +43,10 @@ export default function FacultyArchive() {
       setSchedules([])
     }
   }, [selectedYear, selectedTerm, selectedFaculty])
+
+  useEffect(() => {
+    setPortalTarget(document.body)
+  }, [])
 
   const fetchFacultyData = async () => {
     try {
@@ -248,7 +253,7 @@ export default function FacultyArchive() {
                   placeholder="Select Academic Year"
                   className="w-full"
                   styles={selectStyles}
-                  menuPortalTarget={document.body}
+                  menuPortalTarget={portalTarget}
                   menuPosition="fixed"
                 />
               </div>
@@ -272,7 +277,7 @@ export default function FacultyArchive() {
                   className="w-full"
                   isDisabled={!selectedYear}
                   styles={selectStyles}
-                  menuPortalTarget={document.body}
+                  menuPortalTarget={portalTarget}
                   menuPosition="fixed"
                 />
               </div>
@@ -295,7 +300,7 @@ export default function FacultyArchive() {
                     Option: FacultyOption
                   }}
                   styles={selectStyles}
-                  menuPortalTarget={document.body}
+                  menuPortalTarget={portalTarget}
                   menuPosition="fixed"
                 />
               </div>

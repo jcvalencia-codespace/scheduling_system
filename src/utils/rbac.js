@@ -17,7 +17,10 @@ export const rolePermissions = {
     '/feedback',
     '/chats',
     '/admin-hours',
-    '/settings'
+    '/settings',
+    '/schedule-archive',
+    '/schedule-archive/faculty',
+    '/schedule-archive/block'
   ],
   'Program Chair': [
     '/dashboard',
@@ -32,20 +35,25 @@ export const rolePermissions = {
     '/term',
     '/feedback',
     '/settings',
-    '/chats'
+    '/chats',
+    '/schedule-archive',
+    '/schedule-archive/faculty',
+    '/schedule-archive/block'
   ],
- 
   Faculty: [
     '/schedules/faculty',  // Changed from /schedules
     '/feedback',
     '/profile',
-    '/chats'
+    '/chats',
+    '/schedule-archive',
+    '/schedule-archive/faculty',
+    '/schedule-archive/block'
   ]
 };
 
 // Define menu items with their access roles
 export const menuItems = [
-    {
+  {
     title: 'Dasdhboard',
     href: '/dashboard',
     icon: 'ChartBarIcon',
@@ -178,6 +186,12 @@ export const menuItems = [
     title: 'Chats',
     href: '/chats',
     icon: 'ChatBubbleLeftRightIcon',
+    roles: ['Administrator', 'Dean', 'Program Chair', 'Faculty']
+  },
+  {
+    title: 'Schedule Archive',
+    href: '/schedule-archive',
+    icon: 'ArchiveBoxIcon',
     roles: ['Administrator', 'Dean', 'Program Chair', 'Faculty']
   }
 ];

@@ -25,6 +25,7 @@ import {
   ArrowLeftOnRectangleIcon,
   ChatBubbleLeftRightIcon,
   PresentationChartBarIcon,
+  ArchiveBoxIcon,
 } from '@heroicons/react/24/outline';
 
 // Define role-based menu items
@@ -65,6 +66,11 @@ const roleMenuItems = {
         { title: 'Schedule History', href: '/activity-logs/schedule-history', icon: ListBulletIcon },
         { title: 'Archive', href: '/activity-logs/archive', icon: ListBulletIcon }
       ]
+    },
+    {
+      title: 'Schedule Archive',
+      href: '/schedule-archive',
+      icon: ArchiveBoxIcon
     },
     {
       title: 'Send Feedback',
@@ -108,6 +114,11 @@ const roleMenuItems = {
         { title: 'Schedule History', href: '/activity-logs/schedule-history', icon: ListBulletIcon },
         { title: 'Archive', href: '/activity-logs/archive', icon: ListBulletIcon }
       ]
+    },
+    {
+      title: 'Schedule Archive',
+      href: '/schedule-archive',
+      icon: ArchiveBoxIcon
     },
     {
       title: 'Send Feedback',
@@ -175,6 +186,11 @@ const roleMenuItems = {
       ]
     },
     {
+      title: 'Schedule Archive',
+      href: '/schedule-archive',
+      icon: ArchiveBoxIcon
+    },
+    {
       title: 'Feedback',
       href: '/feedback',
       icon: EnvelopeIcon,
@@ -205,6 +221,11 @@ const roleMenuItems = {
       title: 'Send Feedback',
       href: '/feedback/send-feedback',
       icon: EnvelopeIcon
+    },
+    {
+      title: 'Schedule Archive',
+      href: '/schedule-archive',
+      icon: ArchiveBoxIcon
     }
   ]
 };
