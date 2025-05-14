@@ -512,13 +512,13 @@ export default function SchedulePage() {
             ${isScrolled ? "opacity-0 transform translate-y-[-20px]" : "opacity-100 transform translate-y-0"}
           `}
           >
-            <button
+            {/* <button
               onClick={() => setIsAdminHoursModalOpen(true)}
               className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-white bg-[#579980] hover:bg-[#488b73] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#77DD77]"
             >
               <ClockIcon className="h-5 w-5 mr-2" />
               Set Admin Hours
-            </button>
+            </button> */}
             <button
               onClick={() => setIsNewScheduleModalOpen(true)}
               className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#323E8F] hover:bg-[#283275] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#323E8F]"
@@ -542,7 +542,7 @@ export default function SchedulePage() {
             ${isScrolled ? "opacity-100 transform translate-y-0" : "opacity-0 transform translate-y-[20px] pointer-events-none"}
           `}
           >
-            <div className="tooltip">
+            {/* <div className="tooltip">
               <button
                 onClick={() => setIsAdminHoursModalOpen(true)}
                 className="w-12 h-12 rounded-full flex items-center justify-center text-white bg-[#579980] hover:bg-[#488b73] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#77DD77] shadow-lg transition-all duration-200"
@@ -550,7 +550,7 @@ export default function SchedulePage() {
                 <ClockIcon className="h-6 w-6" />
               </button>
               <span className="tooltiptext">Set Admin Hours</span>
-            </div>
+            </div> */}
 
             <div className="tooltip">
               <button

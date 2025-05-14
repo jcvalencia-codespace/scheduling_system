@@ -786,7 +786,7 @@ export default class SchedulesModel {
     }
   }
 
-  static async getRoomSchedules(roomId, query = {}) {
+  static async getRoomSchedules(roomId) {
     try {
       if (!roomId) {
         throw new Error('Room ID is required');
@@ -856,6 +856,9 @@ export default class SchedulesModel {
             term: { $first: '$term' },
             section: { $first: '$section' },
             subject: { $first: '$subject' },
+            classLimit: { $first: '$classLimit' },
+            studentType: { $first: '$studentType' },
+            isPaired: { $first: '$isPaired' },
             faculty: {
               $first: {
                 $cond: {

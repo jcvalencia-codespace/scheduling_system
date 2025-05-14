@@ -231,6 +231,7 @@ const SectionSchema = new Schema({
     required: [true, 'Section name is required'],
     trim: true,
     uppercase: true,
+    index: false // Explicitly prevent index creation
   },
   course: {  // Changed from courseCode
     type: Schema.Types.ObjectId,
@@ -277,16 +278,6 @@ const SectionSchema = new Schema({
   timestamps: true,
   collection: 'sections'
 });
-
-// Drop any existing indexes and create only the compound index
-SectionSchema.on('index', function(error) {
-  if (error) {
-    console.error('Section Schema index error:', error);
-  }
-});
-
-// This is the only index we want
-SectionSchema.index({ sectionName: 1, isActive: 1 }, { unique: true });
 
 const TermSchema = new Schema({
   academicYear: {

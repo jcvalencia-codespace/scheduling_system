@@ -580,6 +580,7 @@ export default function RoomSchedulePage() {
           isOpen={isViewScheduleModalOpen}
           onClose={() => setIsViewScheduleModalOpen(false)}
           schedule={selectedSchedule}
+          onDeleted={() => fetchRoomSchedules(selectedRoom?._id)}
         />
 
         <AdminHoursModal
@@ -606,7 +607,7 @@ export default function RoomSchedulePage() {
         <NewScheduleModal
           isOpen={isNewScheduleModalOpen}
           onClose={() => setIsNewScheduleModalOpen(false)}
-          onScheduleCreated={fetchRoomSchedules}
+          onScheduleCreated={(roomId) => fetchRoomSchedules(roomId || selectedRoom)}
           selectedRoom={availableRooms.rooms.find(r => r._id === selectedRoom)}
           selectedSection={selectedRoom}
         />

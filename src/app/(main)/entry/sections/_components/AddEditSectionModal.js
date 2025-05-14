@@ -119,7 +119,7 @@ export default function AddEditSectionModal({ show, onClose, section, courses, o
       form.append('userId', user._id);
 
       const result = section
-        ? await editSection(section.sectionName, form)
+        ? await editSection(section._id, form) // Use section._id instead of section.sectionName
         : await addSection(form);
 
       if (result.error) {

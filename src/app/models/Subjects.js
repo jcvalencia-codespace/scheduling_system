@@ -113,13 +113,29 @@ class SubjectsModel {
     return await this.createSubject(subjectData);
   }
 
+  async getActiveSubjectByCodeExcludingCurrent(newSubjectCode, currentSubjectCode) {
+    const Subject = await this.initModel();
+    return await Subject.findOne({ 
+      subjectCode: newSubjectCode,
+      isActive: true,
+      subjectCode: { $ne: currentSubjectCode }
+    });
+  }
+
   async processSubjectUpdate(subjectCode, updateData) {
-    // Check for duplicate if subject code is being changed
+    // Only check for duplicates if subject code is being changed AND it's different from current
     if (updateData.subjectCode && updateData.subjectCode !== subjectCode) {
-      const existingSubject = await this.getActiveSubjectByCodeExcludingCurrent(
-        updateData.subjectCode,
-        subjectCode
-      );
+      console.log('Checking duplicate for:', {
+        newCode: updateData.subjectCode,
+        currentCode: subjectCode
+      });
+      
+      const existingSubject = await this.MODEL.findOne({
+        subjectCode: updateData.subjectCode,
+        isActive: true,
+        _id: { $ne: updateData._id } // Exclude current subject by _id
+      });
+
       if (existingSubject) {
         throw new Error('Subject code already exists');
       }
@@ -207,16 +223,6 @@ class SubjectsModel {
       subjectCode, 
       isActive: true 
     }).populate('department', 'departmentCode departmentName');
-    return subject ? JSON.parse(JSON.stringify(subject)) : null;
-  }
-
-  async getActiveSubjectByCodeExcludingCurrent(subjectCode, currentSubjectCode) {
-    const Subject = await this.initModel();
-    const subject = await Subject.findOne({ 
-      subjectCode, 
-      isActive: true,
-      subjectCode: { $ne: currentSubjectCode } // Exclude current subject
-    });
     return subject ? JSON.parse(JSON.stringify(subject)) : null;
   }
 

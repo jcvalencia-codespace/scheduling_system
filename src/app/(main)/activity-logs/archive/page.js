@@ -112,12 +112,12 @@ export default function ArchivePage() {
   const isProgramChair = user?.role === 'Program Chair';
 
   return (
-    <div className="min-h-screen bg-gray-50 px-2 sm:px-4 md:px-6 lg:px-8 py-4 md:py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 px-2 sm:px-4 md:px-6 lg:px-8 py-4 md:py-8">
       <div className="max-w-7xl mx-auto pb-20"> {/* Increased bottom padding */}
         <div className="mb-4 md:mb-8 flex flex-col sm:flex-row justify-between items-start gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">System Activity Log</h1>
-            <p className="mt-2 text-sm md:text-base text-gray-600">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">System Activity Log</h1>
+            <p className="mt-2 text-sm md:text-base text-gray-600 dark:text-gray-400">
               View a comprehensive record of all system changes and user activities.
             </p>
           </div>
@@ -132,25 +132,21 @@ export default function ArchivePage() {
 
         <div className="space-y-4 md:space-y-6">
           {/* Class Load History Dropdown - Always shown */}
-          <div className="bg-white shadow rounded-lg overflow-hidden">
-            <div className="p-4 md:p-6 border-b border-gray-200 flex items-center justify-between bg-white">
+          <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+            <button
+              onClick={() => handleAccordionClick('classLoad')}
+              className="w-full p-4 md:p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
+            >
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Class Load Update History</h2>
-                <p className="mt-1 text-sm text-gray-500">View detailed history of all changes made to class load assignments</p>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white text-left">Class Load Update History</h2>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 text-left">View detailed history of all changes made to class load assignments</p>
               </div>
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => handleAccordionClick('classLoad')}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
-                >
-                  {activeAccordion === 'classLoad' ? (
-                    <ChevronUpIcon className="h-5 w-5 text-gray-500" />
-                  ) : (
-                    <ChevronDownIcon className="h-5 w-5 text-gray-500" />
-                  )}
-                </button>
-              </div>
-            </div>
+              {activeAccordion === 'classLoad' ? (
+                <ChevronUpIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+              ) : (
+                <ChevronDownIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+              )}
+            </button>
 
             <div className={`transition-all duration-300 ease-in-out ${
               activeAccordion === 'classLoad' ? 'max-h-full opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
@@ -167,25 +163,21 @@ export default function ArchivePage() {
           {user && !isProgramChair && (
             <>
               {/* Subjects History Dropdown */}
-              <div className="bg-white shadow rounded-lg overflow-hidden">
-                <div className="p-4 md:p-6 border-b border-gray-200 flex items-center justify-between bg-white">
+              <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+                <button
+                  onClick={() => handleAccordionClick('subjects')}
+                  className="w-full p-4 md:p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
+                >
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900">Subject Update History</h2>
-                    <p className="mt-1 text-sm text-gray-500">View detailed history of all changes made to subjects</p>
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white text-left">Subject Update History</h2>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 text-left">View detailed history of all changes made to subjects</p>
                   </div>
-                  <div className="flex items-center space-x-4">
-                    <button
-                      onClick={() => handleAccordionClick('subjects')}
-                      className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
-                    >
-                      {activeAccordion === 'subjects' ? (
-                        <ChevronUpIcon className="h-5 w-5 text-gray-500" />
-                      ) : (
-                        <ChevronDownIcon className="h-5 w-5 text-gray-500" />
-                      )}
-                    </button>
-                  </div>
-                </div>
+                  {activeAccordion === 'subjects' ? (
+                    <ChevronUpIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                  ) : (
+                    <ChevronDownIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                  )}
+                </button>
 
                 <div className={`transition-all duration-300 ease-in-out ${
                   activeAccordion === 'subjects' ? 'max-h-full opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
@@ -199,25 +191,21 @@ export default function ArchivePage() {
               </div>
 
               {/* Sections History Dropdown */}
-              <div className="bg-white shadow rounded-lg overflow-hidden">
-                <div className="p-4 md:p-6 border-b border-gray-200 flex items-center justify-between bg-white">
+              <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+                <button
+                  onClick={() => handleAccordionClick('sections')}
+                  className="w-full p-4 md:p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
+                >
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900">Section Update History</h2>
-                    <p className="mt-1 text-sm text-gray-500">View detailed history of all changes made to sections</p>
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white text-left">Section Update History</h2>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 text-left">View detailed history of all changes made to sections</p>
                   </div>
-                  <div className="flex items-center space-x-4">
-                    <button
-                      onClick={() => handleAccordionClick('sections')}
-                      className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
-                    >
-                      {activeAccordion === 'sections' ? (
-                        <ChevronUpIcon className="h-5 w-5 text-gray-500" />
-                      ) : (
-                        <ChevronDownIcon className="h-5 w-5 text-gray-500" />
-                      )}
-                    </button>
-                  </div>
-                </div>
+                  {activeAccordion === 'sections' ? (
+                    <ChevronUpIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                  ) : (
+                    <ChevronDownIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                  )}
+                </button>
 
                 <div className={`transition-all duration-300 ease-in-out ${
                   activeAccordion === 'sections' ? 'max-h-full opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
@@ -231,25 +219,21 @@ export default function ArchivePage() {
               </div>
 
               {/* Rooms History Dropdown */}
-              <div className="bg-white shadow rounded-lg overflow-hidden">
-                <div className="p-4 md:p-6 border-b border-gray-200 flex items-center justify-between bg-white">
+              <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+                <button
+                  onClick={() => handleAccordionClick('rooms')}
+                  className="w-full p-4 md:p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
+                >
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900">Room Update History</h2>
-                    <p className="mt-1 text-sm text-gray-500">View detailed history of all changes made to rooms</p>
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white text-left">Room Update History</h2>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 text-left">View detailed history of all changes made to rooms</p>
                   </div>
-                  <div className="flex items-center space-x-4">
-                    <button
-                      onClick={() => handleAccordionClick('rooms')}
-                      className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
-                    >
-                      {activeAccordion === 'rooms' ? (
-                        <ChevronUpIcon className="h-5 w-5 text-gray-500" />
-                      ) : (
-                        <ChevronDownIcon className="h-5 w-5 text-gray-500" />
-                      )}
-                    </button>
-                  </div>
-                </div>
+                  {activeAccordion === 'rooms' ? (
+                    <ChevronUpIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                  ) : (
+                    <ChevronDownIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                  )}
+                </button>
 
                 <div className={`transition-all duration-300 ease-in-out ${
                   activeAccordion === 'rooms' ? 'max-h-full opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
