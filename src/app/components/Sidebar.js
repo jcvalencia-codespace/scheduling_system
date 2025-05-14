@@ -46,11 +46,6 @@ const roleMenuItems = {
       ]
     },
     {
-      title: 'Term',
-      href: '/term',
-      icon: AcademicCapIcon
-    },
-    {
       title: 'Admin Hours',
       href: '/admin-hours',
       icon: ClockIcon,
@@ -67,7 +62,7 @@ const roleMenuItems = {
     },
     {
       title: 'Send Feedback',
-      href: '/feedback',
+      href: '/feedback/send-feedback',
       icon: EnvelopeIcon
     },
     {
@@ -94,11 +89,6 @@ const roleMenuItems = {
       ]
     },
     {
-      title: 'Term',
-      href: '/term',
-      icon: AcademicCapIcon
-    },
-    {
       title: 'Activity Logs',
       href: '/activity-logs',
       icon: ClipboardDocumentListIcon,
@@ -110,7 +100,7 @@ const roleMenuItems = {
     },
     {
       title: 'Send Feedback',
-      href: '/feedback',
+      href: '/feedback/send-feedback',
       icon: EnvelopeIcon
     },
     {
@@ -146,7 +136,6 @@ const roleMenuItems = {
       subItems: [
         { title: 'Courses', href: '/maintenance/courses', icon: ListBulletIcon },
         { title: 'Departments', href: '/maintenance/departments', icon: ListBulletIcon },
-        { title: 'Designations', href: '/maintenance/designations', icon: BookOpenIcon }
       ]
     },
     {
@@ -159,11 +148,6 @@ const roleMenuItems = {
       href: '/admin-hours',
       icon: ClockIcon,
     },
-    // {
-    //   title: 'Override Requests',
-    //   href: '/override-requests',
-    //   icon: ArrowPathIcon
-    // },
     {
       title: 'Activity Logs',
       href: '/activity-logs',
@@ -180,7 +164,7 @@ const roleMenuItems = {
       icon: EnvelopeIcon,
       hasDropdown: true,
       subItems: [
-        { title: 'Send Feedback', href: '/feedback', icon: EnvelopeIcon },
+        { title: 'Send Feedback', href: '/feedback/send-feedback', icon: EnvelopeIcon },
         { title: 'Feedback Summary', href: '/feedback/summary', icon: ListBulletIcon },
       ]
     },
@@ -203,7 +187,7 @@ const roleMenuItems = {
     },
     {
       title: 'Send Feedback',
-      href: '/feedback',
+      href: '/feedback/send-feedback',
       icon: EnvelopeIcon
     }
   ]
@@ -225,7 +209,7 @@ export default function Sidebar() {
         acc[key] = false;
         return acc;
       }, {});
-      
+
       // Toggle only the clicked item
       return {
         ...allClosed,
@@ -236,9 +220,8 @@ export default function Sidebar() {
 
   return (
     <div
-      className={`fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-gray-900 shadow-xl transition-transform duration-300 ease-in-out ${
-        isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}
+      className={`fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-gray-900 shadow-xl transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
     >
       {/* Logo and Close Button */}
       <div className="flex h-16 items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4">
@@ -274,9 +257,8 @@ export default function Sidebar() {
                   <div className="relative">
                     <Link
                       href={item.href}
-                      className={`flex items-center justify-between p-2 rounded-md text-gray-900 dark:text-gray-100 hover:bg-[#FFD41C] hover:text-black dark:hover:text-black ${
-                        isActive ? 'bg-[#323E8F] text-white' : ''
-                      }`}
+                      className={`flex items-center justify-between p-2 rounded-md text-gray-900 dark:text-gray-100 hover:bg-[#FFD41C] hover:text-black dark:hover:text-black ${isActive ? 'bg-[#323E8F] text-white' : ''
+                        }`}
                       onClick={item.hasDropdown ? (e) => {
                         e.preventDefault();
                         toggleExpand(item.title);
@@ -288,26 +270,23 @@ export default function Sidebar() {
                       </div>
                       {item.hasDropdown && (
                         <ChevronDownIcon
-                          className={`h-4 w-4 transition-transform ${
-                            isExpanded ? 'rotate-180' : ''
-                          }`}
+                          className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''
+                            }`}
                         />
                       )}
                     </Link>
-                    
+
                     {item.hasDropdown && (
-                      <ul 
-                        className={`mt-1 ml-4 space-y-1 overflow-hidden transition-all duration-300 ease-in-out ${
-                          isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-                        }`}
+                      <ul
+                        className={`mt-1 ml-4 space-y-1 overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                          }`}
                       >
                         {item.subItems?.map((subItem) => (
                           <li key={subItem.title}>
                             <Link
                               href={subItem.href}
-                              className={`flex items-center space-x-2 p-2 rounded-md text-gray-900 dark:text-gray-100 hover:bg-[#FFD41C] hover:text-black dark:hover:text-black ${
-                                pathname === subItem.href ? 'bg-[#323E8F] text-white' : ''
-                              }`}
+                              className={`flex items-center space-x-2 p-2 rounded-md text-gray-900 dark:text-gray-100 hover:bg-[#FFD41C] hover:text-black dark:hover:text-black ${pathname === subItem.href ? 'bg-[#323E8F] text-white' : ''
+                                }`}
                             >
                               <subItem.icon className="h-4 w-4" />
                               <span>{subItem.title}</span>

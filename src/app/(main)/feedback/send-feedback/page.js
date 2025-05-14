@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { EnvelopeIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
-import { submitFeedback, getUserFeedback } from './_actions';
+import { submitFeedback, getUserFeedback } from '../_actions';
 import { useRouter } from 'next/navigation';
 import Swal from 'sweetalert2';
 import dynamic from 'next/dynamic';
