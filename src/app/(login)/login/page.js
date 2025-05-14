@@ -97,7 +97,7 @@ export default function LoginPage() {
       if (response.success) {
         setVerifyStatus('redirecting');
         setUser(response.user);
-        router.push('/schedules');
+        router.push('/dashboard');
       }
     } catch (err) {
       setAlertMessage('An error occurred during login');
