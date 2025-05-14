@@ -149,7 +149,10 @@ export async function editUser(userId, formData) {
     console.log('User updated successfully:', { ...updatedUser, password: '[REDACTED]' });
     
     revalidatePath('/entry/users');
-    return { success: true, user: updatedUser };
+    return { 
+      success: true, 
+      user: JSON.parse(JSON.stringify(updatedUser))  // Added JSON parse/stringify here
+    };
   } catch (error) {
     console.error('Error in editUser:', error);
     return { error: error.message || 'Failed to update user' };
