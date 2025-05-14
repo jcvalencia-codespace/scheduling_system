@@ -202,16 +202,13 @@ export default function NewScheduleModal({
         try {
           setLoading(true);
           const [formResponse, termResponse] = await Promise.all([
-            getScheduleFormData().catch(error => {
-              throw new Error(error.message);
-            }),
-            getActiveTerm().catch(error => {
-              throw new Error(error.message);
-            })
+            getScheduleFormData(),
+            getActiveTerm()
           ]);
 
-          if (termResponse.error) {
-            throw new Error(termResponse.error);
+          // Check if there's an error or no term data
+          if (!termResponse || !termResponse.term) {
+            throw new Error('No active term found. Please contact an administrator.');
           }
 
           setFormData(formResponse);

@@ -11,26 +11,24 @@ export async function getActiveTerm() {
   try {
     const term = await TermsModel.getActiveTerm();
     if (!term) {
-      return { error: 'No active term found' };
+      throw new Error('No active term found');
     }
 
-    // Use JSON.parse(JSON.stringify()) to handle all MongoDB objects
-    const serializedTerm = JSON.parse(JSON.stringify(term));
-
+    // Ensure we're returning an object with term property
     return { 
       term: {
-        id: serializedTerm._id,
-        term: serializedTerm.term,
-        academicYear: serializedTerm.academicYear,
-        startDate: serializedTerm.startDate,
-        endDate: serializedTerm.endDate,
-        status: serializedTerm.status,
-        isVisible: serializedTerm.isVisible
-      } 
+        id: term.id,
+        term: term.term,
+        academicYear: term.academicYear,
+        startDate: term.startDate,
+        endDate: term.endDate,
+        status: term.status,
+        isVisible: term.isVisible
+      }
     };
   } catch (error) {
     console.error('Error getting active term:', error);
-    return { error: error.message || 'Failed to get active term' };
+    throw new Error('No active term found. Please contact an administrator.');
   }
 }
 
