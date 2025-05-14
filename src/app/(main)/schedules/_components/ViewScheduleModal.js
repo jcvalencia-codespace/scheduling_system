@@ -20,12 +20,18 @@ import NewScheduleModal from './NewScheduleModal';
 // Add useAuthStore to imports
 import useAuthStore from '@/store/useAuthStore';
 
-export default function ViewScheduleModal({ isOpen, onClose, schedule, onScheduleDeleted }) {
+export default function ViewScheduleModal({ 
+  isOpen, 
+  onClose, 
+  schedule,
+  onDeleted // Add this prop
+}) {
   // Add user from auth store
   const { user } = useAuthStore();
   const [isEditMode, setIsEditMode] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [currentSchedule, setCurrentSchedule] = useState(schedule);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Update currentSchedule when schedule prop changes
   useEffect(() => {
@@ -39,39 +45,47 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule, onSchedul
   };
 
   const handleDelete = async () => {
-    const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: "You won't be able to revert this!",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#dc2626',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Yes, delete it!',
-      cancelButtonText: 'Cancel'
-    });
+    try {
+      const result = await Swal.fire({
+        title: 'Are you sure?',
+        text: "You won't be able to revert this!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#1a237e',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, delete it!'
+      });
 
-    if (result.isConfirmed) {
-      try {
-        // Pass the user._id as second parameter
+      if (result.isConfirmed) {
+        setIsDeleting(true);
         const response = await deleteSchedule(schedule._id, user._id);
+        
         if (response.error) {
           throw new Error(response.error);
         }
+
         await Swal.fire({
           title: 'Deleted!',
           text: 'Schedule has been deleted.',
           icon: 'success',
+          timer: 1500
         });
+
         onClose();
-        onScheduleDeleted();
-      } catch (error) {
-        console.error('Error deleting schedule:', error);
-        await Swal.fire({
-          title: 'Error!',
-          text: 'Failed to delete schedule',
-          icon: 'error'
-        });
+        // Call onDeleted callback if provided
+        if (onDeleted) {
+          onDeleted();
+        }
       }
+    } catch (error) {
+      console.error('Error deleting schedule:', error);
+      await Swal.fire({
+        title: 'Error!',
+        text: error.message || 'Failed to delete schedule',
+        icon: 'error'
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -248,7 +262,9 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule, onSchedul
                                 <div className="flex items-center gap-x-2 text-gray-600">
                                   <UsersIcon className="h-5 w-5" />
                                   <p className="text-sm">
-                                    Class Limit: <span className="font-semibold text-gray-900">{schedule.classLimit}</span>
+                                    Class Limit: <span className="font-semibold text-gray-900">
+                                      {schedule?.classLimit || currentSchedule?.classLimit}
+                                    </span>
                                   </p>
                                 </div>
                               </div>
@@ -257,7 +273,9 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule, onSchedul
                                 <div className="flex items-center gap-x-2 text-gray-600">
                                   <UserGroupIcon className="h-5 w-5" />
                                   <p className="text-sm">
-                                    Student Type: <span className="font-semibold text-gray-900">{schedule.studentType}</span>
+                                    Student Type: <span className="font-semibold text-gray-900">
+                                      {schedule?.studentType || currentSchedule?.studentType}
+                                    </span>
                                   </p>
                                 </div>
                               </div>
@@ -267,7 +285,8 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule, onSchedul
                                   <PresentationChartLineIcon className="h-5 w-5" />
                                   <p className="text-sm">
                                     Schedule Type: <span className="font-semibold text-gray-900">
-                                      {schedule.scheduleType?.charAt(0).toUpperCase() + schedule.scheduleType?.slice(1)}
+                                      {(schedule?.scheduleType || currentSchedule?.scheduleType)?.charAt(0).toUpperCase() + 
+                                       (schedule?.scheduleType || currentSchedule?.scheduleType)?.slice(1)}
                                     </span>
                                   </p>
                                 </div>
@@ -278,7 +297,7 @@ export default function ViewScheduleModal({ isOpen, onClose, schedule, onSchedul
                                   <ArrowsRightLeftIcon className="h-5 w-5" />
                                   <p className="text-sm">
                                     Pairing: <span className="font-semibold text-gray-900">
-                                      {schedule.isPaired ? 'Yes' : 'No'}
+                                      {(schedule?.isPaired || currentSchedule?.isPaired) ? 'Yes' : 'No'}
                                     </span>
                                   </p>
                                 </div>

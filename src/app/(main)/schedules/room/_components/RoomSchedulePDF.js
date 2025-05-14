@@ -4,7 +4,6 @@ import autoTable from 'jspdf-autotable';
 const RoomSchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
   const generatePDF = () => {
     const doc = new jsPDF();
-
     // Center logo calculation
     const pageWidth = doc.internal.pageSize.width;
     const logoWidth = 40;
@@ -23,7 +22,6 @@ const RoomSchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
       const dataUrl = canvas.toDataURL('image/png');
       doc.addImage(dataUrl, 'PNG', logoX, 5, logoWidth, 12);
     };
-
     // Add header text directly without logo
     doc.setFontSize(16);
     doc.setTextColor(26, 35, 126);

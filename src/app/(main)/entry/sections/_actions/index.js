@@ -51,13 +51,13 @@ export async function editSection(sectionId, formData) {
   }
 }
 
-export async function removeSection(sectionId, userId) {
+export async function removeSection(sectionName, userId) {
   try {
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return { error: 'Invalid user ID' };
     }
 
-    const result = await sectionsModel.processSectionDeletion(sectionId, userId);
+    const result = await sectionsModel.processSectionDeletion(sectionName, userId);
     revalidatePath('/entry/sections');
     return { success: true, ...result };
   } catch (error) {

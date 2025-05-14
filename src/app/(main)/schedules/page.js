@@ -200,33 +200,62 @@ export default function SchedulePage() {
 
   // Update the getUniqueSections function
   const getUniqueSections = () => {
-    if (!availableSections || !user?.role) return []
+    if (!availableSections || !user?.role) return [];
 
     try {
-      let filteredSections = []
+      let filteredSections = [];
 
       switch (user.role) {
         case "Dean":
-          filteredSections = availableSections.filter(
-            (section) => section.course?.department?._id === user.department
-          )
-          break
+          // Get user's department ID, handle both object and string formats
+          const userDeptId = user.department?._id?.toString() || user.department?.toString();
+          
+          // Filter sections by department
+          filteredSections = availableSections.filter(section => {
+            const sectionDeptId = section.department?._id?.toString() || section.course?.department?._id?.toString();
+            return sectionDeptId === userDeptId;
+          });
+          
+          console.log('Dean Filtering:', {
+            userDepartmentId: userDeptId,
+            availableSections: availableSections.map(s => ({
+              sectionName: s.sectionName,
+              departmentId: s.department?._id?.toString(),
+              courseDepartmentId: s.course?.department?._id?.toString()
+            })),
+            filteredCount: filteredSections.length
+          });
+          break;
+
         case "Program Chair":
+          // Extract the course ID string from the buffer object
+          const userCourseId = user.course?._id?.toString() || user.course?.toString();
+          
+          // Compare with the course._id from the section
           filteredSections = availableSections.filter(
-            (section) => section.course?._id === user.course
-          )
-          break
+            (section) => section.course?._id?.toString() === userCourseId
+          );
+          
+          console.log('Program Chair Filtering:', {
+            userCourseId,
+            availableSections: availableSections.map(s => ({
+              sectionName: s.sectionName,
+              courseId: s.course?._id?.toString(),
+              course: s.course
+            }))
+          });
+          break;
         default:
-          filteredSections = availableSections
+          filteredSections = availableSections;
       }
 
       return filteredSections
         .map((section) => section.sectionName)
-        .filter(Boolean) // Remove any undefined/null values
-        .sort()
+        .filter(Boolean)
+        .sort();
     } catch (error) {
-      console.error("Error in getUniqueSections:", error)
-      return []
+      console.error("Error in getUniqueSections:", error);
+      return [];
     }
   }
 
@@ -483,13 +512,13 @@ export default function SchedulePage() {
             ${isScrolled ? "opacity-0 transform translate-y-[-20px]" : "opacity-100 transform translate-y-0"}
           `}
           >
-            <button
+            {/* <button
               onClick={() => setIsAdminHoursModalOpen(true)}
               className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-white bg-[#579980] hover:bg-[#488b73] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#77DD77]"
             >
               <ClockIcon className="h-5 w-5 mr-2" />
               Set Admin Hours
-            </button>
+            </button> */}
             <button
               onClick={() => setIsNewScheduleModalOpen(true)}
               className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#323E8F] hover:bg-[#283275] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#323E8F]"
@@ -513,7 +542,7 @@ export default function SchedulePage() {
             ${isScrolled ? "opacity-100 transform translate-y-0" : "opacity-0 transform translate-y-[20px] pointer-events-none"}
           `}
           >
-            <div className="tooltip">
+            {/* <div className="tooltip">
               <button
                 onClick={() => setIsAdminHoursModalOpen(true)}
                 className="w-12 h-12 rounded-full flex items-center justify-center text-white bg-[#579980] hover:bg-[#488b73] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#77DD77] shadow-lg transition-all duration-200"
@@ -521,7 +550,7 @@ export default function SchedulePage() {
                 <ClockIcon className="h-6 w-6" />
               </button>
               <span className="tooltiptext">Set Admin Hours</span>
-            </div>
+            </div> */}
 
             <div className="tooltip">
               <button

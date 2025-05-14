@@ -4,7 +4,6 @@ import autoTable from 'jspdf-autotable';
 const FacultySchedulePDF = ({ activeTerm, schedules, selectedSection, adminHours = [] }) => {
   const generatePDF = () => {
     const doc = new jsPDF();
-    
     // Remove logo handling since it causes CORS issues
     // Just add header text directly
     doc.setFontSize(14);

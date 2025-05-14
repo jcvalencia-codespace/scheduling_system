@@ -7,12 +7,21 @@ export async function getAllFaculty(departmentId = null, user = null) {
   try {
     const isAdmin = user?.role === 'Administrator';
     
-    // Handle different user roles
-    if (user?.role === 'Program Chair') {
-      const faculty = await UsersModel.getFacultyByCourse(user.course, false);
+    if (user?.role === 'Dean') {
+      // Extract department ID from user
+      const deanDeptId = user.department?._id?.toString() || user.department?.toString();
+      console.log('Dean fetching faculty with departmentId:', deanDeptId);
+      
+      const faculty = await UsersModel.getFacultyByDepartment(deanDeptId, false);
       return { faculty };
-    } else if (user?.role === 'Dean' && !isAdmin) {
-      const faculty = await UsersModel.getFacultyByDepartment(departmentId, false);
+    } else if (user?.role === 'Program Chair') {
+      // Extract the course ID
+      const courseId = user.course?._id?.toString() || user.course?.toString();
+      console.log('Program Chair fetching faculty with courseId:', courseId);
+      
+      const faculty = await UsersModel.getFacultyByCourse(courseId, false);
+      console.log('Found faculty members:', faculty.length);
+      
       return { faculty };
     } else {
       // Admin gets all faculty

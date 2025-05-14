@@ -18,6 +18,16 @@ class SectionsModel {
       this.COURSE_MODEL = mongoose.models.Courses || mongoose.model("Courses", CourseSchema);
       // Finally Section model
       this.MODEL = mongoose.models.Sections || mongoose.model("Sections", SectionSchema);
+      
+      // Drop the unique index if it exists
+      try {
+        await this.MODEL.collection.dropIndex('sectionName_1');
+      } catch (error) {
+        // Ignore error if index doesn't exist
+        if (error.code !== 27) {
+          console.error('Error dropping index:', error);
+        }
+      }
     }
     return this.MODEL;
   }
@@ -37,8 +47,21 @@ class SectionsModel {
   async createSection(sectionData) {
     try {
       const Section = await this.initModel();
+      
+      // Check all active sections with the same name without considering course or year
+      const activeSection = await Section.findOne({ 
+        sectionName: sectionData.sectionName,
+        isActive: true
+      });
+      
+      if (activeSection) {
+        throw new Error('A section with this name already exists. Please choose a different section name.');
+      }
+
+      // Create new section document regardless of existing inactive ones
       const section = new Section({
         ...sectionData,
+        isActive: true,
         updateHistory: [{
           updatedBy: sectionData.userId,
           updatedAt: new Date(),
@@ -47,45 +70,24 @@ class SectionsModel {
         }]
       });
       
-      // Start a session for transaction
-      const session = await mongoose.startSession();
-      let result;
+      await section.save();
       
-      try {
-        await session.withTransaction(async () => {
-          // First deactivate any existing active section with the same name
-          await Section.findOneAndUpdate(
-            { sectionName: sectionData.sectionName, isActive: true },
-            { isActive: false },
-            { session }
-          );
-          
-          // Create new section
-          await section.save({ session });
-          
-          // Populate the section after saving
-          result = await Section.findById(section._id)
-            .populate({
-              path: 'course',
-              select: 'courseCode courseTitle department',
-              populate: {
-                path: 'department',
-                select: 'departmentCode departmentName'
-              }
-            })
-            .populate({
-              path: 'department',
-              select: 'departmentCode departmentName'
-            })
-            .session(session);
+      // Populate and return the new section
+      const result = await Section.findById(section._id)
+        .populate({
+          path: 'course',
+          select: 'courseCode courseTitle department',
+          populate: {
+            path: 'department',
+            select: 'departmentCode departmentName'
+          }
+        })
+        .populate({
+          path: 'department',
+          select: 'departmentCode departmentName'
         });
-        
-        await session.endSession();
-        return JSON.parse(JSON.stringify(result));
-      } catch (error) {
-        await session.endSession();
-        throw error;
-      }
+
+      return JSON.parse(JSON.stringify(result));
     } catch (error) {
       console.error('Error in createSection:', error);
       throw error;
@@ -99,23 +101,35 @@ class SectionsModel {
     return JSON.parse(JSON.stringify(sections));
   }
 
-  async getAllSectionsWithDepartment() {
+  async getAllSectionsWithDepartment(userRole = null, departmentId = null, courseId = null) {
     try {
       const Section = await this.initModel();
-      const sections = await Section.find({ isActive: true })
+      let query = { isActive: true };
+
+      // Add filters based on user role and IDs
+      if (userRole === 'Dean' && departmentId) {
+        query.department = new mongoose.Types.ObjectId(departmentId);
+      } else if (userRole === 'Program Chair' && courseId) {
+        query.course = new mongoose.Types.ObjectId(courseId);
+      }
+
+      console.log('Section query:', query); // Debug log
+
+      const sections = await Section.find(query)
         .populate({
-          path: 'course', // Changed from courseCode
-          select: 'courseCode courseTitle department',
+          path: 'course',
+          select: 'courseCode courseTitle department _id',
           populate: {
             path: 'department',
-            select: 'departmentCode departmentName'
+            select: 'departmentCode departmentName _id'
           }
         })
-        .populate({
-          path: 'department',
-          select: 'departmentCode departmentName'
-        })
-        .populate('updateHistory.updatedBy', 'firstName lastName'); // Add this line
+        .populate('department', 'departmentCode departmentName _id')
+        .lean()
+        .sort({ sectionName: 1 });
+
+      console.log('Found sections:', sections.length); // Debug log
+
       return JSON.parse(JSON.stringify(sections));
     } catch (error) {
       console.error('Error in getAllSectionsWithDepartment:', error);
@@ -178,15 +192,15 @@ class SectionsModel {
     return updatedSection ? JSON.parse(JSON.stringify(updatedSection)) : null;
   }
 
-  async deleteSection(id, updateData) {
+  async deleteSection(sectionName, updateData) {
     const Section = await this.initModel();
     const { $push, ...otherUpdateData } = updateData;
 
     const section = await Section.findOneAndUpdate(
-      { _id: id, isActive: true },
+      { sectionName: sectionName, isActive: true },
       { 
         $set: { ...otherUpdateData, isActive: false },
-        $push: updateData.$push // updateData.$push already contains academicYear
+        $push: updateData.$push
       },
       { new: true }
     );
@@ -252,43 +266,21 @@ class SectionsModel {
     const yearLevel = formData.get('yearLevel');
     const userId = formData.get('userId');
 
-    // Check for existing section
-    const existingSection = await this.getSectionByName(sectionName);
-    
-    // If section exists and is active, reject creation
-    if (existingSection && existingSection.isActive) {
-      throw new Error('A section with this name already exists');
+    // Instead of deactivating existing sections, check if an active section exists
+    const Section = await this.initModel();
+    const existingSection = await Section.findOne({
+      sectionName: sectionName,
+      isActive: true
+    });
+
+    if (existingSection) {
+      throw new Error('A section with this name already exists and is active. Please choose a different section name.');
     }
 
     // Get course with department
     const course = await this.COURSE_MODEL.findById(courseId).populate('department');
     if (!course) {
       throw new Error('Course not found');
-    }
-
-    // Handle reactivation of inactive section
-    if (existingSection && !existingSection.isActive) {
-      const updateData = {
-        course: courseId,
-        department: course.department,
-        yearLevel,
-        isActive: true,
-        updatedBy: new mongoose.Types.ObjectId(userId),
-        $push: {
-          updateHistory: {
-            updatedBy: new mongoose.Types.ObjectId(userId),
-            updatedAt: new Date(),
-            action: 'reactivated',
-            academicYear: activeTerm.academicYear // Add academicYear here
-          }
-        }
-      };
-
-      const reactivatedSection = await this.updateSection(existingSection._id, updateData);
-      if (!reactivatedSection) {
-        throw new Error('Failed to reactivate section');
-      }
-      return { section: reactivatedSection, reactivated: true };
     }
 
     // Create new section with academicYear
@@ -299,7 +291,7 @@ class SectionsModel {
       yearLevel,
       isActive: true,
       userId,
-      academicYear: activeTerm.academicYear // Add academicYear here
+      academicYear: activeTerm.academicYear
     };
 
     const newSection = await this.createSection(sectionData);
@@ -312,9 +304,18 @@ class SectionsModel {
 
   async processSectionUpdate(sectionId, formData) {
     const userId = formData.get('userId');
-    const section = await this.getSectionByName(sectionId);
-    if (!section) {
-      throw new Error('Section not found');
+    const newSectionName = formData.get('sectionName');
+    
+    // First check if the new section name already exists (excluding current section)
+    const Section = await this.initModel();
+    const existingSection = await Section.findOne({
+      _id: { $ne: sectionId },
+      sectionName: newSectionName,
+      isActive: true
+    });
+
+    if (existingSection) {
+      throw new Error('A section with this name already exists. Please choose a different section name.');
     }
 
     // Get active term
@@ -331,7 +332,7 @@ class SectionsModel {
     }
 
     const updateData = {
-      sectionName: formData.get('sectionName'),
+      sectionName: newSectionName,
       course: formData.get('courseCode'),
       department: course.department._id,
       yearLevel: formData.get('yearLevel'),
@@ -346,11 +347,14 @@ class SectionsModel {
       }
     };
 
-    const updatedSection = await this.updateSection(section._id, updateData);
+    const updatedSection = await this.updateSection(sectionId, updateData);
+    if (!updatedSection) {
+      throw new Error('Failed to update section');
+    }
     return { section: updatedSection };
   }
 
-  async processSectionDeletion(sectionId, userId) {
+  async processSectionDeletion(sectionName, userId) {
     // Get active term
     const Term = mongoose.models.Term || mongoose.model('Term', TermSchema);
     const activeTerm = await Term.findOne({ status: 'Active' });
@@ -370,7 +374,7 @@ class SectionsModel {
       }
     };
 
-    const deletedSection = await this.deleteSection(sectionId, updateData);
+    const deletedSection = await this.deleteSection(sectionName, updateData);
     if (!deletedSection) {
       throw new Error('Section not found or already inactive');
     }

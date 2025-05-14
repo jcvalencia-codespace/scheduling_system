@@ -58,47 +58,42 @@ export async function getFacultySchedules(userId) {
 
 export async function getAllRooms(user = null) {
   try {
-    let rooms;
-    const isAdmin = user?.role === 'Administrator';
-    
-    // Handle different user roles
-    if (user?.role === 'Program Chair') {
-      const departmentId = user?.department;
-      rooms = await RoomsModel.getRoomsByDepartment(departmentId);
-    } else if (user?.role === 'Dean') {
-      rooms = await RoomsModel.getRoomsByDepartment(user.department);
-    } else {
-      rooms = await RoomsModel.getAllRooms();
-    }
-      
-    if (!rooms) {
+    if (!user) {
       return { rooms: [] };
     }
 
-    // Serialize rooms data with proper date handling
-    const serializedRooms = rooms.map(room => ({
-      _id: room._id.toString(),
-      roomCode: room.roomCode,
-      roomName: room.roomName,
-      type: room.type,
-      floor: room.floor,
-      department: room.department ? {
-        _id: room.department._id.toString(),
-        departmentCode: room.department.departmentCode,
-        departmentName: room.department.departmentName
-      } : null,
-      capacity: room.capacity,
-      isActive: room.isActive,
-      updateHistory: room.updateHistory?.map(history => ({
-        _id: history._id.toString(),
-        updatedBy: history.updatedBy.toString(),
-        updatedAt: new Date(history.updatedAt).toISOString(), // Fix date handling
-        action: history.action
-      })) || []
-    }));
+    let rooms;
+    const isAdmin = user?.role === 'Administrator';
+    
+    console.log('Getting rooms for user:', {
+      role: user.role,
+      department: user.department,
+      course: user.course,
+      isAdmin
+    });
 
-    console.log(`Fetched ${serializedRooms.length} rooms for ${user?.role}`);
-    return { rooms: serializedRooms };
+    // Get all rooms for Admin, Dean, and Program Chair
+    if (user?.role === 'Dean' || user?.role === 'Program Chair' || isAdmin) {
+      rooms = await RoomsModel.getAllRooms();
+
+      if (!Array.isArray(rooms)) {
+        return { rooms: [] };
+      }
+
+      // Group rooms by department
+      const groupedRooms = rooms.reduce((acc, room) => {
+        const deptName = room.department?.departmentName || 'Unassigned';
+        if (!acc[deptName]) {
+          acc[deptName] = [];
+        }
+        acc[deptName].push(room);
+        return acc;
+      }, {});
+
+      return { rooms, groupedRooms };
+    }
+
+    return { rooms: [] };
   } catch (error) {
     console.error('Error fetching rooms:', error);
     return { error: error.message || 'Failed to fetch rooms', rooms: [] };

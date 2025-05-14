@@ -442,7 +442,8 @@ export default function NewScheduleModal({
         ...selectedValues,
         term: termInfo._id,
         days: [selectedValues.days],
-        classLimit: parseInt(selectedValues.classLimit, 10),
+        classLimit: parseInt(selectedValues.classLimit, 10), // Ensure classLimit is number
+        studentType: selectedValues.studentType, // Ensure studentType is included
         timeFrom: formatTimeValue(selectedValues.timeFrom),
         timeTo: formatTimeValue(selectedValues.timeTo),
         isActive: true,

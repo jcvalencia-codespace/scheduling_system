@@ -27,7 +27,6 @@ export default function LoginPage() {
   const [resendLoading, setResendLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prevState => ({
