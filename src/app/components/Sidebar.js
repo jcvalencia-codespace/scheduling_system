@@ -175,9 +175,14 @@ const roleMenuItems = {
       ]
     },
     {
-      title: 'Send Feedback',
+      title: 'Feedback',
       href: '/feedback',
-      icon: EnvelopeIcon
+      icon: EnvelopeIcon,
+      hasDropdown: true,
+      subItems: [
+        { title: 'Send Feedback', href: '/feedback', icon: EnvelopeIcon },
+        { title: 'Feedback Summary', href: '/feedback/summary', icon: ListBulletIcon },
+      ]
     },
     {
       title: 'Chat',
