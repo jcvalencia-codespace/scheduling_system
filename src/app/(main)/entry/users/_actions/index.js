@@ -7,7 +7,7 @@ import coursesModel from '../../../../models/Courses';
 import { revalidatePath } from 'next/cache';
 
 function generatePassword() {
-  return crypto.randomBytes(8).toString('hex');
+  return crypto.randomBytes(3).toString('hex'); // 3 bytes = 6 hex characters
 }
 
 async function sendWelcomeEmail(email, password, userData) {
