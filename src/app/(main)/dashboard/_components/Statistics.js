@@ -2,30 +2,49 @@
 
 import { Activity, BookOpen, Calendar, Users } from "lucide-react"
 import { motion } from "framer-motion"
+import { useEffect, useState } from "react"
+import { getDashboardStats } from "../_actions"
 
 export default function Statistics({ type }) {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const stats = await getDashboardStats()
+        setData(stats)
+      } catch (error) {
+        console.error('Error fetching stats:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchStats()
+  }, [])
+
   const stats = {
     term: {
       title: "Term Active",
-      value: "3rd",
+      value: data?.term || "...",
       icon: <Calendar className="h-5 w-5" />,
       color: "emerald",
     },
     schedules: {
       title: "Schedules",
-      value: "65",
+      value: data?.schedules || "...",
       icon: <Activity className="h-5 w-5" />,
       color: "blue",
     },
     subjects: {
       title: "Subjects",
-      value: "65",
+      value: data?.subjects || "...",
       icon: <BookOpen className="h-5 w-5" />,
       color: "cyan",
     },
     faculties: {
       title: "Faculties",
-      value: "65",
+      value: data?.faculty || "...",
       icon: <Users className="h-5 w-5" />,
       color: "violet",
     },

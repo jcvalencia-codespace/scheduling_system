@@ -140,7 +140,7 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
     if (yearLevel) {
       try {
         setIsLoadingClasses(true)
-        const classes = await getClasses(yearLevel)
+        const classes = await getClasses(yearLevel, userId) // Pass userId here
 
         if (Array.isArray(classes) && classes.length > 0) {
           setAvailableClasses(classes)

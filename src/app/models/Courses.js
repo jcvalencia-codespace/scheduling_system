@@ -1,4 +1,4 @@
-import { CourseSchema, DepartmentSchema } from '../../../db/schema';
+import { CourseSchema, DepartmentSchema, UserSchema } from '../../../db/schema';
 import connectDB from '../../../lib/mongo';
 import mongoose from 'mongoose';
 
@@ -169,6 +169,59 @@ class CoursesModel {
       return JSON.parse(JSON.stringify(courses));
     } catch (error) {
       console.error('Error in getCoursesByDepartmentId:', error);
+      throw error;
+    }
+  }
+
+  async getCoursesByUserRole(userId) {
+    try {
+      await this.initModel();
+      
+      // Initialize both Users and Departments models
+      const User = mongoose.models.Users || mongoose.model('Users', UserSchema);
+      const Department = mongoose.models.Departments || mongoose.model('Departments', DepartmentSchema);
+
+      // First get the user with populated department and course
+      const user = await User.findById(userId)
+        .populate({
+          path: 'department',
+          model: Department
+        })
+        .populate({
+          path: 'course',
+          model: this.MODEL,
+          populate: {
+            path: 'department',
+            model: Department
+          }
+        });
+      
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // If user is a program chair, only return their assigned course
+      if (user.role === 'Program Chair' && user.course) {
+        return [user.course];
+      }
+
+      // For other roles, continue with existing logic
+      let query = { isActive: true };
+      if (user.role === 'Dean' && user.department) {
+        query.department = user.department._id;
+      }
+
+      const courses = await this.MODEL.find(query)
+        .populate({
+          path: 'department',
+          model: Department,
+          select: 'departmentCode departmentName'
+        })
+        .lean();
+
+      return courses;
+    } catch (error) {
+      console.error('Error in getCoursesByUserRole:', error);
       throw error;
     }
   }

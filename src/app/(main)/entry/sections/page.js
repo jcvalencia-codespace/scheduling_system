@@ -37,12 +37,14 @@ export default function SectionsPage() {
   });
 
   useEffect(() => {
+    if (!user) return; // Add early return if no user
+
     const fetchData = async () => {
       setIsLoading(true);
       try {
         const [sectionsData, coursesData] = await Promise.all([
           getSections(),
-          getCourses()
+          getCourses(user._id)
         ]);
 
         if (sectionsData.error) {
@@ -72,7 +74,7 @@ export default function SectionsPage() {
     };
 
     fetchData();
-  }, [setIsLoading]);
+  }, [setIsLoading, user]); // Remove user._id, use user instead
 
   const handleSort = (key) => {
     setSortConfig((prevConfig) => ({

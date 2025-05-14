@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { SectionSchema, SubjectSchema, AssignSubjectsSchema, CourseSchema, DepartmentSchema } from '../../../db/schema';
+import { SectionSchema, SubjectSchema, AssignSubjectsSchema, CourseSchema, DepartmentSchema, UserSchema } from '../../../db/schema';
 import connectDB from '../../../lib/mongo';
 
 class AssignSubjectsModel {
@@ -9,7 +9,8 @@ class AssignSubjectsModel {
       Section: null,
       Course: null,
       Department: null,
-      AssignSubjects: null
+      AssignSubjects: null,
+      User: null
     };
   }
 
@@ -17,7 +18,7 @@ class AssignSubjectsModel {
     try {
       await connectDB();
 
-      // Initialize models in the correct order (dependencies first)
+      // Initialize all models in proper order (dependencies first)
       this.models.Department = mongoose.models.Departments || 
         mongoose.model('Departments', DepartmentSchema);
 
@@ -27,13 +28,14 @@ class AssignSubjectsModel {
       this.models.Subject = mongoose.models.Subjects || 
         mongoose.model('Subjects', SubjectSchema);
 
-      // Important: Register Section model with 's' to match the reference
       this.models.Section = mongoose.models.Sections || 
         mongoose.model('Sections', SectionSchema);
 
-      // Finally, register AssignSubjects model
       this.models.AssignSubjects = mongoose.models.AssignSubjects || 
         mongoose.model('AssignSubjects', AssignSubjectsSchema);
+
+      this.models.User = mongoose.models.Users || 
+        mongoose.model('Users', UserSchema);
 
       return true;
     } catch (error) {
@@ -42,25 +44,52 @@ class AssignSubjectsModel {
     }
   }
 
-  async fetchClasses(yearLevel) {
+  async fetchClasses(yearLevel, userId) {
     try {
       await this.initializeModels();
       const formattedYearLevel = yearLevel.replace(' Year', '');
       
-      const classes = await this.models.Section.find({ 
+      const user = await this.models.User.findById(userId)
+        .populate({
+          path: 'department',
+          model: this.models.Department
+        })
+        .populate({
+          path: 'course',
+          model: this.models.Course
+        });
+      
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      let query = { 
         yearLevel: formattedYearLevel + ' Year',
         isActive: true 
-      })
-      .populate({
-        path: 'course',
-        select: 'courseCode courseTitle department',
-        populate: {
-          path: 'department',
-          select: 'departmentCode departmentName'
-        }
-      })
-      .select('_id sectionName course yearLevel')
-      .lean();
+      };
+
+      // If user is dean, only fetch sections from their department
+      if (user?.role === 'Dean' && user?.department) {
+        query.department = user.department._id;
+      }
+      // If user is program chair, only fetch sections from their course
+      else if (user?.role === 'Program Chair' && user?.course) {
+        query.course = user.course._id;
+      }
+
+      const classes = await this.models.Section.find(query)
+        .populate({
+          path: 'course',
+          select: 'courseCode courseTitle department',
+          model: this.models.Course,
+          populate: {
+            path: 'department',
+            select: 'departmentCode departmentName',
+            model: this.models.Department
+          }
+        })
+        .select('_id sectionName course yearLevel')
+        .lean();
 
       return classes.map(cls => ({
         ...cls,
@@ -142,30 +171,57 @@ class AssignSubjectsModel {
     }
   }
 
-  async fetchAssignments() {
+  async fetchAssignments(userId = null) {
     try {
       await this.initializeModels();
-      console.log('Models initialized, fetching assignments...');
       
-      const assignments = await this.models.AssignSubjects.find()
+      let user = null;
+      if (userId) {
+        user = await this.models.User.findById(userId)
+          .populate({
+            path: 'course',
+            model: this.models.Course,
+            populate: {
+              path: 'department',
+              model: this.models.Department
+            }
+          })
+          .populate({
+            path: 'department',
+            model: this.models.Department
+          });
+      }
+
+      let query = {};
+      
+      // If user is program chair, only show assignments for their course
+      if (user?.role === 'Program Chair' && user?.course) {
+        query['classId.course'] = user.course._id;
+      }
+      // If user is dean, only show assignments for their department
+      else if (user?.role === 'Dean' && user?.department) {
+        query['classId.course.department'] = user.department._id;
+      }
+
+      const assignments = await this.models.AssignSubjects.find(query)
         .populate({
           path: 'classId',
-          model: 'Sections',
+          model: this.models.Section,
           select: 'sectionName course yearLevel',
           populate: {
             path: 'course',
-            model: 'Courses',
+            model: this.models.Course,
             select: 'courseCode courseTitle department',
             populate: {
               path: 'department',
-              model: 'Departments',
+              model: this.models.Department,
               select: 'departmentCode departmentName'
             }
           }
         })
         .populate({
           path: 'subjects.subject',
-          model: 'Subjects',
+          model: this.models.Subject,
           select: 'subjectCode subjectName'
         })
         .lean();
@@ -293,9 +349,9 @@ class AssignSubjectsModel {
     }
   }
 
-  async getGroupedAssignments() {
+  async getGroupedAssignments(userId = null) {
     try {
-      const assignments = await this.fetchAssignments();
+      const assignments = await this.fetchAssignments(userId); // Pass userId to fetchAssignments
       
       // Group assignments by classId
       return assignments.reduce((acc, curr) => {
@@ -305,7 +361,7 @@ class AssignSubjectsModel {
         if (!acc[key]) {
           acc[key] = {
             ...curr,
-            subjects: curr.subjects // Keep the original subjects array structure
+            subjects: curr.subjects
           };
         }
         return acc;

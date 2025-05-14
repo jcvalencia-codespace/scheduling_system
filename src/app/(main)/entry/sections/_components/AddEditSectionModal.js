@@ -72,12 +72,21 @@ const initialFormState = {
 };
 
 export default function AddEditSectionModal({ show, onClose, section, courses, onSuccess }) {
-  const user = useAuthStore((state) => state.user); // Changed to use zustand store
+  const user = useAuthStore((state) => state.user);
   const [formData, setFormData] = useState(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (section) {
+    if (!section && user?.role === 'Program Chair' && courses.length === 1) {
+      const userCourse = courses[0];
+      setFormData(prev => ({
+        ...prev,
+        courseCode: {
+          value: userCourse._id,
+          label: `${userCourse.courseCode} - ${userCourse.courseTitle} (${userCourse.department?.departmentCode || 'N/A'})`
+        }
+      }));
+    } else if (section) {
       setFormData({
         sectionName: section.sectionName || '',
         courseCode: {
@@ -92,10 +101,10 @@ export default function AddEditSectionModal({ show, onClose, section, courses, o
     } else {
       setFormData(initialFormState);
     }
-  }, [section, show]);
+  }, [section, show, user, courses]);
 
   const handleChange = (name) => (event) => {
-    const value = event?.target?.value ?? event; // Handle both input and Select changes
+    const value = event?.target?.value ?? event;
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -120,7 +129,7 @@ export default function AddEditSectionModal({ show, onClose, section, courses, o
       form.append('userId', user._id);
 
       const result = section
-        ? await editSection(section._id, form) // Use section._id instead of section.sectionName
+        ? await editSection(section._id, form)
         : await addSection(form);
 
       if (result.error) {
@@ -242,7 +251,6 @@ export default function AddEditSectionModal({ show, onClose, section, courses, o
                                 value: course._id,
                                 label: `${course.courseCode} - ${course.courseTitle} (${course.department?.departmentCode || 'N/A'})`
                               }))}
-                              isDisabled={isSubmitting}
                               styles={customStyles}
                               placeholder="Select Course"
                               isSearchable={true}

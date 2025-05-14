@@ -5,14 +5,31 @@ import Highcharts from "highcharts"
 import HighchartsReact from "highcharts-react-official"
 import { useTheme } from "next-themes"
 import { BarChart3, PieChart } from "lucide-react"
+import { getRoomStatistics } from "../_actions"
 
 export default function RoomList({ chartType, title }) {
   const { theme } = useTheme()
   const [chartTheme, setChartTheme] = useState("light")
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setChartTheme(theme === "dark" ? "dark" : "light")
   }, [theme])
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const stats = await getRoomStatistics()
+        setData(stats)
+      } catch (error) {
+        console.error('Error fetching room statistics:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
 
   const getChartOptions = (isDark) => {
     const textColor = isDark ? "#e5e7eb" : "#374151"
@@ -70,8 +87,7 @@ export default function RoomList({ chartType, title }) {
     }
   }
 
-  // Registered Rooms - Horizontal Bar Chart
-  const registeredRoomsOptions = {
+  const getRegisteredRoomsOptions = () => ({
     chart: {
       type: "bar",
       height: 180,
@@ -80,7 +96,7 @@ export default function RoomList({ chartType, title }) {
       spacingTop: 2,
       spacingRight: 15,
       spacingLeft: 5,
-      inverted: true, // Make bars horizontal
+      inverted: true,
     },
     title: {
       text: title || "Registered Rooms",
@@ -88,13 +104,16 @@ export default function RoomList({ chartType, title }) {
       style: { fontSize: '14px', fontWeight: "600" },
     },
     xAxis: {
-      categories: ["No.29", "STH4", "SEA", "TBA"],
+      categories: data?.registeredRooms.map(r => r.department) || [],
       title: { text: null },
-      labels: { style: { fontSize: '11px' } }
+      labels: { 
+        style: { fontSize: '11px' },
+        rotation: -45,
+        align: 'right'
+      }
     },
     yAxis: {
       min: 0,
-      max: 100,
       title: { text: null },
       gridLineWidth: 0,
       labels: { enabled: false }
@@ -110,7 +129,7 @@ export default function RoomList({ chartType, title }) {
     },
     series: [{
       name: "Rooms",
-      data: [77, 65, 35, 25],
+      data: data?.registeredRooms.map(r => r.count) || [],
       color: {
         linearGradient: { x1: 0, x2: 0, y1: 0, y2: 1 },
         stops: [
@@ -121,10 +140,9 @@ export default function RoomList({ chartType, title }) {
     }],
     legend: { enabled: false },
     credits: { enabled: false }
-  }
+  })
 
-  // Room Usage Frequency - Column Chart
-  const usageFrequencyOptions = {
+  const getUsageFrequencyOptions = () => ({
     chart: {
       type: "column",
       height: 180,
@@ -135,24 +153,22 @@ export default function RoomList({ chartType, title }) {
       spacingLeft: 5,
     },
     title: {
-      text: title || "Room Usage Frequency",
+      text: title || "Room Schedule Frequency",
       align: "left",
       style: { fontSize: '14px', fontWeight: "600" },
     },
     xAxis: {
-      categories: ["202", "203", "304", "305", "306"],
+      categories: data?.usageFrequency.map(r => r.roomCode) || [],
       crosshair: true,
       labels: { style: { fontSize: '11px' } }
     },
     yAxis: {
       min: 0,
-      max: 100,
-      title: { text: null },
+      title: { text: 'Number of Schedules' },
       gridLineWidth: 1,
       gridLineDashStyle: 'dash',
       labels: { 
-        style: { fontSize: '10px' },
-        format: '{value}%'
+        style: { fontSize: '10px' }
       }
     },
     plotOptions: {
@@ -164,8 +180,8 @@ export default function RoomList({ chartType, title }) {
     },
     series: [
       {
-        name: "Freq. Occupied",
-        data: [80, 75, 65, 60, 45],
+        name: "Most Scheduled",
+        data: data?.usageFrequency.map(r => r.mostScheduled) || [],
         color: {
           linearGradient: { x1: 0, x2: 0, y1: 0, y2: 1 },
           stops: [
@@ -175,8 +191,8 @@ export default function RoomList({ chartType, title }) {
         },
       },
       {
-        name: "Least Occupied",
-        data: [45, 50, 40, 35, 30],
+        name: "Least Scheduled",
+        data: data?.usageFrequency.map(r => r.leastScheduled) || [],
         color: {
           linearGradient: { x1: 0, x2: 0, y1: 0, y2: 1 },
           stops: [
@@ -194,15 +210,26 @@ export default function RoomList({ chartType, title }) {
       itemDistance: 10
     },
     credits: { enabled: false }
-  }
+  })
 
-  const chartOptions = chartType === "bar" ? registeredRoomsOptions : usageFrequencyOptions
+  const chartOptions = chartType === "bar" ? getRegisteredRoomsOptions() : getUsageFrequencyOptions()
   const icon =
     chartType === "bar" ? (
       <BarChart3 className="h-5 w-5 text-violet-500 dark:text-violet-400" />
     ) : (
       <PieChart className="h-5 w-5 text-blue-500 dark:text-blue-400" />
     )
+
+  if (loading) {
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden transition-colors p-4">
+        <div className="animate-pulse flex flex-col space-y-4">
+          <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+          <div className="h-40 bg-gray-200 dark:bg-gray-700 rounded"></div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden transition-colors">
