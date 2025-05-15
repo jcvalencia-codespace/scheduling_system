@@ -60,7 +60,9 @@ function AssignSubjectsPageContent() {
   const loadAssignments = async () => {
     try {
       setIsLoading(true);
-      const data = await getAssignments(user?._id); // Pass user ID here
+      console.log('Loading assignments for user:', user); // Debug log
+      const data = await getAssignments(user?._id);
+      console.log('Loaded assignments:', data); // Debug log
       setAssignments(data);
     } catch (error) {
       console.error('Error loading assignments:', error);
@@ -143,6 +145,29 @@ function AssignSubjectsPageContent() {
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const canEditAssignment = (assignment) => {
+    if (!user) return false;
+    
+    // Admin can edit all assignments
+    if (user.role?.toLowerCase() === 'administrator') return true;
+    
+    // For Program Chair
+    if (user.role?.toLowerCase() === 'program chair') {
+      const userCourseId = user.course?.toString();
+      const assignmentCourseId = assignment.classId?.course?._id?.toString();
+      return userCourseId === assignmentCourseId;
+    }
+    
+    // For Dean
+    if (user.role?.toLowerCase() === 'dean') {
+      const userDepartmentId = user.department?.toString();
+      const assignmentDepartmentId = assignment.classId?.course?.department?._id?.toString();
+      return userDepartmentId === assignmentDepartmentId;
+    }
+    
+    return false;
   };
 
   const filteredAssignments = assignments.filter(assignment => {
@@ -250,6 +275,7 @@ function AssignSubjectsPageContent() {
             </p>
           </div>
           <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row gap-2 sm:space-x-3">
+            {/* Allow all roles to assign subjects */}
             <button
               onClick={() => setIsModalOpen(true)}
               className="w-full sm:w-auto inline-flex justify-center items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#323E8F] hover:bg-[#35408E] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#323E8F]"
@@ -334,24 +360,28 @@ function AssignSubjectsPageContent() {
                           </button>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
-                          <button 
-                            onClick={() => handleEditClick(assignment)}
-                            className="text-indigo-600 hover:text-indigo-900"
-                            title="Edit Assignment"
-                          >
-                            <PencilSquareIcon className="h-5 w-5" aria-hidden="true" />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(assignment._id)}
-                            className="text-red-600 hover:text-red-900"
-                            title="Delete Assignment"
-                          >
-                            <TrashIcon className="h-5 w-5" aria-hidden="true" />
-                          </button>
+                          {canEditAssignment(assignment) && (
+                            <>
+                              <button 
+                                onClick={() => handleEditClick(assignment)}
+                                className="text-indigo-600 hover:text-indigo-900"
+                                title="Edit Assignment"
+                              >
+                                <PencilSquareIcon className="h-5 w-5" aria-hidden="true" />
+                              </button>
+                              <button 
+                                onClick={() => handleDelete(assignment._id)}
+                                className="text-red-600 hover:text-red-900"
+                                title="Delete Assignment"
+                              >
+                                <TrashIcon className="h-5 w-5" aria-hidden="true" />
+                              </button>
+                            </>
+                          )}
                         </td>
                       </tr>
                     ))
-)                  }
+                  )}
                 </tbody>
               </table>
               {/* Replace the old pagination controls with the new component */}
@@ -386,20 +416,24 @@ function AssignSubjectsPageContent() {
                       >
                         <EyeIcon className="h-5 w-5" aria-hidden="true" />
                       </button>
-                      <button 
-                        onClick={() => handleEditClick(assignment)}
-                        className="text-indigo-600 hover:text-indigo-900"
-                        title="Edit Assignment"
-                      >
-                        <PencilSquareIcon className="h-5 w-5" aria-hidden="true" />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(assignment._id)}
-                        className="text-red-600 hover:text-red-900"
-                        title="Delete Assignment"
-                      >
-                        <TrashIcon className="h-5 w-5" aria-hidden="true" />
-                      </button>
+                      {canEditAssignment(assignment) && (
+                        <>
+                          <button 
+                            onClick={() => handleEditClick(assignment)}
+                            className="text-indigo-600 hover:text-indigo-900"
+                            title="Edit Assignment"
+                          >
+                            <PencilSquareIcon className="h-5 w-5" aria-hidden="true" />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(assignment._id)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Delete Assignment"
+                          >
+                            <TrashIcon className="h-5 w-5" aria-hidden="true" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

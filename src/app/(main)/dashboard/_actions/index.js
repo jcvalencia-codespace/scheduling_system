@@ -264,26 +264,34 @@ export async function getRecentActivities() {
   }
 }
 
-export async function getUnscheduledSections() {
+export async function getUnscheduledSections(userRole, userData) {
   try {
-    // Get active term first
     const activeTerm = await termsModel.getActiveTerm()
     if (!activeTerm) return []
 
-    // Get all active sections
+    // Get all sections first
     const sections = await sectionsModel.getAllSectionsWithDepartment()
     const serializedSections = JSON.parse(JSON.stringify(sections))
     
-    // Get all schedules for the active term
+    // Filter sections based on user role
+    let filteredSections = serializedSections
+    if (userRole === 'Program Chair' && userData?.course) {
+      filteredSections = serializedSections.filter(section => 
+        section.course?._id.toString() === userData.course.toString()
+      )
+    } else if (userRole === 'Dean' && userData?.department) {
+      filteredSections = serializedSections.filter(section => 
+        section.department?._id.toString() === userData.department.toString()
+      )
+    }
+
+    // Get schedules and filter unscheduled sections
     const schedules = await Schedules.find({ 
       isActive: true,
       term: activeTerm.id
     }).select('section').lean()
     
-    const serializedSchedules = JSON.parse(JSON.stringify(schedules))
-
-    // Get array of section IDs that have schedules
-    const scheduledSectionIds = serializedSchedules.reduce((acc, schedule) => {
+    const scheduledSectionIds = schedules.reduce((acc, schedule) => {
       if (Array.isArray(schedule.section)) {
         acc.push(...schedule.section)
       } else {
@@ -292,12 +300,10 @@ export async function getUnscheduledSections() {
       return acc
     }, []).map(id => id.toString())
 
-    // Filter sections that don't have schedules
-    const unscheduledSections = serializedSections.filter(
+    const unscheduledSections = filteredSections.filter(
       section => !scheduledSectionIds.includes(section._id.toString())
     )
 
-    // Map and return the final formatted data
     return unscheduledSections.map(section => ({
       id: section._id.toString(),
       code: `${section.course?.courseCode || 'N/A'} - ${section.sectionName}`,

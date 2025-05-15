@@ -36,6 +36,51 @@ export default function SectionsPage() {
     yearLevel: ''
   });
 
+  const canManageSection = (section) => {
+    if (!user || !section) return false;
+    
+    if (user.role === 'Administrator') return true;
+    
+    if (user.role === 'Program Chair') {
+      const userCourseId = user.course?._id?.toString() || user.course?.toString();
+      const sectionCourseId = section.course?._id?.toString();
+      return userCourseId === sectionCourseId;
+    }
+
+    if (user.role === 'Dean') {
+      const userDeptId = user.department?._id?.toString() || user.department?.toString();
+      // Check both direct department and course's department
+      const sectionDeptId = section.department?._id?.toString() || 
+                           section.course?.department?._id?.toString();
+      
+      const canManage = userDeptId === sectionDeptId;
+      console.log('Dean Section Check:', {
+        userDeptId,
+        sectionDeptId,
+        canManage,
+        sectionName: section.sectionName
+      });
+      return canManage;
+    }
+    
+    return false;
+  };
+
+  const renderAddButton = () => {
+    if (user?.role === 'Administrator' || user?.role === 'Program Chair') {
+      return (
+        <button
+          type="button"
+          onClick={handleAddNew}
+          className="inline-flex items-center justify-center rounded-md border border-transparent bg-[#323E8F] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#35408E] focus:outline-none focus:ring-2 focus:ring-[#323E8F] focus:ring-offset-2 sm:w-auto"
+        >
+          Add Section
+        </button>
+      );
+    }
+    return null;
+  };
+
   useEffect(() => {
     if (!user) return; // Add early return if no user
 
@@ -351,20 +396,24 @@ export default function SectionsPage() {
                             {section.yearLevel}
                           </td>
                           <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                            <button
-                              onClick={() => handleEdit(section)}
-                              className="text-[#323E8F] hover:text-[#35408E] mr-4"
-                            >
-                              <PencilSquareIcon className="h-5 w-5" />
-                              <span className="sr-only">Edit</span>
-                            </button>
-                            <button
-                              onClick={() => handleDelete(section.sectionName)}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              <TrashIcon className="h-5 w-5" />
-                              <span className="sr-only">Delete</span>
-                            </button>
+                            {canManageSection(section) && (
+                              <>
+                                <button
+                                  onClick={() => handleEdit(section)}
+                                  className="text-[#323E8F] hover:text-[#35408E] mr-4"
+                                >
+                                  <PencilSquareIcon className="h-5 w-5" />
+                                  <span className="sr-only">Edit</span>
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(section.sectionName)}
+                                  className="text-red-600 hover:text-red-900"
+                                >
+                                  <TrashIcon className="h-5 w-5" />
+                                  <span className="sr-only">Delete</span>
+                                </button>
+                              </>
+                            )}
                           </td>
                         </tr>
                       ))
@@ -388,20 +437,22 @@ export default function SectionsPage() {
                   <div className="font-medium text-gray-900">
                     {section.sectionName}
                   </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleEdit(section)}
-                      className="text-[#323E8F] hover:text-[#35408E]"
-                    >
-                      <PencilSquareIcon className="h-5 w-5" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(section.sectionName)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      <TrashIcon className="h-5 w-5" />
-                    </button>
-                  </div>
+                  {canManageSection(section) && (
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleEdit(section)}
+                        className="text-[#323E8F] hover:text-[#35408E]"
+                      >
+                        <PencilSquareIcon className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(section.sectionName)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        <TrashIcon className="h-5 w-5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div className="text-sm text-gray-500">
                   <p>

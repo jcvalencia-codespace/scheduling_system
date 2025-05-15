@@ -97,7 +97,12 @@ export default function LoginPage() {
       if (response.success) {
         setVerifyStatus('redirecting');
         setUser(response.user);
-        router.push('/dashboard');
+        // Redirect faculty to faculty schedules, others to dashboard
+        if (response.user.role === 'faculty' || response.user.role === 'Faculty') {
+          router.push('/schedules/faculty');
+        } else {
+          router.push('/dashboard');
+        }
       }
     } catch (err) {
       setAlertMessage('An error occurred during login');

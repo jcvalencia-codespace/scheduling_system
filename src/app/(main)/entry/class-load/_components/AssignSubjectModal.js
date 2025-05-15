@@ -76,6 +76,21 @@ const customSelectStyles = {
     zIndex: 9999999,
     position: "relative",
   }),
+  group: (styles) => ({
+    ...styles,
+    padding: "4px",
+  }),
+  groupHeading: (styles) => ({
+    ...styles,
+    color: "#4B5563",
+    fontSize: "0.875rem",
+    fontWeight: "600",
+    textTransform: "none",
+    padding: "8px 12px",
+    backgroundColor: "#F3F4F6",
+    marginBottom: "4px",
+    borderRadius: "0.375rem",
+  })
 }
 
 export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData = null, userId }) {
@@ -140,21 +155,32 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
     if (yearLevel) {
       try {
         setIsLoadingClasses(true)
-        const classes = await getClasses(yearLevel, userId) // Pass userId here
+        setIsLoadingSubjects(true)
 
+        // Get all subjects immediately
+        const subjects = await getSubjects(); // No department filter
+        setAvailableSubjects(subjects);
+        setAllSubjects(subjects);
+
+        // Then get classes for the specific role
+        const classes = await getClasses(yearLevel, userId);
         if (Array.isArray(classes) && classes.length > 0) {
           setAvailableClasses(classes)
         } else {
           setAvailableClasses([])
         }
+
       } catch (error) {
-        console.error("Error fetching classes:", error)
+        console.error("Error fetching data:", error)
         setAvailableClasses([])
+        setAvailableSubjects([])
       } finally {
         setIsLoadingClasses(false)
+        setIsLoadingSubjects(false)
       }
     } else {
       setAvailableClasses([])
+      setAvailableSubjects([])
     }
   }
 
@@ -263,29 +289,13 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
   }, [isOpen])
 
   useEffect(() => {
-    const filterSubjects = async () => {
-      if (formData.classes.length > 0) {
-        try {
-          const selectedClass = availableClasses.find((c) => c._id === formData.classes[0])
-          const departmentId = selectedClass?.course?.department?._id
-
-          if (departmentId) {
-            const departmentSubjects = await getSubjects(departmentId)
-            setAvailableSubjects(departmentSubjects)
-          } else {
-            setAvailableSubjects(allSubjects)
-          }
-        } catch (error) {
-          console.error("Error filtering subjects:", error)
-          setAvailableSubjects(allSubjects)
-        }
-      } else {
-        setAvailableSubjects(allSubjects)
-      }
+    if (formData.classes.length > 0) {
+      // Keep all subjects available regardless of selected class
+      setAvailableSubjects(allSubjects)
+    } else {
+      setAvailableSubjects(allSubjects)
     }
-
-    filterSubjects()
-  }, [formData.classes, availableClasses, allSubjects])
+  }, [formData.classes, allSubjects])
 
   useEffect(() => {
     setPortalTarget(document.body)
@@ -586,17 +596,41 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                                         onChange={(selected) => handleSubjectFieldChange(index, "subjectId", selected?.value || "")}
                                         options={availableSubjects
                                           .filter(subject => {
-                                            // Allow the current subject to appear in its own dropdown
                                             if (subject._id === assignment.subjectId) return true;
-                                            // Filter out subjects that are already selected in other dropdowns
                                             return !formData.subjectAssignments.some(
                                               (a) => a.subjectId === subject._id
                                             );
                                           })
                                           .map(subject => ({
                                             value: subject._id,
-                                            label: `${subject.subjectCode} - ${subject.subjectName}`
-                                          }))}
+                                            label: `${subject.subjectCode} - ${subject.subjectName}`,
+                                            department: subject.department?.departmentCode || 'No Department',
+                                            searchKey: `${subject.subjectCode} ${subject.subjectName} ${subject.department?.departmentCode || ''}`
+                                          }))
+                                          .reduce((groups, subject) => {
+                                            const group = groups.find(g => g.label === subject.department);
+                                            if (group) {
+                                              group.options.push({
+                                                value: subject.value,
+                                                label: subject.label,
+                                                data: subject
+                                              });
+                                            } else {
+                                              groups.push({
+                                                label: subject.department,
+                                                options: [{
+                                                  value: subject.value,
+                                                  label: subject.label,
+                                                  data: subject
+                                                }]
+                                              });
+                                            }
+                                            return groups;
+                                          }, [])}
+                                        filterOption={(option, inputValue) => {
+                                          const data = option.data?.data || option.data;
+                                          return data?.searchKey?.toLowerCase().includes(inputValue.toLowerCase());
+                                        }}
                                         styles={customSelectStyles}
                                         placeholder="Select Subject"
                                         isClearable

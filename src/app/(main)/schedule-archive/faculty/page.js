@@ -9,6 +9,7 @@ import moment from "moment"
 import ArchiveCalendarView from "../_components/ArchiveCalendarView"
 import { Calendar, Clock, User } from "lucide-react"
 import { components } from "react-select"
+import SchedulePDF from "../_components/SchedulePDF"
 
 const NoSSRSelect = dynamic(() => import("react-select"), { ssr: false })
 
@@ -28,6 +29,10 @@ export default function FacultyArchive() {
       console.log('🔄 Faculty Archive: User loaded, fetching initial data')
       fetchArchivedTerms()
       fetchFacultyData()
+      // Pre-select faculty if user is faculty
+      if (user.role === 'Faculty') {
+        setSelectedFaculty(user._id)
+      }
     }
   }, [user?._id])
 
@@ -131,13 +136,37 @@ export default function FacultyArchive() {
                 room: slot.room,
               },
             },
-            backgroundColor: "#4285F4",
+            backgroundColor: "#3b82f6",
             borderColor: "#3b7ddb",
           }
         })
       })
     })
   }
+
+  const handlePrint = async () => {
+    if (!selectedFaculty || !selectedTerm) return;
+    
+    try {
+      const activeTerm = archivedTerms[selectedYear]?.find(t => t._id === selectedTerm);
+      const selectedFacultyName = facultyOptions.find(f => f.value === selectedFaculty)?.label;
+      
+      // Filter schedules for the selected faculty
+      const facultySchedules = schedules.filter(schedule => 
+        schedule.faculty?._id === selectedFaculty
+      );
+
+      const doc = await SchedulePDF({ 
+        activeTerm,
+        schedules: facultySchedules, // Pass filtered schedules
+        selectedSection: selectedFacultyName,
+        type: 'faculty' // Add type to indicate this is a faculty schedule
+      });
+      doc.save(`Faculty_Schedule_${selectedFacultyName}_${activeTerm?.term || ''}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    }
+  };
 
   const FacultyOption = ({ children, ...props }) => {
     return (
@@ -200,10 +229,10 @@ export default function FacultyArchive() {
     }),
     option: (base, state) => ({
       ...base,
-      backgroundColor: state.isSelected ? "#4f46e5" : state.isFocused ? "#f3f4f6" : "white",
+      backgroundColor: state.isSelected ? "#3b82f6" : state.isFocused ? "#f3f4f6" : "white",
       color: state.isSelected ? "white" : "#1f2937",
       "&:hover": {
-        backgroundColor: state.isSelected ? "#4f46e5" : "#f3f4f6",
+        backgroundColor: state.isSelected ? "#3b82f6" : "#f3f4f6",
       }
     }),
     singleValue: (base) => ({
@@ -247,7 +276,10 @@ export default function FacultyArchive() {
                   onChange={(option) => {
                     setSelectedYear(option?.value || null)
                     setSelectedTerm(null)
-                    setSelectedFaculty(null)
+                    // Only reset faculty selection if user is not faculty
+                    if (user?.role !== 'Faculty') {
+                      setSelectedFaculty(null)
+                    }
                   }}
                   options={yearOptions}
                   placeholder="Select Academic Year"
@@ -270,7 +302,10 @@ export default function FacultyArchive() {
                   value={termOptions.find(opt => opt.value === selectedTerm)}
                   onChange={(option) => {
                     setSelectedTerm(option?.value || null)
-                    setSelectedFaculty(null)
+                    // Only reset faculty selection if user is not faculty
+                    if (user?.role !== 'Faculty') {
+                      setSelectedFaculty(null)
+                    }
                   }}
                   options={termOptions}
                   placeholder="Select Term"
@@ -302,9 +337,22 @@ export default function FacultyArchive() {
                   styles={selectStyles}
                   menuPortalTarget={portalTarget}
                   menuPosition="fixed"
+                  isDisabled={user?.role === 'Faculty'}
                 />
               </div>
             </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={handlePrint}
+              disabled={!selectedFaculty || !selectedTerm}
+              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium 
+                ${!selectedFaculty || !selectedTerm 
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+            >
+              <span className="hidden sm:inline">Generate</span> PDF
+            </button>
           </div>
         </div>
       </div>
