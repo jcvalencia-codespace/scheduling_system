@@ -543,7 +543,7 @@ const AdminHourSchema = new Schema({
     },
     status: {
       type: String,
-      enum: ['pending', 'approved', 'rejected', 'cancelled'],
+      enum: ['pending', 'approved', 'rejected', 'cancelled','deleted'],
       default: 'pending'
     },
     rejectionReason: String,

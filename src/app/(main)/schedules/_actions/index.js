@@ -383,3 +383,50 @@ export async function editAdminHours(adminHoursId, slotId, updatedData) {
     return { error: error.message };
   }
 }
+
+export async function deleteAdminHours(adminHoursId, slotId) {
+  try {
+    if (!adminHoursId || !slotId) {
+      throw new Error('Admin hours ID and slot ID are required');
+    }
+
+    const response = await adminHoursModel.deleteAdminHours(adminHoursId, slotId);
+
+    if (!response) {
+      throw new Error('Failed to delete admin hours');
+    }
+
+    return { 
+      success: true, 
+      message: 'Admin hours slot deleted successfully',
+      hours: JSON.parse(JSON.stringify(response))
+    };
+  } catch (error) {
+    console.error('Error in deleteAdminHours action:', error);
+    return { 
+      error: error.message || 'Failed to delete admin hours',
+      details: error.toString()
+    };
+  }
+}
+
+export async function editApprovedAdminHours(adminHoursId, slotId, updatedData) {
+  try {
+    if (!adminHoursId || !slotId) {
+      throw new Error('Admin hours ID and slot ID are required');
+    }
+
+    console.log('Editing approved admin hours with:', { adminHoursId, slotId, updatedData });
+
+    const result = await adminHoursModel.editApprovedAdminHours(
+      adminHoursId,
+      slotId,
+      updatedData
+    );
+    
+    return { success: true, hours: JSON.parse(JSON.stringify(result)) };
+  } catch (error) {
+    console.error('Error editing approved admin hours:', error);
+    return { error: error.message || 'Failed to edit approved admin hours' };
+  }
+}

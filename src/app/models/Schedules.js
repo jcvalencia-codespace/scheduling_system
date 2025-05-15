@@ -1128,14 +1128,19 @@ export default class SchedulesModel {
         { new: true }
       );
 
-      // Add notification with populated data
-      // await createNotification({
-      //   userId: schedule.faculty._id,
-      //   title: 'Schedule Deleted',
-      //   message: `Your schedule for ${schedule.subject.subjectCode} - ${schedule.subject.subjectName} for section ${schedule.section.sectionName} has been removed`,
-      //   type: 'error',
-      //   relatedSchedule: scheduleId
-      // });
+      // Format section display name consistently with create function
+      const sectionDisplay = Array.isArray(schedule.section)
+        ? schedule.section.map(s => s.sectionName).join(', ')
+        : schedule.section.sectionName || 'Unknown Section';
+
+      // Add notification with populated data and properly formatted section name
+      await createNotification({
+        userId: schedule.faculty._id,
+        title: 'Schedule Deleted',
+        message: `Your schedule for ${schedule.subject.subjectCode} - ${schedule.subject.subjectName} for section ${sectionDisplay} has been removed`,
+        type: 'error',
+        relatedSchedule: scheduleId
+      });
 
       return result;
     } catch (error) {

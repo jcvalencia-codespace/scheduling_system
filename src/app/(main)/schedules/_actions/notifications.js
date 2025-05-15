@@ -3,6 +3,7 @@
 import { pusherServer } from '@/utils/pusher';
 import mongoose from 'mongoose';
 import { NotificationSchema } from '../../../../../db/schema';
+import { sendScheduleNotificationEmail } from './emailNotifications';
 
 const Notifications = mongoose.models.Notifications || mongoose.model('Notifications', NotificationSchema);
 
@@ -17,6 +18,12 @@ export async function createNotification(data) {
     }));
     
     await pusherServer.trigger(`user-${data.userId}`, 'notification', serializedData);
+
+    // Get user data for email notification
+    const user = await mongoose.model('Users').findById(data.userId);
+    if (user && user.email) {
+      await sendScheduleNotificationEmail(user, serializedData);
+    }
 
     return { 
       success: true, 
