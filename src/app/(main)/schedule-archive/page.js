@@ -11,6 +11,7 @@ import ArchiveCalendarView from "./_components/ArchiveCalendarView"
 import { Calendar, Clock, Filter, School } from "lucide-react"
 import { components } from "react-select"
 import { Calendar as CalendarIcon, Clock as ClockIcon, School as SchoolIcon } from "lucide-react"
+import SchedulePDF from "./_components/SchedulePDF"
 
 const NoSSRSelect = dynamic(() => import("react-select"), { ssr: false })
 
@@ -167,8 +168,8 @@ export default function ScheduleArchive() {
                   room: slot.room,
                 },
               },
-              backgroundColor: "#4f46e5",
-              borderColor: "#4338ca",
+              backgroundColor: "#3b82f6",
+              borderColor: "#3b82f6",
             }
           })
         })
@@ -176,6 +177,22 @@ export default function ScheduleArchive() {
 
     return events
   }
+
+  const handlePrint = async () => {
+    if (!selectedSection || !selectedTerm) return;
+    
+    try {
+      const activeTerm = archivedTerms[selectedYear]?.find(t => t._id === selectedTerm);
+      const doc = await SchedulePDF({ 
+        activeTerm,
+        schedules,
+        selectedSection 
+      });
+      doc.save(`Schedule_${selectedSection}_${activeTerm?.term || ''}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    }
+  };
 
   const YearOption = ({ children, ...props }) => {
     return (
@@ -281,10 +298,10 @@ export default function ScheduleArchive() {
                     }),
                     option: (base, state) => ({
                       ...base,
-                      backgroundColor: state.isSelected ? "#4f46e5" : state.isFocused ? "#f3f4f6" : "white",
+                      backgroundColor: state.isSelected ? "#3b82f6" : state.isFocused ? "#3b82f6" : "white",
                       color: state.isSelected ? "white" : "#1f2937",
                       "&:hover": {
-                        backgroundColor: state.isSelected ? "#4f46e5" : "#f3f4f6",
+                        backgroundColor: state.isSelected ? "#3b82f6" : "#f3f4f6",
                       }
                     }),
                     singleValue: (base) => ({
@@ -359,10 +376,10 @@ export default function ScheduleArchive() {
                     }),
                     option: (base, state) => ({
                       ...base,
-                      backgroundColor: state.isSelected ? "#4f46e5" : state.isFocused ? "#f3f4f6" : "white",
+                      backgroundColor: state.isSelected ? "#3b82f6" : state.isFocused ? "#f3f4f6" : "white",
                       color: state.isSelected ? "white" : "#1f2937",
                       "&:hover": {
-                        backgroundColor: state.isSelected ? "#4f46e5" : "#f3f4f6",
+                        backgroundColor: state.isSelected ? "#3b82f6" : "#f3f4f6",
                       }
                     }),
                     singleValue: (base) => ({
@@ -431,10 +448,10 @@ export default function ScheduleArchive() {
                     }),
                     option: (base, state) => ({
                       ...base,
-                      backgroundColor: state.isSelected ? "#4f46e5" : state.isFocused ? "#f3f4f6" : "white",
+                      backgroundColor: state.isSelected ? "#3b82f6" : state.isFocused ? "#f3f4f6" : "white",
                       color: state.isSelected ? "white" : "#1f2937",
                       "&:hover": {
-                        backgroundColor: state.isSelected ? "#4f46e5" : "#f3f4f6",
+                        backgroundColor: state.isSelected ? "#3b82f6" : "#f3f4f6",
                       }
                     }),
                     singleValue: (base) => ({
@@ -457,6 +474,18 @@ export default function ScheduleArchive() {
                 />
               </div>
             </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={handlePrint}
+              disabled={!selectedSection || !selectedTerm}
+              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium 
+                ${!selectedSection || !selectedTerm 
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+            >
+              <span className="hidden sm:inline">Generate</span> PDF
+            </button>
           </div>
         </div>
       </div>

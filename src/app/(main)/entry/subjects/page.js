@@ -203,6 +203,14 @@ export default function SubjectsPage() {
     fetchSubjects(); // Reuse the fetchSubjects function to refresh data
   };
 
+  const canEditSubject = (subject) => {
+    if (!user) return false;
+    if (user.role?.toLowerCase() === 'administrator') return true;
+    if (user.role?.toLowerCase() === 'dean') {
+      return user.department === subject.department?._id;
+    }
+    return false;
+  };
 
   const getSortIcon = (key) => {
     if (sortConfig.key === key) {
@@ -348,20 +356,24 @@ export default function SubjectsPage() {
                                 : 'N/A'}
                             </td>
                             <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                              <button
-                                onClick={() => handleEdit(subject)}
-                                className="text-[#323E8F] hover:text-[#35408E] mr-4"
-                              >
-                                <PencilSquareIcon className="h-5 w-5" />
-                                <span className="sr-only">Edit</span>
-                              </button>
-                              <button
-                                onClick={() => handleDelete(subject.subjectCode)}
-                                className="text-red-600 hover:text-red-900"
-                              >
-                                <TrashIcon className="h-5 w-5" />
-                                <span className="sr-only">Delete</span>
-                              </button>
+                              {canEditSubject(subject) && (
+                                <>
+                                  <button
+                                    onClick={() => handleEdit(subject)}
+                                    className="text-[#323E8F] hover:text-[#35408E] mr-4"
+                                  >
+                                    <PencilSquareIcon className="h-5 w-5" />
+                                    <span className="sr-only">Edit</span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(subject.subjectCode)}
+                                    className="text-red-600 hover:text-red-900"
+                                  >
+                                    <TrashIcon className="h-5 w-5" />
+                                    <span className="sr-only">Delete</span>
+                                  </button>
+                                </>
+                              )}
                             </td>
                           </tr>
                         ))
@@ -386,18 +398,22 @@ export default function SubjectsPage() {
                       {subject.subjectCode}
                     </div>
                     <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleEdit(subject)}
-                        className="text-[#323E8F] hover:text-[#35408E]"
-                      >
-                        <PencilSquareIcon className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(subject.subjectCode)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                      </button>
+                      {canEditSubject(subject) && (
+                        <>
+                          <button
+                            onClick={() => handleEdit(subject)}
+                            className="text-[#323E8F] hover:text-[#35408E]"
+                          >
+                            <PencilSquareIcon className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(subject.subjectCode)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            <TrashIcon className="h-5 w-5" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className="text-sm text-gray-500">

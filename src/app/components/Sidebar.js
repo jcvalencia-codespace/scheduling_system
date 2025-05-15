@@ -42,15 +42,9 @@ const roleMenuItems = {
       icon: CalendarDaysIcon,
     },
     {
-      title: 'Entry',
-      href: '/entry',
-      icon: PencilSquareIcon,
-      hasDropdown: true,
-      subItems: [
-        { title: 'Subjects', href: '/entry/subjects', icon: BookOpenIcon },
-        { title: 'Sections', href: '/entry/sections', icon: BuildingLibraryIcon },
-        { title: 'Class Load', href: '/entry/class-load', icon: BuildingLibraryIcon }
-      ]
+      title: 'Class Load',
+      href: '/entry/class-load',
+      icon: BuildingLibraryIcon,
     },
     {
       title: 'Admin Hours',
@@ -95,15 +89,9 @@ const roleMenuItems = {
       icon: CalendarDaysIcon,
     },
     {
-      title: 'Entry',
-      href: '/entry',
-      icon: PencilSquareIcon,
-      hasDropdown: true,
-      subItems: [
-        { title: 'Subjects', href: '/entry/subjects', icon: BookOpenIcon },
-        { title: 'Sections', href: '/entry/sections', icon: BuildingLibraryIcon },
-        { title: 'Class Load', href: '/entry/class-load', icon: BuildingLibraryIcon }
-      ]
+      title: 'Class Load',
+      href: '/entry/class-load',
+      icon: BuildingLibraryIcon,
     },
     {
       title: 'Activity Logs',

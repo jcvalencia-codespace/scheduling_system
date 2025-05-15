@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
 // Replace the date-fns import with moment
 import moment from "moment" // Add this line
 import { useLoading } from "../../context/LoadingContext"
@@ -36,7 +36,22 @@ const NoSSRSelect = dynamic(() => import("react-select"), {
   ssr: false,
 })
 
-export default function SchedulePage() {
+// Create a client component for handling the search params
+function SearchParamsHandler({ onSectionChange }) {
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const sectionParam = searchParams.get('section')
+    if (sectionParam) {
+      onSectionChange(sectionParam)
+    }
+  }, [searchParams, onSectionChange])
+
+  return null
+}
+
+// Main content component
+function ScheduleContent() {
   const { user } = useAuthStore()
   const [selectedSection, setSelectedSection] = useState("")
   const [isNewScheduleModalOpen, setIsNewScheduleModalOpen] = useState(false)
@@ -53,7 +68,6 @@ export default function SchedulePage() {
   const [isAdminHoursModalOpen, setIsAdminHoursModalOpen] = useState(false)
   const pathname = usePathname()
   const [isScrolled, setIsScrolled] = useState(false)
-  const searchParams = useSearchParams() // Add this line
 
   // Generate time slots from 6am to 9pm with hourly intervals
   // Keep this for compatibility with existing components like PDF preview
@@ -71,12 +85,7 @@ export default function SchedulePage() {
     fetchActiveTerm()
     fetchSchedules()
     fetchAllSections()
-    // Get section from query params and set it if available
-    const sectionParam = searchParams.get('section')
-    if (sectionParam) {
-      setSelectedSection(sectionParam)
-    }
-  }, [searchParams]) // Update dependency array
+  }, []) // Remove searchParams dependency
 
   useEffect(() => {
     const handleScroll = () => {
@@ -457,6 +466,10 @@ export default function SchedulePage() {
         }
       `}</style>
 
+      <Suspense fallback={null}>
+        <SearchParamsHandler onSectionChange={setSelectedSection} />
+      </Suspense>
+
       {/* Tab Navigation */}
       <div className="mb-6">
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
@@ -688,6 +701,17 @@ export default function SchedulePage() {
     </div>
   )
 }
+
+// Main component
+export default function SchedulePage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ScheduleContent />
+    </Suspense>
+  )
+}
+
+// Keep the renderEventContent function as is
 function renderEventContent(eventInfo) {
   const schedule = eventInfo.event.extendedProps.schedule
 
