@@ -5,17 +5,17 @@ import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
 export default function UserList({ users, onUserSelect, activeUser, unreadCounts, currentUserId }) {
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // Sort users by lastMessage timestamp
+
+  // Sort users by lastMessage timestamp regardless of sender/recipient
   const sortedUsers = useMemo(() => {
     return [...(users || [])].sort((a, b) => {
-      const timestampA = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt) : new Date(0);
-      const timestampB = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt) : new Date(0);
-      return timestampB - timestampA; // Sort in descending order (newest first)
+      const timestampA = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0;
+      const timestampB = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0;
+      return timestampB - timestampA;
     });
   }, [users]);
 
-  const filteredUsers = sortedUsers.filter(user => 
+  const filteredUsers = sortedUsers.filter(user =>
     user.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -46,9 +46,8 @@ export default function UserList({ users, onUserSelect, activeUser, unreadCounts
             <div
               key={user._id}
               onClick={() => onUserSelect(user)}
-              className={`p-4 border-b hover:bg-gray-50 cursor-pointer transition-colors relative ${
-                activeUser === user._id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
-              }`}
+              className={`p-4 border-b hover:bg-gray-50 cursor-pointer transition-colors relative ${activeUser === user._id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                }`}
             >
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center flex-grow">
@@ -61,11 +60,9 @@ export default function UserList({ users, onUserSelect, activeUser, unreadCounts
                     <p className="text-sm font-medium text-gray-900">{user.firstName} {user.lastName}</p>
                     <p className={`text-sm truncate ${unreadCounts?.[user._id] > 0 ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
                       {user.lastMessage ? (
-                        unreadCounts?.[user._id] > 0 ?
-                          'View New Message' :
-                          activeUser === user._id ?
-                            `Chatting with ${user.firstName}` :
-                            'View Conversation'
+                        user.lastMessage.sender._id === currentUserId ?
+                          `You: ${user.lastMessage.content}` :
+                          user.lastMessage.content
                       ) : 'No messages yet'}
                     </p>
                   </div>

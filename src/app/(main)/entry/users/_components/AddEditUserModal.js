@@ -410,31 +410,35 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
                                   {user ? 'New Password (leave blank to keep current)' : 'Password'}
                                 </label>
                                 {user ? (
-                                  <div className="relative">
-                                    <input
-                                      type={showPassword ? "text" : "password"}
-                                      name="password"
-                                      id="password"
-                                      value={formData.password}
-                                      onChange={handleChange}
-                                      disabled={isSubmitting}
-                                      className={`mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ${
-                                        passwordError ? 'ring-red-500' : 'ring-gray-300'
-                                      } placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6`}
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => setShowPassword(!showPassword)}
-                                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                                    >
-                                      {showPassword ? (
-                                        <EyeSlashIcon className="h-5 w-5" aria-hidden="true" />
-                                      ) : (
-                                        <EyeIcon className="h-5 w-5" aria-hidden="true" />
-                                      )}
-                                    </button>
+                                  <div className="flex flex-col space-y-1">
+                                    <div className="relative mt-1">
+                                      <input
+                                        type={showPassword ? "text" : "password"}
+                                        name="password"
+                                        id="password"
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        disabled={isSubmitting}
+                                        className={`block w-full rounded-md border-0 py-1.5 pr-10 text-gray-900 shadow-sm ring-1 ring-inset ${
+                                          passwordError ? 'ring-red-500' : 'ring-gray-300'
+                                        } placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6`}
+                                      />
+                                      <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                                        <button
+                                          type="button"
+                                          onClick={() => setShowPassword(!showPassword)}
+                                          className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                                        >
+                                          {showPassword ? (
+                                            <EyeSlashIcon className="h-5 w-5" aria-hidden="true" />
+                                          ) : (
+                                            <EyeIcon className="h-5 w-5" aria-hidden="true" />
+                                          )}
+                                        </button>
+                                      </div>
+                                    </div>
                                     {passwordError && (
-                                      <p className="mt-1 text-sm text-red-600">{passwordError}</p>
+                                      <p className="text-sm text-red-600">{passwordError}</p>
                                     )}
                                   </div>
                                 ) : (

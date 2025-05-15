@@ -70,14 +70,21 @@ export async function triggerTypingIndicator({ userId, conversationId }) {
   }
 }
 
-export async function getMessages(conversationId, limit = 50) {
+export async function getMessages(conversationId, page = 1, limit = 50) {
   try {
     const chat = await chatsModel.getChatById(conversationId);
-    const messages = chat ? chat.messages.slice(-limit) : [];
-    return { messages, error: null };
+    if (!chat || !chat.messages) return { messages: [], hasMore: false };
+
+    // Calculate pagination
+    const startIndex = Math.max(0, chat.messages.length - (page * limit));
+    const endIndex = Math.min(chat.messages.length, startIndex + limit);
+    const messages = chat.messages.slice(startIndex, endIndex);
+    const hasMore = startIndex > 0;
+
+    return { messages, hasMore };
   } catch (error) {
     console.error('Error fetching messages:', error);
-    return { messages: [], error: error.message };
+    return { messages: [], hasMore: false, error: error.message };
   }
 }
 

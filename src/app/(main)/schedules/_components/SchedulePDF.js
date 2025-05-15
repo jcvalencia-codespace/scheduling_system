@@ -38,7 +38,7 @@ const SchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
 
       // Generate time slots
       const timeSlots = generateTimeSlots();
-      const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]; // Verify order matches data
 
       // Calculate rowspan for each schedule
       const scheduleSpans = calculateScheduleSpans(timeSlots, weekDays);
@@ -235,7 +235,7 @@ const SchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
   };
 
   const getScheduleForTimeAndDay = (time, day) => {
-    return schedules.filter(schedule =>
+    const schedule = schedules.filter(schedule =>
       schedule.section?.sectionName === selectedSection
     ).find(schedule => {
       return schedule.scheduleSlots.some(slot => {
@@ -243,11 +243,19 @@ const SchedulePDF = ({ activeTerm, schedules, selectedSection }) => {
         const scheduleEndTime = new Date(`2000/01/01 ${slot.timeTo}`).getTime();
         const currentTime = new Date(`2000/01/01 ${time}`).getTime();
 
-        return slot.days.includes(day) &&
+        // Add debug logging
+        const isMatch = slot.days.includes(day) &&
           currentTime >= scheduleStartTime &&
           currentTime < scheduleEndTime;
+        
+        if (isMatch) {
+          console.log(`Match found for ${day}:`, slot.days);
+        }
+
+        return isMatch;
       });
     });
+    return schedule;
   };
 
   const getSlotForTimeAndDay = (schedule, time, day) => {

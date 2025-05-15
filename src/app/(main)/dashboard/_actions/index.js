@@ -6,6 +6,8 @@ import termsModel from "@/app/models/Terms"
 import subjectsModel from "@/app/models/Subjects"
 import usersModel from "@/app/models/Users"
 import sectionsModel from "@/app/models/Sections"
+import mongoose from 'mongoose'
+import moment from 'moment'
 
 export async function getRoomStatistics() {
   try {
@@ -88,11 +90,26 @@ export async function getDashboardStats() {
     // Get active term
     const activeTerm = await termsModel.getActiveTerm()
     
-    // Get schedules count for active term
-    const schedules = activeTerm ? await Schedules.countDocuments({ 
-      isActive: true,
-      term: activeTerm.id 
-    }) : 0
+    // Get schedules count for active term with proper matching
+    const schedules = activeTerm ? await Schedules.aggregate([
+      { 
+        $match: { 
+          isActive: true,
+          term: new mongoose.Types.ObjectId(activeTerm.id)
+        }
+      },
+      {
+        $project: {
+          count: { $size: { $ifNull: [{ $ifNull: ["$section", []] }, []] } }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$count" }
+        }
+      }
+    ]).then(result => result[0]?.total || 0) : 0
 
     // Get subjects count after model initialization
     const subjects = await subjectsModel.MODEL.countDocuments({ isActive: true })
@@ -114,17 +131,27 @@ export async function getDashboardStats() {
   }
 }
 
-export async function getRecentActivities() {
+export async function getRecentActivities(userRole, userData) {
   try {
     // Initialize models
     await subjectsModel.initModel()
     await roomsModel.initModel()
     await usersModel.initModel()
 
-    // Get recent update histories from different models with proper population
-    const [subjects, rooms, users] = await Promise.all([
-      subjectsModel.MODEL.aggregate([
-        { $match: { updateHistory: { $exists: true, $ne: [] } } },
+    let activities = []
+
+    // If user is Dean or Program Chair, only fetch relevant schedule history
+    if ((userRole === 'Dean' && userData?.department) || (userRole === 'Program Chair' && userData?.course)) {
+      const schedules = await mongoose.model('Schedules').aggregate([
+        { 
+          $match: { 
+            updateHistory: { 
+              $exists: true, 
+              $ne: [] 
+            },
+            isActive: true
+          } 
+        },
         { $unwind: '$updateHistory' },
         {
           $lookup: {
@@ -136,63 +163,37 @@ export async function getRecentActivities() {
         },
         { $unwind: { path: '$updateHistory.user', preserveNullAndEmptyArrays: true } },
         {
-          $project: {
-            subjectCode: 1,
-            'updateHistory': {
-              _id: '$updateHistory._id',
-              action: '$updateHistory.action',
-              updatedAt: '$updateHistory.updatedAt',
-              updatedBy: {
-                firstName: '$updateHistory.user.firstName',
-                lastName: '$updateHistory.user.lastName'
-              }
-            }
-          }
-        }
-      ]),
-      roomsModel.MODEL.aggregate([
-        { $match: { updateHistory: { $exists: true, $ne: [] } } },
-        { $unwind: '$updateHistory' },
-        {
           $lookup: {
-            from: 'users',
-            localField: 'updateHistory.updatedBy',
+            from: 'sections',
+            localField: 'section',
             foreignField: '_id',
-            as: 'updateHistory.user'
+            as: 'sectionInfo'
           }
         },
-        { $unwind: { path: '$updateHistory.user', preserveNullAndEmptyArrays: true } },
-        {
-          $project: {
-            roomCode: 1,
-            'updateHistory': {
-              _id: '$updateHistory._id',
-              action: '$updateHistory.action',
-              updatedAt: '$updateHistory.updatedAt',
-              updatedBy: {
-                firstName: '$updateHistory.user.firstName',
-                lastName: '$updateHistory.user.lastName'
-              }
-            }
-          }
-        }
-      ]),
-      usersModel.MODEL.aggregate([
-        { $match: { updateHistory: { $exists: true, $ne: [] } } },
-        { $unwind: '$updateHistory' },
+        { $unwind: { path: '$sectionInfo', preserveNullAndEmptyArrays: true } },
         {
           $lookup: {
-            from: 'users',
-            localField: 'updateHistory.updatedBy',
+            from: 'courses',
+            localField: 'sectionInfo.course',
             foreignField: '_id',
-            as: 'updateHistory.user'
+            as: 'sectionInfo.course'
           }
         },
-        { $unwind: { path: '$updateHistory.user', preserveNullAndEmptyArrays: true } },
+        { $unwind: { path: '$sectionInfo.course', preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: 'departments',
+            localField: 'sectionInfo.course.department',
+            foreignField: '_id',
+            as: 'sectionInfo.department'
+          }
+        },
+        { $unwind: { path: '$sectionInfo.department', preserveNullAndEmptyArrays: true } },
         {
           $project: {
-            firstName: 1,
-            lastName: 1,
+            'sectionInfo.sectionName': 1,
+            'sectionInfo.course._id': 1,
+            'sectionInfo.department._id': 1,
             'updateHistory': {
               _id: '$updateHistory._id',
               action: '$updateHistory.action',
@@ -204,63 +205,230 @@ export async function getRecentActivities() {
             }
           }
         }
-      ])
-    ])
+      ]);
 
-    // Combine and format all activities
-    const activities = []
+      // Filter schedules based on user role and their department/course
+      const filteredSchedules = schedules.filter(schedule => {
+        if (userRole === 'Dean') {
+          return schedule.sectionInfo?.department?._id.toString() === userData.department.toString();
+        } else if (userRole === 'Program Chair') {
+          return schedule.sectionInfo?.course?._id.toString() === userData.course.toString();
+        }
+        return false;
+      });
 
-    // Format subject activities
-    subjects.forEach(subject => {
-      activities.push({
-        id: subject.updateHistory._id.toString(),
-        action: `${subject.updateHistory.action} subject ${subject.subjectCode}`,
-        user: subject.updateHistory.updatedBy 
-          ? `${subject.updateHistory.updatedBy.firstName} ${subject.updateHistory.updatedBy.lastName}`
+      activities = filteredSchedules.map(schedule => ({
+        id: schedule.updateHistory._id.toString(),
+        action: `${schedule.updateHistory.action} schedule for ${schedule.sectionInfo?.sectionName || 'Unknown Section'}`,
+        user: schedule.updateHistory.updatedBy 
+          ? `${schedule.updateHistory.updatedBy.firstName} ${schedule.updateHistory.updatedBy.lastName}`
           : 'System',
-        time: subject.updateHistory.updatedAt,
-        status: getStatusFromAction(subject.updateHistory.action)
-      })
-    })
+        time: formatTimeAgo(schedule.updateHistory.updatedAt),
+        status: getStatusFromAction(schedule.updateHistory.action),
+        type: 'schedule',
+        updatedAt: schedule.updateHistory.updatedAt
+      }));
+    } else {
+      // Regular users see all activities
+      const [subjects, rooms, users, schedules] = await Promise.all([
+        subjectsModel.MODEL.aggregate([
+          { $match: { updateHistory: { $exists: true, $ne: [] } } },
+          { $unwind: '$updateHistory' },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'updateHistory.updatedBy',
+              foreignField: '_id',
+              as: 'updateHistory.user'
+            }
+          },
+          { $unwind: { path: '$updateHistory.user', preserveNullAndEmptyArrays: true } },
+          {
+            $project: {
+              subjectCode: 1,
+              'updateHistory': {
+                _id: '$updateHistory._id',
+                action: '$updateHistory.action',
+                updatedAt: '$updateHistory.updatedAt',
+                updatedBy: {
+                  firstName: '$updateHistory.user.firstName',
+                  lastName: '$updateHistory.user.lastName'
+                }
+              }
+            }
+          }
+        ]),
+        roomsModel.MODEL.aggregate([
+          { $match: { updateHistory: { $exists: true, $ne: [] } } },
+          { $unwind: '$updateHistory' },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'updateHistory.updatedBy',
+              foreignField: '_id',
+              as: 'updateHistory.user'
+            }
+          },
+          { $unwind: { path: '$updateHistory.user', preserveNullAndEmptyArrays: true } },
+          {
+            $project: {
+              roomCode: 1,
+              'updateHistory': {
+                _id: '$updateHistory._id',
+                action: '$updateHistory.action',
+                updatedAt: '$updateHistory.updatedAt',
+                updatedBy: {
+                  firstName: '$updateHistory.user.firstName',
+                  lastName: '$updateHistory.user.lastName'
+                }
+              }
+            }
+          }
+        ]),
+        usersModel.MODEL.aggregate([
+          { $match: { updateHistory: { $exists: true, $ne: [] } } },
+          { $unwind: '$updateHistory' },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'updateHistory.updatedBy',
+              foreignField: '_id',
+              as: 'updateHistory.user'
+            }
+          },
+          { $unwind: { path: '$updateHistory.user', preserveNullAndEmptyArrays: true } },
+          {
+            $project: {
+              firstName: 1,
+              lastName: 1,
+              'updateHistory': {
+                _id: '$updateHistory._id',
+                action: '$updateHistory.action',
+                updatedAt: '$updateHistory.updatedAt',
+                updatedBy: {
+                  firstName: '$updateHistory.user.firstName',
+                  lastName: '$updateHistory.user.lastName'
+                }
+              }
+            }
+          }
+        ]),
+        mongoose.model('Schedules').aggregate([
+          { 
+            $match: { 
+              updateHistory: { 
+                $exists: true, 
+                $ne: [] 
+              },
+              isActive: true
+            } 
+          },
+          { $unwind: '$updateHistory' },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'updateHistory.updatedBy',
+              foreignField: '_id',
+              as: 'updateHistory.user'
+            }
+          },
+          { $unwind: { path: '$updateHistory.user', preserveNullAndEmptyArrays: true } },
+          {
+            $lookup: {
+              from: 'sections',
+              localField: 'section',
+              foreignField: '_id',
+              as: 'sectionInfo'
+            }
+          },
+          { $unwind: { path: '$sectionInfo', preserveNullAndEmptyArrays: true } },
+          {
+            $lookup: {
+              from: 'courses',
+              localField: 'sectionInfo.course',
+              foreignField: '_id',
+              as: 'sectionInfo.course'
+            }
+          },
+          { $unwind: { path: '$sectionInfo.course', preserveNullAndEmptyArrays: true } },
+          {
+            $lookup: {
+              from: 'departments',
+              localField: 'sectionInfo.course.department',
+              foreignField: '_id',
+              as: 'sectionInfo.department'
+            }
+          },
+          { $unwind: { path: '$sectionInfo.department', preserveNullAndEmptyArrays: true } },
+          {
+            $project: {
+              'sectionInfo.sectionName': 1,
+              'sectionInfo.department._id': 1,
+              'updateHistory': {
+                _id: '$updateHistory._id',
+                action: '$updateHistory.action',
+                updatedAt: '$updateHistory.updatedAt',
+                updatedBy: {
+                  firstName: '$updateHistory.user.firstName',
+                  lastName: '$updateHistory.user.lastName'
+                }
+              }
+            }
+          }
+        ])
+      ]);
 
-    // Format room activities
-    rooms.forEach(room => {
-      activities.push({
-        id: room.updateHistory._id.toString(),
-        action: `${room.updateHistory.action} room ${room.roomCode}`,
-        user: room.updateHistory.updatedBy
-          ? `${room.updateHistory.updatedBy.firstName} ${room.updateHistory.updatedBy.lastName}`
-          : 'System',
-        time: room.updateHistory.updatedAt,
-        status: getStatusFromAction(room.updateHistory.action)
-      })
-    })
+      // Format subject activities
+      subjects.forEach(subject => {
+        activities.push({
+          id: subject.updateHistory._id.toString(),
+          action: `${subject.updateHistory.action} subject ${subject.subjectCode}`,
+          user: subject.updateHistory.updatedBy 
+            ? `${subject.updateHistory.updatedBy.firstName} ${subject.updateHistory.updatedBy.lastName}`
+            : 'System',
+          time: formatTimeAgo(subject.updateHistory.updatedAt),
+          status: getStatusFromAction(subject.updateHistory.action),
+          type: 'subject',
+          updatedAt: subject.updateHistory.updatedAt
+        });
+      });
 
-    // Format user activities
-    users.forEach(user => {
-      activities.push({
-        id: user.updateHistory._id.toString(),
-        action: `${user.updateHistory.action} user ${user.firstName} ${user.lastName}`,
-        user: user.updateHistory.updatedBy
-          ? `${user.updateHistory.updatedBy.firstName} ${user.updateHistory.updatedBy.lastName}`
-          : 'System',
-        time: user.updateHistory.updatedAt,
-        status: getStatusFromAction(user.updateHistory.action)
-      })
-    })
+      // Format room activities
+      rooms.forEach(room => {
+        activities.push({
+          id: room.updateHistory._id.toString(),
+          action: `${room.updateHistory.action} room ${room.roomCode}`,
+          user: room.updateHistory.updatedBy 
+            ? `${room.updateHistory.updatedBy.firstName} ${room.updateHistory.updatedBy.lastName}`
+            : 'System',
+          time: formatTimeAgo(room.updateHistory.updatedAt),
+          status: getStatusFromAction(room.updateHistory.action),
+          type: 'room',
+          updatedAt: room.updateHistory.updatedAt
+        });
+      });
 
-    // Sort by date and get most recent 7
-    return activities
-      .sort((a, b) => new Date(b.time) - new Date(a.time))
-      .slice(0, 7)
-      .map(activity => ({
-        ...activity,
-        time: formatTimeAgo(activity.time)
-      }))
+      // Format schedule activities
+      schedules.forEach(schedule => {
+        activities.push({
+          id: schedule.updateHistory._id.toString(),
+          action: `${schedule.updateHistory.action} schedule for ${schedule.sectionInfo?.sectionName || 'Unknown Section'}`,
+          user: schedule.updateHistory.updatedBy 
+            ? `${schedule.updateHistory.updatedBy.firstName} ${schedule.updateHistory.updatedBy.lastName}`
+            : 'System',
+          time: formatTimeAgo(schedule.updateHistory.updatedAt),
+          status: getStatusFromAction(schedule.updateHistory.action),
+          type: 'schedule',
+          updatedAt: schedule.updateHistory.updatedAt
+        });
+      });
+    }
 
+    // Sort activities by time
+    return activities.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
   } catch (error) {
-    console.error('Error fetching recent activities:', error)
-    return []
+    console.error('Error in getRecentActivities:', error)
+    throw error
   }
 }
 
@@ -324,12 +492,5 @@ function getStatusFromAction(action) {
 }
 
 function formatTimeAgo(date) {
-  const now = new Date()
-  const diff = now - new Date(date)
-  const hours = Math.floor(diff / (1000 * 60 * 60))
-  
-  if (hours < 1) return 'Just now'
-  if (hours === 1) return '1 hour ago'
-  if (hours < 24) return `${hours} hours ago`
-  return `${Math.floor(hours / 24)} days ago`
+  return moment(date).fromNow()
 }
