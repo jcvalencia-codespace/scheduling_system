@@ -52,21 +52,29 @@ function AssignSubjectsPageContent() {
   };
 
   useEffect(() => {
-    loadAssignments();
-    loadDepartments();
-    loadActiveTerm();
+    const init = async () => {
+      await Promise.all([
+        loadAssignments(),
+        loadDepartments(),
+        loadActiveTerm()
+      ]);
+    };
+    init();
   }, []);
 
   const loadAssignments = async () => {
     try {
       setIsLoading(true);
-      console.log('Loading assignments for user:', user); // Debug log
       const data = await getAssignments(user?._id);
-      console.log('Loaded assignments:', data); // Debug log
-      setAssignments(data);
+      if (Array.isArray(data)) {
+        setAssignments(data);
+      } else {
+        setAssignments([]);
+      }
     } catch (error) {
       console.error('Error loading assignments:', error);
       ActionModal.error('Failed to load assignments');
+      setAssignments([]);
     } finally {
       setIsLoading(false);
     }
@@ -271,7 +279,7 @@ function AssignSubjectsPageContent() {
           <div>
             <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Assigned Subjects</h1>
             <p className="mt-1 sm:mt-2 text-sm text-gray-700">
-              Manage and view all assigned subjects for {activeTerm?.sy || 'Current Academic Year'}
+              Manage and view all assigned subjects for {activeTerm?.sy || 'Current Academic Year'} - All Terms
             </p>
           </div>
           <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row gap-2 sm:space-x-3">

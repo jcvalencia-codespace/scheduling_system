@@ -266,7 +266,7 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
                               onChange={handleChange}
                               disabled={isSubmitting}
                               placeholder="Subject Code... e.g. COMP101"
-                              className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 uppercase"
+                              className="block w-full rounded-md border-gray-300 text-gray-900 dark:border-gray-600 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 uppercase"
                             />
                           </div>
 
@@ -283,7 +283,7 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
                               onChange={handleChange}
                               disabled={isSubmitting}
                               placeholder="Subject Name..."
-                              className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
+                              className="block w-full rounded-md border-gray-300 text-gray-900 dark:border-gray-600 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
                             />
                           </div>
 
