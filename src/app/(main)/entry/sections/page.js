@@ -49,7 +49,6 @@ export default function SectionsPage() {
 
     if (user.role === 'Dean') {
       const userDeptId = user.department?._id?.toString() || user.department?.toString();
-      // Check both direct department and course's department
       const sectionDeptId = section.department?._id?.toString() || 
                            section.course?.department?._id?.toString();
       
@@ -82,7 +81,7 @@ export default function SectionsPage() {
   };
 
   useEffect(() => {
-    if (!user) return; // Add early return if no user
+    if (!user) return;
 
     const fetchData = async () => {
       setIsLoading(true);
@@ -96,7 +95,6 @@ export default function SectionsPage() {
           throw new Error(sectionsData.error);
         }
         
-        // Extract departments from sections data
         const uniqueDepartments = Array.from(new Set(
           sectionsData.sections
             .map(section => section.department)
@@ -119,7 +117,7 @@ export default function SectionsPage() {
     };
 
     fetchData();
-  }, [setIsLoading, user]); // Remove user._id, use user instead
+  }, [setIsLoading, user]);
 
   const handleSort = (key) => {
     setSortConfig((prevConfig) => ({
@@ -218,7 +216,6 @@ export default function SectionsPage() {
       let aValue = a[sortConfig.key];
       let bValue = b[sortConfig.key];
 
-      // Special handling for department sorting
       if (sortConfig.key === 'departmentCode') {
         aValue = getDepartmentCode(a);
         bValue = getDepartmentCode(b);
@@ -260,11 +257,11 @@ export default function SectionsPage() {
   }, [sortedSections, searchTerm, filters]);
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8">
+    <div className="px-4 sm:px-6 lg:px-8 py-8 bg-gray-100 dark:bg-gray-900 min-h-screen">
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">Class Sections</h1>
-          <p className="mt-2 text-sm text-gray-700">
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Class Sections</h1>
+          <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
             A list of all class sections including their details.
           </p>
         </div>
@@ -279,7 +276,6 @@ export default function SectionsPage() {
         </div>
       </div>
 
-      {/* Filters and Search Bar */}
       <div className="flex flex-col sm:flex-row justify-between space-y-3 sm:space-y-0 sm:space-x-4">
         <div className="flex-1 max-w-sm">
           <div className="relative rounded-md shadow-sm">
@@ -293,7 +289,7 @@ export default function SectionsPage() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full rounded-md border-0 py-2 pl-10 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
+              className="block w-full rounded-md border-0 py-2 pl-10 pr-10 text-gray-900 dark:text-gray-100 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] dark:focus:ring-[#4151B0] dark:bg-gray-800 sm:text-sm sm:leading-6"
               placeholder="Search sections..."
             />
             {searchTerm && (
@@ -316,17 +312,15 @@ export default function SectionsPage() {
         />
       </div>
 
-      {/* Table */}
-      <div className="mt-8 flow-root border-t border-gray-200">
-        {/* Desktop Table */}
+      <div className="mt-8 flow-root border-t border-gray-200 dark:border-gray-700">
         <div className="hidden sm:block">
           <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
             <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-                <table className="min-w-full divide-y divide-gray-300">
-                  <thead className="bg-gray-50">
+              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 dark:ring-opacity-20 sm:rounded-lg">
+                <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-600">
+                  <thead className="bg-gray-50 dark:bg-gray-800">
                     <tr>
-                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
+                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-200 sm:pl-6">
                         <button
                           onClick={() => handleSort('sectionName')}
                           className="group inline-flex items-center"
@@ -335,7 +329,7 @@ export default function SectionsPage() {
                           <ChevronUpDownIcon className="ml-2 h-5 w-5 text-gray-400" aria-hidden="true" />
                         </button>
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-200">
                         <button
                           onClick={() => handleSort('courseCode')}
                           className="group inline-flex items-center"
@@ -344,7 +338,7 @@ export default function SectionsPage() {
                           <ChevronUpDownIcon className="ml-2 h-5 w-5 text-gray-400" aria-hidden="true" />
                         </button>
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-200">
                         <button
                           onClick={() => handleSort('departmentCode')}
                           className="group inline-flex items-center"
@@ -353,7 +347,7 @@ export default function SectionsPage() {
                           <ChevronUpDownIcon className="ml-2 h-5 w-5 text-gray-400" aria-hidden="true" />
                         </button>
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-200">
                         <button
                           onClick={() => handleSort('yearLevel')}
                           className="group inline-flex items-center"
@@ -367,7 +361,7 @@ export default function SectionsPage() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
+                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
                     {filteredSections.length === 0 ? (
                       <tr>
                         <td colSpan="6">
@@ -383,16 +377,16 @@ export default function SectionsPage() {
                     ) : (
                       filteredSections.map((section) => (
                         <tr key={section.sectionName}>
-                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-gray-200 sm:pl-6">
                             {section.sectionName}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                             {section.course ? `${section.course.courseCode} - ${section.course.courseTitle}` : 'N/A'}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                             {section.department?.departmentCode || 'N/A'}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                             {section.yearLevel}
                           </td>
                           <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
@@ -425,16 +419,15 @@ export default function SectionsPage() {
           </div>
         </div>
 
-        {/* Mobile Card Layout */}
         <div className="sm:hidden">
           <div className="space-y-4">
             {filteredSections.map((section) => (
               <div 
                 key={section.sectionName}
-                className="bg-white shadow rounded-lg p-4 space-y-2"
+                className="bg-white dark:bg-gray-800 shadow rounded-lg p-4 space-y-2"
               >
                 <div className="flex justify-between items-start">
-                  <div className="font-medium text-gray-900">
+                  <div className="font-medium text-gray-900 dark:text-gray-100">
                     {section.sectionName}
                   </div>
                   {canManageSection(section) && (
@@ -454,7 +447,7 @@ export default function SectionsPage() {
                     </div>
                   )}
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-gray-500 dark:text-gray-400">
                   <p>
                     <span className="font-medium">Course:</span>{' '}
                     {section.course ? `${section.course.courseCode} - ${section.course.courseTitle}` : 'N/A'}

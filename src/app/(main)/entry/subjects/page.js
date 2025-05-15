@@ -227,19 +227,19 @@ export default function SubjectsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-100 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="sm:flex sm:items-center">
           <div className="sm:flex-auto">
-            <h1 className="text-xl font-semibold text-gray-900">Subjects</h1>
-            <p className="mt-2 text-sm text-gray-700">
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Subjects</h1>
+            <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
               A list of all subjects in the system.
             </p>
           </div>
@@ -256,34 +256,34 @@ export default function SubjectsPage() {
 
         <div className="mt-8">
           <div className="flex flex-col sm:flex-row justify-between space-y-3 sm:space-y-0 sm:space-x-4 mb-4">
-          <div className="flex-1 max-w-sm">
-          <div className="relative rounded-md shadow-sm">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <MagnifyingGlassIcon
-                className="h-5 w-5 text-gray-400"
-                aria-hidden="true"
-              />
-            </div>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full rounded-md border-0 py-2 pl-10 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
-              placeholder="Search subjects..."
-            />
-            {searchTerm && (
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="text-gray-400 hover:text-gray-500"
-                >
-                  <XMarkIcon className="h-5 w-5" aria-hidden="true" />
-                </button>
+            <div className="flex-1 max-w-sm">
+              <div className="relative rounded-md shadow-sm">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                  <MagnifyingGlassIcon
+                    className="h-5 w-5 text-gray-400"
+                    aria-hidden="true"
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="block w-full rounded-md border-0 py-2 pl-10 pr-10 text-gray-900 dark:text-gray-100 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] dark:focus:ring-[#4151B0] dark:bg-gray-800 sm:text-sm sm:leading-6"
+                  placeholder="Search subjects..."
+                />
+                {searchTerm && (
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="text-gray-400 hover:text-gray-500"
+                    >
+                      <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
-        </div>
-      </div>
 
           <Filter 
             filters={filters}
@@ -295,27 +295,27 @@ export default function SubjectsPage() {
           <div className="hidden sm:block">
             <div className="overflow-x-auto">
               <div className="inline-block min-w-full align-middle">
-                <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-                  <table className="min-w-full divide-y divide-gray-300">
-                    <thead className="bg-gray-50">
+                <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 dark:ring-opacity-10 sm:rounded-lg">
+                  <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-600">
+                    <thead className="bg-gray-50 dark:bg-gray-800">
                       <tr>
                         <th
                           scope="col"
-                          className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6 cursor-pointer"
+                          className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-200 sm:pl-6 cursor-pointer"
                           onClick={() => handleSort('subjectCode')}
                         >
                           Subject Code {getSortIcon('subjectCode')}
                         </th>
                         <th
                           scope="col"
-                          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
+                          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-200 cursor-pointer"
                           onClick={() => handleSort('subjectName')}
                         >
                           Subject Name {getSortIcon('subjectName')}
                         </th>
                         <th
                           scope="col"
-                          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
+                          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-200 cursor-pointer"
                           onClick={() => handleSort('department')}
                         >
                           Department {getSortIcon('department')}
@@ -328,7 +328,7 @@ export default function SubjectsPage() {
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
                       {filteredSubjects.length === 0 ? (
                         <tr>
                           <td colSpan="4">
@@ -344,13 +344,13 @@ export default function SubjectsPage() {
                       ) : (
                         paginatedSubjects.map((subject) => (
                           <tr key={subject.subjectCode}>
-                            <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                            <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-gray-200 sm:pl-6">
                               {subject.subjectCode}
                             </td>
-                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                               {subject.subjectName}
                             </td>
-                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                               {subject.department?.departmentCode && subject.department?.departmentName 
                                 ? `${subject.department.departmentCode}` 
                                 : 'N/A'}
@@ -391,10 +391,10 @@ export default function SubjectsPage() {
               {paginatedSubjects.map((subject) => (
                 <div 
                   key={subject.subjectCode}
-                  className="bg-white shadow rounded-lg p-4 space-y-2"
+                  className="bg-white dark:bg-gray-800 shadow rounded-lg p-4 space-y-2"
                 >
                   <div className="flex justify-between items-start">
-                    <div className="font-medium text-gray-900">
+                    <div className="font-medium text-gray-900 dark:text-gray-200">
                       {subject.subjectCode}
                     </div>
                     <div className="flex space-x-2">
@@ -416,10 +416,10 @@ export default function SubjectsPage() {
                       )}
                     </div>
                   </div>
-                  <div className="text-sm text-gray-500">
-                    <p><span className="font-medium">Name:</span> {subject.subjectName}</p>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    <p><span className="font-medium dark:text-gray-300">Name:</span> {subject.subjectName}</p>
                     <p>
-                      <span className="font-medium">Department:</span>{' '}
+                      <span className="font-medium dark:text-gray-300">Department:</span>{' '}
                       {subject.department?.departmentCode && subject.department?.departmentName 
                         ? `${subject.department.departmentCode}` 
                         : 'N/A'}
@@ -429,8 +429,6 @@ export default function SubjectsPage() {
               ))}
             </div>
           </div>
-
-          {/* Pagination controls could go here */}
         </div>
       </div>
 
