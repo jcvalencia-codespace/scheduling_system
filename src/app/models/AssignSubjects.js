@@ -175,9 +175,18 @@ class AssignSubjectsModel {
     try {
       await this.initializeModels();
       
+      // Get active term first
+      const activeTerm = await mongoose.model('Terms').findOne({
+        status: 'Active',
+        isVisible: true
+      }).lean();
+
+      if (!activeTerm) {
+        throw new Error('No active term found');
+      }
+
       let user = null;
       if (userId) {
-        // Properly populate user with both course and department
         user = await this.models.User.findById(userId)
           .populate({
             path: 'course',
@@ -189,28 +198,24 @@ class AssignSubjectsModel {
             model: this.models.Department
           })
           .lean();
-
-        console.log('Fetched user for assignments:', user); // Debug log
       }
 
-      let query = {};
+      let query = {
+        academicYear: activeTerm.academicYear // Filter by active academic year only
+      };
       
+      // Build the role-based query
       if (user?.role?.toLowerCase() === 'program chair' && user?.course?._id) {
-        // Fix the query for program chair to look at the correct path
-        query = { 'classId.course': user.course._id };
-        console.log('Program Chair query:', query); // Debug log
+        query['classId.course'] = user.course._id;
       } else if (user?.role?.toLowerCase() === 'dean' && user?.department?._id) {
-        query = { 'classId.course.department': user.department._id };
-        console.log('Dean query:', query); // Debug log
+        query['classId.course.department'] = user.department._id;
       }
-
-      // Add logging to see the actual query being executed
-      console.log('Final query:', query);
 
       const assignments = await this.models.AssignSubjects.find(query)
         .populate({
           path: 'classId',
           model: this.models.Section,
+          select: '_id sectionName yearLevel course',
           populate: {
             path: 'course',
             model: this.models.Course,
@@ -229,16 +234,18 @@ class AssignSubjectsModel {
         })
         .lean();
 
+      // Transform the assignments data
       return assignments.map(assignment => ({
         _id: assignment._id.toString(),
         yearLevel: assignment.yearLevel,
-        academicYear: assignment.academicYear, // Include academicYear in response
+        academicYear: assignment.academicYear,
         classId: assignment.classId ? {
           _id: assignment.classId._id.toString(),
           sectionName: assignment.classId.sectionName,
+          yearLevel: assignment.classId.yearLevel,
           course: assignment.classId.course ? {
             _id: assignment.classId.course._id.toString(),
-            courseCode: assignment.classId.course.courseCode, // Ensure this is included
+            courseCode: assignment.classId.course.courseCode,
             courseTitle: assignment.classId.course.courseTitle,
             department: assignment.classId.course.department ? {
               _id: assignment.classId.course.department._id.toString(),
@@ -250,7 +257,7 @@ class AssignSubjectsModel {
         subjects: assignment.subjects.map(subj => ({
           _id: subj._id.toString(),
           term: subj.term,
-          hours: subj.hours, // Include hours in the response
+          hours: subj.hours,
           subject: subj.subject ? {
             _id: subj.subject._id.toString(),
             subjectCode: subj.subject.subjectCode,

@@ -77,36 +77,36 @@ export default function PreviewPDFModal({ isOpen, onClose, pdfProps }) {
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-6xl transform overflow-hidden rounded-2xl bg-white p-6 shadow-xl transition-all">
+              <Dialog.Panel className="w-full max-w-6xl transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 p-6 shadow-xl transition-all">
                 <div className="flex justify-between items-center mb-4">
-                  <Dialog.Title as="h3" className="text-lg font-medium text-gray-900">
+                  <Dialog.Title as="h3" className="text-lg font-medium text-gray-900 dark:text-gray-100">
                     Preview Schedule
                   </Dialog.Title>
                   <div className="flex gap-2">
                     <button
                       onClick={handleDownload}
-                      className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                      className="px-4 py-2 text-sm font-medium text-white bg-[#323E8F] dark:bg-[#4151B0] rounded-md hover:bg-[#35408E] dark:hover:bg-[#4B5DC0] transition-colors"
                     >
                       Download PDF
                     </button>
                     <button
                       onClick={onClose}
-                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                      className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
                     >
                       Close
                     </button>
                   </div>
                 </div>
-                <div className="h-[800px] w-full">
+                <div className="h-[800px] w-full bg-white dark:bg-gray-700 rounded-lg">
                   {isLoading ? (
                     <div className="flex items-center justify-center h-full">
-                      <span className="text-gray-500">Loading...</span>
+                      <span className="text-gray-500 dark:text-gray-400">Loading...</span>
                     </div>
                   ) : (
                     <iframe
                       width="100%"
                       height="100%"
-                      style={{ border: 'none' }}
+                      style={{ border: 'none', backgroundColor: 'white' }}
                       src={pdfUrl}
                       type="application/pdf"
                     />

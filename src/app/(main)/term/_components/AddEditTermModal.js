@@ -131,17 +131,24 @@ export default function AddEditTermModal({ open, setOpen, title, selectedTerm, o
     try {
       const parseDate = (dateStr) => {
         if (!dateStr) return null;
+
+        // For YYYY-MM-DD format (from date input)
         if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          const [year, month, day] = dateStr.split('-');
-          return new Date(year, month - 1, day);
+          const [year, month, day] = dateStr.split('-').map(Number);
+          // month - 1 because JavaScript months are 0-based
+          return new Date(Date.UTC(year, month - 1, day));
         }
+
+        // For MM/DD/YYYY format (manual input)
         const parts = dateStr.split('/');
-        if (parts.length !== 3) {
-          setError('Invalid date format. Please use MM/DD/YYYY');
-          return null;
+        if (parts.length === 3) {
+          // Swap day and month to handle correct order
+          const [day, month, year] = parts.map(Number);
+          // month - 1 because JavaScript months are 0-based
+          return new Date(Date.UTC(year, day - 1, month));
         }
-        const [month, day, year] = parts;
-        return new Date(year, month - 1, day);
+
+        throw new Error('Invalid date format. Please use DD/MM/YYYY or select from calendar');
       };
 
       const formatDate = (date) => {
@@ -149,19 +156,39 @@ export default function AddEditTermModal({ open, setOpen, title, selectedTerm, o
           'January', 'February', 'March', 'April', 'May', 'June',
           'July', 'August', 'September', 'October', 'November', 'December'
         ];
-        return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+        return `${months[date.getUTCMonth()]} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
       };
 
       const startDate = parseDate(formData.startDate);
       const endDate = parseDate(formData.endDate);
+
+      // Add date validation logging
+      console.log('Original Input:', {
+        startDate: formData.startDate,
+        endDate: formData.endDate
+      });
+      
+      console.log('Parsed Dates:', {
+        startDate: startDate?.toISOString(),
+        endDate: endDate?.toISOString()
+      });
 
       if (!startDate || !endDate || isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
         setError('Invalid date format');
         return;
       }
 
-      const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-      const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+      // Normalize dates to start of day for comparison
+      const startDateOnly = new Date(Date.UTC(
+        startDate.getUTCFullYear(),
+        startDate.getUTCMonth(),
+        startDate.getUTCDate()
+      ));
+      const endDateOnly = new Date(Date.UTC(
+        endDate.getUTCFullYear(),
+        endDate.getUTCMonth(),
+        endDate.getUTCDate()
+      ));
 
       if (startDateOnly >= endDateOnly) {
         setError('End date must be after start date');
@@ -192,7 +219,8 @@ export default function AddEditTermModal({ open, setOpen, title, selectedTerm, o
       Object.entries(formData).forEach(([key, value]) => {
         if (key === 'startDate' || key === 'endDate') {
           const date = parseDate(value);
-          formDataToSend.append(key, date.toISOString().split('T')[0]);
+          const formatted = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+          formDataToSend.append(key, formatted);
         } else {
           formDataToSend.append(key, value);
         }
