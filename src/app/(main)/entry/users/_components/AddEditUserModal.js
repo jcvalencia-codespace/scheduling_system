@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { addUser, editUser, getDepartments, getAllCourses } from '../_actions';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
@@ -28,6 +28,8 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
   const [allCourses, setAllCourses] = useState([]);
   const [courses, setCourses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
 
   useEffect(() => {
     if (show) {
@@ -77,24 +79,40 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
     }
   };
 
+  const validatePassword = (password) => {
+    if (password === '') return true; // Allow empty password for editing
+    if (password.length < 8) {
+      setPasswordError("Password must be at least 8 characters long");
+      return false;
+    }
+    if (!/\d/.test(password)) {
+      setPasswordError("Password must contain at least 1 number");
+      return false;
+    }
+    setPasswordError("");
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isSubmitting) return;
+
+    if (formData.password && !validatePassword(formData.password)) {
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // Create FormData instance
       const form = new FormData();
-      
-      // Append all form fields
       Object.entries(formData).forEach(([key, value]) => {
-        if (value !== '') {  // Only append non-empty values
+        if (value !== '') {
           form.append(key, value);
         }
       });
 
       const result = user ? await editUser(user._id, form) : await addUser(form);
-      
+
       if (result.error) {
         throw new Error(result.error);
       }
@@ -133,16 +151,14 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
       setFormData(prev => ({
         ...prev,
         [name]: selectedOption ? selectedOption.value : '',
-        course: '' // Clear course when department changes
+        course: ''
       }));
       if (selectedOption) {
-        // Filter courses based on selected department
         const filteredCourses = allCourses.filter(
           course => course.department?._id === selectedOption.value
         );
         setCourses(filteredCourses);
       } else {
-        // Show all courses when no department is selected
         setCourses(allCourses);
       }
     } else if (name === 'course' && selectedOption) {
@@ -169,6 +185,9 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'password') {
+      validatePassword(value);
+    }
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -190,7 +209,6 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
   };
 
   const formatCourseOptions = () => {
-    // Show filtered courses if department is selected, otherwise show all courses
     const coursesToShow = formData.department 
       ? allCourses.filter(course => course.department?._id === formData.department)
       : allCourses;
@@ -305,7 +323,6 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
                 <div className="flex flex-col md:flex-row min-h-[600px]">
                   <UserModalSidebar user={user} />
                   
-                  {/* Main content */}
                   <div className="w-full md:w-2/3 flex flex-col">
                     {isLoading ? (
                       <div className="p-8">
@@ -313,9 +330,7 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
                       </div>
                     ) : (
                       <form onSubmit={handleSubmit} className="flex-1 flex flex-col h-full">
-                        {/* Form content */}
                         <div className="flex-1 p-8 space-y-8">
-                          {/* Title */}
                           <div className="pt-4">
                             <h3 className="text-lg font-medium text-gray-900">
                               User Information
@@ -326,7 +341,6 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
                           </div>
 
                           <div className="space-y-6">
-                            {/* Existing form fields */}
                             <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
                               <div>
                                 <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
@@ -396,15 +410,33 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
                                   {user ? 'New Password (leave blank to keep current)' : 'Password'}
                                 </label>
                                 {user ? (
-                                  <input
-                                    type="password"
-                                    name="password"
-                                    id="password"
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                    disabled={isSubmitting}
-                                    className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                  />
+                                  <div className="relative">
+                                    <input
+                                      type={showPassword ? "text" : "password"}
+                                      name="password"
+                                      id="password"
+                                      value={formData.password}
+                                      onChange={handleChange}
+                                      disabled={isSubmitting}
+                                      className={`mt-1 block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ${
+                                        passwordError ? 'ring-red-500' : 'ring-gray-300'
+                                      } placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6`}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowPassword(!showPassword)}
+                                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                    >
+                                      {showPassword ? (
+                                        <EyeSlashIcon className="h-5 w-5" aria-hidden="true" />
+                                      ) : (
+                                        <EyeIcon className="h-5 w-5" aria-hidden="true" />
+                                      )}
+                                    </button>
+                                    {passwordError && (
+                                      <p className="mt-1 text-sm text-red-600">{passwordError}</p>
+                                    )}
+                                  </div>
                                 ) : (
                                   <div>
                                     <div className="mt-1 block w-full rounded-md border-0 py-1.5 text-gray-500 bg-gray-50 shadow-sm ring-1 ring-inset ring-gray-300 sm:text-sm sm:leading-6 px-3">
@@ -513,7 +545,6 @@ export default function AddEditUserModal({ show, onClose, user, onSuccess }) {
 
                         </div>
 
-                        {/* Footer */}
                         <div className="flex justify-end space-x-3 p-6 bg-gray-50 border-t border-gray-200">
                           <button
                             type="button"

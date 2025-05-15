@@ -28,6 +28,10 @@ export default function FacultyArchive() {
       console.log('🔄 Faculty Archive: User loaded, fetching initial data')
       fetchArchivedTerms()
       fetchFacultyData()
+      // Pre-select faculty if user is faculty
+      if (user.role === 'Faculty') {
+        setSelectedFaculty(user._id)
+      }
     }
   }, [user?._id])
 
@@ -247,7 +251,10 @@ export default function FacultyArchive() {
                   onChange={(option) => {
                     setSelectedYear(option?.value || null)
                     setSelectedTerm(null)
-                    setSelectedFaculty(null)
+                    // Only reset faculty selection if user is not faculty
+                    if (user?.role !== 'Faculty') {
+                      setSelectedFaculty(null)
+                    }
                   }}
                   options={yearOptions}
                   placeholder="Select Academic Year"
@@ -270,7 +277,10 @@ export default function FacultyArchive() {
                   value={termOptions.find(opt => opt.value === selectedTerm)}
                   onChange={(option) => {
                     setSelectedTerm(option?.value || null)
-                    setSelectedFaculty(null)
+                    // Only reset faculty selection if user is not faculty
+                    if (user?.role !== 'Faculty') {
+                      setSelectedFaculty(null)
+                    }
                   }}
                   options={termOptions}
                   placeholder="Select Term"
@@ -302,6 +312,7 @@ export default function FacultyArchive() {
                   styles={selectStyles}
                   menuPortalTarget={portalTarget}
                   menuPosition="fixed"
+                  isDisabled={user?.role === 'Faculty'}
                 />
               </div>
             </div>

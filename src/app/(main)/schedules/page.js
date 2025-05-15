@@ -28,7 +28,7 @@ import {
 } from "@heroicons/react/24/outline"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation" // Add useSearchParams
 import dynamic from "next/dynamic"
 
 // Create a dynamic import for Select with SSR disabled
@@ -53,6 +53,7 @@ export default function SchedulePage() {
   const [isAdminHoursModalOpen, setIsAdminHoursModalOpen] = useState(false)
   const pathname = usePathname()
   const [isScrolled, setIsScrolled] = useState(false)
+  const searchParams = useSearchParams() // Add this line
 
   // Generate time slots from 6am to 9pm with hourly intervals
   // Keep this for compatibility with existing components like PDF preview
@@ -69,8 +70,13 @@ export default function SchedulePage() {
   useEffect(() => {
     fetchActiveTerm()
     fetchSchedules()
-    fetchAllSections() // Add this new function call
-  }, [])
+    fetchAllSections()
+    // Get section from query params and set it if available
+    const sectionParam = searchParams.get('section')
+    if (sectionParam) {
+      setSelectedSection(sectionParam)
+    }
+  }, [searchParams]) // Update dependency array
 
   useEffect(() => {
     const handleScroll = () => {

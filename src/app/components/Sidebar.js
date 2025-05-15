@@ -224,7 +224,7 @@ const roleMenuItems = {
     },
     {
       title: 'Schedule Archive',
-      href: '/schedule-archive',
+      href: '/schedule-archive/faculty',
       icon: ArchiveBoxIcon
     }
   ]
@@ -289,11 +289,16 @@ export default function Sidebar() {
               const isActive = pathname === item.href;
               const isExpanded = expandedItems[item.title];
 
+              // Modify href for faculty users accessing archive
+              const href = user?.role === 'Faculty' && item.title === 'Schedule Archive' 
+                ? '/schedule-archive/faculty'
+                : item.href;
+
               return (
                 <li key={item.title}>
                   <div className="relative">
                     <Link
-                      href={item.href}
+                      href={href}
                       className={`flex items-center justify-between p-2 rounded-md text-gray-900 dark:text-gray-100 hover:bg-[#FFD41C] hover:text-black dark:hover:text-black ${isActive ? 'bg-[#323E8F] text-white' : ''
                         }`}
                       onClick={item.hasDropdown ? (e) => {

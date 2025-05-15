@@ -47,6 +47,7 @@ export const rolePermissions = {
     '/chats',
     '/schedule-archive',
     '/schedule-archive/faculty',
+    '/settings',
     '/schedule-archive/block'
   ]
 };
