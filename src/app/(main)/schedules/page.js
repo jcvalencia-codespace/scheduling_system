@@ -304,50 +304,69 @@ function ScheduleContent() {
             menu: (base) => ({
               ...base,
               zIndex: 9999,
-              backgroundColor: 'var(--background)',
-              '--background': 'rgb(255, 255, 255)',
+              backgroundColor: 'var(--select-bg, #ffffff)',
+              border: '1px solid var(--select-border, #e5e7eb)',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+              borderRadius: '0.375rem',
               '.dark &': {
-                '--background': 'rgb(31, 41, 55)',
-              },
+                backgroundColor: '#1f2937',
+                borderColor: '#374151'
+              }
             }),
             control: (base, state) => ({
               ...base,
-              backgroundColor: 'var(--background)',
-              borderColor: state.isFocused ? "#3b82f6" : "#e5e7eb",
-              boxShadow: state.isFocused ? "0 0 0 1px #3b82f6" : "none",
+              backgroundColor: 'var(--select-bg, #ffffff)',
+              borderColor: state.isFocused ? '#3b82f6' : '#e5e7eb',
+              boxShadow: state.isFocused ? '0 0 0 1px #3b82f6' : 'none',
               '&:hover': {
-                borderColor: "#3b82f6",
+                borderColor: '#3b82f6'
               },
               '.dark &': {
-                '--background': 'rgb(31, 41, 55)',
-                borderColor: state.isFocused ? "#3b82f6" : "#374151",
-              },
+                backgroundColor: '#1f2937',
+                borderColor: state.isFocused ? '#3b82f6' : '#374151'
+              }
             }),
             option: (base, state) => ({
               ...base,
-              backgroundColor: state.isSelected
-                ? "#323E8F"
-                : state.isFocused
-                ? "var(--hover-bg)"
-                : "transparent",
-              color: state.isSelected ? "white" : "var(--text-color)",
-              "&:active": {
-                backgroundColor: "#323E8F",
-              },
-              '--hover-bg': '#e5e7eb',
-              '--text-color': '#111827',
+              backgroundColor: state.isSelected 
+                ? '#323E8F' 
+                : state.isFocused 
+                  ? 'var(--select-hover, #f3f4f6)' 
+                  : 'transparent',
+              color: state.isSelected ? '#ffffff' : 'var(--select-text, #111827)',
               '.dark &': {
-                '--hover-bg': 'rgb(55, 65, 81)',
-                '--text-color': '#f3f4f6',
+                backgroundColor: state.isSelected 
+                  ? '#323E8F' 
+                  : state.isFocused 
+                    ? '#374151' 
+                    : 'transparent',
+                color: state.isSelected ? '#ffffff' : '#e5e7eb'
               },
+              '&:hover': {
+                backgroundColor: state.isSelected ? '#323E8F' : 'var(--select-hover, #f3f4f6)'
+              }
             }),
             singleValue: (base) => ({
               ...base,
-              color: 'var(--text-color)',
+              color: 'var(--select-text, #111827)',
               '.dark &': {
-                '--text-color': '#f3f4f6',
-              },
+                color: '#e5e7eb'
+              }
             }),
+            input: (base) => ({
+              ...base,
+              color: 'var(--select-text, #111827)',
+              '.dark &': {
+                color: '#e5e7eb'
+              }
+            }),
+            placeholder: (base) => ({
+              ...base,
+              color: 'var(--select-placeholder, #6b7280)',
+              '.dark &': {
+                color: '#9ca3af'
+              }
+            })
           }}
         />
       )}

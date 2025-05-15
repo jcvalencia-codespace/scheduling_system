@@ -49,10 +49,10 @@ const generatePDF = (props, isPreview = false) => {
   // Add header with centered logo
   doc.addImage("https://i.imgur.com/6yZFd27.png", "PNG", logoX, 5, logoWidth, logoHeight);
   
-  // Add titles with reduced spacing - Modified title
+  // Add titles with reduced spacing
   doc.setFontSize(12);
   doc.setTextColor(26, 35, 126);
-  doc.text("Room Schedule", 105, 25, { align: "center" });
+  doc.text("Archived Room Schedule", 105, 25, { align: "center" });
   
   doc.setFontSize(8);
   doc.setTextColor(0);
@@ -83,7 +83,7 @@ const generatePDF = (props, isPreview = false) => {
   
   // Time header (top-left corner)
   doc.rect(startX, startY, timeWidth, cellHeight, 'F');
-  doc.text("Time", startX + timeWidth/2, startY + 5, { 
+  doc.text("Time", startX + timeWidth/2, startY + (cellHeight/2), { 
     align: "center",
     baseline: "middle"
   });
@@ -113,7 +113,10 @@ const generatePDF = (props, isPreview = false) => {
     // Time cell
     doc.rect(startX, y, timeWidth, cellHeight);
     doc.setFontSize(6); // Increased font size for time
-    doc.text(time, startX + timeWidth/2, y + 3.5, { align: "center" });
+    doc.text(time, startX + timeWidth/2, y + (cellHeight/2), { 
+      align: "center",
+      baseline: "middle"
+    });
     
     // Day cells
     weekDays.forEach((day, dayIndex) => {
@@ -136,15 +139,16 @@ const generatePDF = (props, isPreview = false) => {
           const cellTotalHeight = spanInfo.span * cellHeight;
           const textStartY = y + (cellTotalHeight / 2) - 3;
           
+          // Display schedule information
           doc.text([
             `${spanInfo.slot.timeFrom} - ${spanInfo.slot.timeTo}`,
             spanInfo.schedule.subject?.subjectCode || "",
-            `${Array.isArray(spanInfo.schedule.section) 
-              ? spanInfo.schedule.section.map(s => s.sectionName).join(', ') 
-              : spanInfo.schedule.section?.sectionName || ""}`,
+            Array.isArray(spanInfo.schedule.section) 
+              ? spanInfo.schedule.section.map(s => s.sectionName).join(', ')
+              : spanInfo.schedule.section?.sectionName || "",
             spanInfo.schedule.faculty ? 
               `${spanInfo.schedule.faculty.firstName?.[0]}.${spanInfo.schedule.faculty.lastName}` : ""
-          ], x + (dayWidth/2), textStartY, { 
+          ].filter(Boolean), x + (dayWidth/2), textStartY, { 
             align: "center",
             maxWidth: dayWidth - 1,
             lineHeightFactor: 1.3
@@ -167,7 +171,7 @@ const generatePDF = (props, isPreview = false) => {
   doc.text(`Issued on ${currentDate} at ${currentTime}`, 105, footerY, { align: "center" });
   
   if (!isPreview) {
-    doc.save(`schedule-${selectedSection}.pdf`);
+    doc.save(`archived-room-schedule-${selectedSection}-${activeTerm.term}-${activeTerm.academicYear}.pdf`);
   }
   
   return doc;
