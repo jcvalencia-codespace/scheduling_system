@@ -30,6 +30,10 @@ export default function ConflictAlert({
         return "Section conflicts may prevent students from attending all their required classes."
       case "duration":
         return "Schedule duration conflicts may affect required lecture hours and learning effectiveness."
+      case "adminHours":
+        return "Admin hours conflicts may affect faculty's administrative duties and responsibilities."
+      case "subjectFrequency":
+        return "A subject can only be scheduled up to 2 times per week for each section."
       default:
         return ""
     }
@@ -44,7 +48,8 @@ export default function ConflictAlert({
     (conflicts.roomConflicts?.length || 0) +
     (conflicts.facultyConflicts?.length || 0) +
     (conflicts.sectionConflicts?.length || 0) +
-    (conflicts.durationConflicts && conflicts.durationConflicts.length > 0 ? 1 : 0)
+    (conflicts.durationConflicts && conflicts.durationConflicts.length > 0 ? 1 : 0) +
+    (conflicts.adminHoursConflicts?.length || 0) // Add admin hours to total
 
   // Track which conflicts have been viewed
   const [viewedConflicts, setViewedConflicts] = useState({})
@@ -66,6 +71,8 @@ export default function ConflictAlert({
     if (conflicts.facultyConflicts?.length > 0) conflictTypes.push("faculty")
     if (conflicts.sectionConflicts?.length > 0) conflictTypes.push("section")
     if (conflicts.durationConflicts?.length > 0) conflictTypes.push("duration")
+    if (conflicts.adminHoursConflicts?.length > 0) conflictTypes.push("adminHours") // Check for admin hours
+    if (conflicts.subjectFrequencyConflicts?.length > 0) conflictTypes.push("subjectFrequency") // Check for subject frequency
 
     return conflictTypes.every((type) => viewedConflicts[type])
   }
@@ -81,6 +88,10 @@ export default function ConflictAlert({
         return "Section already has classes scheduled at this time"
       case "duration":
         return "Schedule duration does not meet requirements"
+      case "adminHours":
+        return "Administrative hours conflict with scheduled classes"
+      case "subjectFrequency":
+        return "Subject has exceeded maximum allowed weekly schedule frequency"
       default:
         return ""
     }
@@ -222,6 +233,48 @@ export default function ConflictAlert({
                     </li>
                   ))}
                 </ul>
+              ) : type === "adminHours" ? (
+                <ul className="space-y-2">
+                  {conflicts.adminHoursConflicts.map((conflict, idx) => (
+                    <li key={`admin-${idx}`} className="p-2 bg-white rounded-md shadow-sm">
+                      <div className="font-medium text-sm text-gray-800">
+                        Conflict with Administrative hours scheduled for <span className="text-red-700 font-semibold">{conflict.faculty}</span> 
+                       
+                      </div>
+                      {conflict.conflictingSlots.map((slot, i) => (
+                        <div key={`admin-slot-${i}`} className="text-xs mt-1 text-red-700">
+                          • {slot.type} Hours: {slot.day}  ({slot.startTime} - {slot.endTime})
+                        </div>
+                      ))}
+                    </li>
+                  ))}
+                </ul>
+              ) : type === "subjectFrequency" ? (
+                <ul className="space-y-2">
+                  {conflicts.subjectFrequencyConflicts.map((conflict, idx) => (
+                    <li key={`subject-freq-${idx}`} className="p-2 bg-white rounded-md shadow-sm">
+                      <div className="font-medium text-sm text-gray-800">
+                        {conflict.subject} - Maximum Weekly Frequency Exceeded
+                      </div>
+                      <div className="text-xs mt-2 space-y-1">
+                        <div className="text-red-700">
+                          • Section {conflict.section}
+                        </div>
+                        <div className="text-gray-600">
+                          Currently scheduled: {conflict.currentCount}{" "}
+                          {conflict.currentCount === 1 ? "time" : "times"}
+                        </div>
+                        <div className="text-gray-600">
+                          Attempting to add: {conflict.attemptedAdd}{" "}
+                          {conflict.attemptedAdd === 1 ? "time" : "times"}
+                        </div>
+                        <div className="text-gray-600">
+                          Maximum allowed: {conflict.maxAllowed} times per week
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               ) : (
                 <ul className="space-y-2">
                   {conflicts.sectionConflicts.map((conflict, idx) => (
@@ -246,6 +299,25 @@ export default function ConflictAlert({
     )
   }
 
+  // Check if only admin hours conflicts exist
+  const hasOnlyAdminHoursConflicts =
+    conflicts.adminHoursConflicts?.length > 0 &&
+    !conflicts.roomConflicts?.length &&
+    !conflicts.facultyConflicts?.length &&
+    !conflicts.sectionConflicts?.length &&
+    !conflicts.durationConflicts?.length &&
+    !conflicts.subjectFrequencyConflicts?.length // Exclude subject frequency conflicts
+
+  // Update the check for non-overridable conflicts
+  const hasNonOverridableConflicts =
+    (conflicts.adminHoursConflicts?.length > 0 || conflicts.subjectFrequencyConflicts?.length > 0);
+
+  const showOverrideControls = !hasNonOverridableConflicts &&
+    (conflicts.roomConflicts?.length > 0 ||
+    conflicts.facultyConflicts?.length > 0 ||
+    conflicts.sectionConflicts?.length > 0 ||
+    conflicts.durationConflicts?.length > 0);
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 overflow-hidden">
@@ -261,7 +333,7 @@ export default function ConflictAlert({
               >
                 <path
                   fillRule="evenodd"
-                  d="M12.516 2.17a.75.75 0 00-1.032 0 11.209 11.209 0 01-7.877 3.08.75.75 0 00-.722.515A12.74 12.74 0 002.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.75.75 0 00.674 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.39-.223-2.73-.635-3.985a.75.75 0 00-.722-.516l-.143.001c-2.996 0-5.717-1.17-7.734-3.08zm-.516 6.58a.75.75 0 011.5 0v5.5a.75.75 0 01-1.5 0v-5.5z"
+                  d="M12.516 2.17a.75.75 0 00-1.032 0 11.209 11.209 0 01-7.877 3.08.75.75 0 00-.722.515A12.74 12.74 0 002.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.75.75 0 00.674 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.39-.223-2.73-.635-3.985a.75.75 0 00-.722-.516l-.143.001c-2.996 0-5.717-1.17-7.734-3.08zm-.516 6.58a.75.75 0 011.5 0v5.5a.75.75 0 01-1.5 0v-5.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
                   clipRule="evenodd"
                 />
                 <circle cx="12.5" cy="17.5" r="1" fill="white" />
@@ -288,87 +360,99 @@ export default function ConflictAlert({
           </div>
 
           <div className="max-h-[60vh] overflow-y-auto pr-1">
-            {renderConflictCard("room", "Room Schedule Conflict", conflicts.roomConflicts, "bg-red-50", "text-red-800")}
-
+            {/* Render non-overridable conflicts first */}
             {renderConflictCard(
-              "faculty",
-              "Faculty Schedule Conflict",
-              conflicts.facultyConflicts,
+              "adminHours",
+              "Admin Hours Conflict",
+              conflicts.adminHoursConflicts,
               "bg-red-50",
-              "text-red-800",
+              "text-red-800"
+            )}
+            {renderConflictCard(
+              "subjectFrequency",
+              "Subject Frequency Conflict",
+              conflicts.subjectFrequencyConflicts,
+              "bg-red-50",
+              "text-red-800"
             )}
 
-            {renderConflictCard(
-              "section",
-              "Section Schedule Conflict",
-              conflicts.sectionConflicts,
-              "bg-red-50",
-              "text-red-800",
-            )}
-
-            {renderConflictCard(
-              "duration",
-              "Schedule Duration Conflict",
-              conflicts.durationConflicts,
-              "bg-red-50",
-              "text-red-800",
-            )}
+            {/* Render overridable conflicts */}
+            {renderConflictCard("room", "Room Schedule Conflict", conflicts.roomConflicts)}
+            {renderConflictCard("faculty", "Faculty Schedule Conflict", conflicts.facultyConflicts)}
+            {renderConflictCard("section", "Section Schedule Conflict", conflicts.sectionConflicts)}
+            {renderConflictCard("duration", "Schedule Duration Conflict", conflicts.durationConflicts)}
           </div>
 
-          <div className="mt-5 pt-4 border-t border-gray-200">
-            <div className="flex items-center mb-4">
-              <input
-                type="checkbox"
-                id="enableOverride"
-                checked={overrideEnabled}
-                onChange={(e) => setOverrideEnabled(e.target.checked)}
-                className="w-4 h-4 text-[#35408E] border-gray-300 rounded focus:ring-[#35408E]"
-              />
-              <label htmlFor="enableOverride" className="ml-2 text-sm text-gray-700">
-                I have reviewed all conflicts and understand the scheduling issues
-              </label>
-            </div>
+          {/* Show controls based on conflict type */}
+          {showOverrideControls ? (
+            <div className="mt-5 pt-4 border-t border-gray-200">
+              <div className="flex items-center mb-4">
+                <input
+                  type="checkbox"
+                  id="enableOverride"
+                  checked={overrideEnabled}
+                  onChange={(e) => setOverrideEnabled(e.target.checked)}
+                  className="w-4 h-4 text-[#35408E] border-gray-300 rounded focus:ring-[#35408E]"
+                />
+                <label htmlFor="enableOverride" className="ml-2 text-sm text-gray-700">
+                  I have reviewed all conflicts and understand the scheduling issues
+                </label>
+              </div>
 
-            {(!overrideEnabled || !allConflictsViewed()) && (
-              <p className="text-red-600 text-xs mb-4 flex items-center">
-                {/* Heroicon - Exclamation Triangle (mini) - Now Red */}
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  className="h-3 w-3 mr-1"
+              {(!overrideEnabled || !allConflictsViewed()) && (
+                <p className="text-red-600 text-xs mb-4 flex items-center">
+                  {/* Heroicon - Exclamation Triangle (mini) - Now Red */}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    className="h-3 w-3 mr-1"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  Please review all conflicts by opening each accordion
+                </p>
+              )}
+
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={onDismiss}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
                 >
-                  <path
-                    fillRule="evenodd"
-                    d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                Please review all conflicts by opening each accordion
-              </p>
-            )}
-
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={onDismiss}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={onOverride}
-                disabled={!overrideEnabled}
-                className={`px-4 py-2 text-sm font-medium text-white rounded-md ${overrideEnabled
-                    ? "bg-[#35408E] hover:bg-[#2a3272]"
-                    : "bg-gray-400 cursor-not-allowed"
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={onOverride}
+                  disabled={!overrideEnabled}
+                  className={`px-4 py-2 text-sm font-medium text-white rounded-md ${
+                    overrideEnabled
+                      ? "bg-[#35408E] hover:bg-[#2a3272]"
+                      : "bg-gray-400 cursor-not-allowed"
                   }`}
-              >
-                Acknowledge Conflicts
-              </button>
+                >
+                  Acknowledge Conflicts
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="mt-5 pt-4 border-t border-gray-200">
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={onDismiss}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

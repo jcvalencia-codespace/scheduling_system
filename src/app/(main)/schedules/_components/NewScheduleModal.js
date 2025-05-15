@@ -201,7 +201,7 @@ export default function NewScheduleModal({
     const maxHours = isFullTime ? 40 : 24;
     const teachingHours = facultyLoad.teachingHours || 0;
     const actualAdminHours = facultyLoad.actualAdminHours || 0;
-    const adminHours = isFullTime ? maxHours - teachingHours - actualAdminHours: 0;
+    const adminHours = isFullTime ? maxHours - teachingHours - actualAdminHours : 0;
     const subjectCodes = facultyLoad.subjectCodes || [];
 
     return {
@@ -477,6 +477,35 @@ export default function NewScheduleModal({
         throw new Error('Class limit must be a positive number');
       }
 
+      // Add time validation
+      const convertTo24Hour = (time12h) => {
+        const [time, period] = time12h.split(' ');
+        let [hours, minutes] = time.split(':');
+        hours = parseInt(hours);
+
+        if (hours === 12) {
+          hours = period === 'PM' ? 12 : 0;
+        } else if (period === 'PM') {
+          hours += 12;
+        }
+
+        return hours * 60 + parseInt(minutes); // Convert to minutes since midnight
+      };
+
+      // Validate main schedule times
+      const mainTimeFrom = convertTo24Hour(selectedValues.timeFrom);
+      const mainTimeTo = convertTo24Hour(selectedValues.timeTo);
+     
+      // Start time must not be equal to end time
+      if (mainTimeFrom === mainTimeTo) {
+        throw new Error('Start time and end time cannot be the same.');
+      }
+
+      // Start time must be earlier than end time
+      if (mainTimeFrom > mainTimeTo) {
+        throw new Error('Start time must be earlier than end time.');
+      }
+
       if (selectedValues.isPaired) {
         if (selectedValues.days === pairedSchedule.days) {
           throw new Error('Paired schedule cannot be on the same day as the main schedule');
@@ -487,6 +516,14 @@ export default function NewScheduleModal({
 
         if (emptyPairedFields.length > 0) {
           throw new Error(`Please fill in all paired schedule fields: ${emptyPairedFields.join(', ')}`);
+        }
+
+        // Validate paired schedule times
+        const pairedTimeFrom = convertTo24Hour(pairedSchedule.timeFrom);
+        const pairedTimeTo = convertTo24Hour(pairedSchedule.timeTo);
+
+        if (pairedTimeFrom >= pairedTimeTo) {
+          throw new Error('Paired schedule start time must be earlier than end time');
         }
       }
 
@@ -529,7 +566,7 @@ export default function NewScheduleModal({
         icon: 'success',
         timer: 1500
       });
-      
+
       onClose();
       clearForm();
       onScheduleCreated();
@@ -777,7 +814,7 @@ export default function NewScheduleModal({
                 </div>
 
                 <div className="flex flex-col md:flex-row h-[calc(90vh-2rem)]">
-                  <ScheduleModalSidebar 
+                  <ScheduleModalSidebar
                     editMode={editMode}
                     termInfo={termInfo}
                     facultyLoadDisplay={selectedValues.faculty ? getFacultyLoadDisplay() : null}
@@ -856,8 +893,8 @@ export default function NewScheduleModal({
                                   styles={customStyles}
                                   className="text-black"
                                   placeholder={
-                                    filteredSectionOptions.length === 0 
-                                      ? "No sections available for your department" 
+                                    filteredSectionOptions.length === 0
+                                      ? "No sections available for your department"
                                       : "Select a Section"
                                   }
                                   isClearable
