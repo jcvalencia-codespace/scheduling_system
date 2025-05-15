@@ -71,47 +71,51 @@ class ChatsModel {
       throw error;
     }
   }
-  // Add this method after getChatById
-async findOrCreateChat(participants) {
-  try {
-    const Chat = await this.initModel();
-    
-    // Sort participants to ensure consistent order
-    const sortedParticipants = [...participants].sort();
-    
-    // First try to find an existing chat with these exact participants
-    let chat = await Chat.findOne({
-      $and: [
-        { participants: { $size: sortedParticipants.length } },
-        { participants: { $all: sortedParticipants } },
-        { participants: { $not: { $elemMatch: { $nin: sortedParticipants } } } }
-      ]
-    })
-    .populate('participants', 'firstName lastName email')
-    .populate('messages.sender', 'firstName lastName email');
 
-    // If no chat exists, create a new one
-    if (!chat) {
-      chat = await Chat.create({
-        participants: sortedParticipants,
-        messages: [],
-        lastMessage: null,
-        isGroup: false,
-        isActive: true
-      });
-      // Populate the newly created chat
-      chat = await chat.populate([
-        { path: 'participants', select: 'firstName lastName email' },
-        { path: 'messages.sender', select: 'firstName lastName email' }
-      ]);
+  async findOrCreateChat(participants) {
+    try {
+      const Chat = await this.initModel();
+      
+      // Sort participants to ensure consistent order
+      const sortedParticipants = [...participants].sort();
+      
+      // Try to find existing chat with participants in any order
+      let chat = await Chat.findOne({
+        $and: [
+          { participants: { $size: 2 } }, // Only look for 1-on-1 chats
+          { participants: { $all: sortedParticipants } }, // Must contain both participants
+          { isGroup: false } // Ensure it's not a group chat
+        ]
+      })
+      .populate('participants', 'firstName lastName email')
+      .populate('messages.sender', 'firstName lastName email');
+
+      // Create new chat only if none exists
+      if (!chat) {
+        console.log('No existing chat found, creating new chat');
+        chat = await Chat.create({
+          participants: sortedParticipants,
+          messages: [],
+          lastMessage: null,
+          isGroup: false,
+          isActive: true
+        });
+
+        // Populate the newly created chat
+        chat = await chat.populate([
+          { path: 'participants', select: 'firstName lastName email' },
+          { path: 'messages.sender', select: 'firstName lastName email' }
+        ]);
+      } else {
+        console.log('Found existing chat:', chat._id);
+      }
+
+      return JSON.parse(JSON.stringify(chat));
+    } catch (error) {
+      console.error('Error in findOrCreateChat:', error);
+      throw error;
     }
-
-    return JSON.parse(JSON.stringify(chat));
-  } catch (error) {
-    console.error('Error in findOrCreateChat:', error);
-    throw error;
   }
-}
 
   async addMessage(chatId, messageData) {
     try {

@@ -30,8 +30,34 @@ export default function ManageAccount() {
         newPassword: '',
         confirmPassword: ''
     });
+    const [passwordErrors, setPasswordErrors] = useState({
+        newPassword: '',
+        confirmPassword: ''
+    });
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+
+    const validatePassword = (password) => {
+        const validations = {
+            length: password.length >= 8,
+            number: /\d/.test(password),
+            lowercase: /[a-z]/.test(password),
+            uppercase: /[A-Z]/.test(password),
+            special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+        };
+
+        const messages = [];
+        if (!validations.length) messages.push("At least 8 characters");
+        if (!validations.number) messages.push("At least 1 number");
+        if (!validations.lowercase) messages.push("At least 1 lowercase letter");
+        if (!validations.uppercase) messages.push("At least 1 uppercase letter");
+        if (!validations.special) messages.push("At least 1 special character");
+
+        return {
+            isValid: Object.values(validations).every(Boolean),
+            messages
+        };
+    };
 
     useEffect(() => {
         if (user) {
@@ -58,7 +84,24 @@ export default function ManageAccount() {
             ...prev,
             [id]: value
         }));
-        // Clear messages when user starts typing
+
+        // Validate new password
+        if (id === 'newPassword') {
+            const validation = validatePassword(value);
+            setPasswordErrors(prev => ({
+                ...prev,
+                newPassword: validation.messages.join(', ')
+            }));
+        }
+
+        // Check password match
+        if (id === 'confirmPassword') {
+            setPasswordErrors(prev => ({
+                ...prev,
+                confirmPassword: value !== passwordForm.newPassword ? 'Passwords do not match' : ''
+            }));
+        }
+
         setError('');
         setSuccess('');
     };
@@ -76,19 +119,22 @@ export default function ManageAccount() {
         setError('');
         setSuccess('');
         
-        // Validate passwords
+        // Validate all fields
         if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
             setError('All password fields are required');
             return;
         }
 
-        if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-            setError('New passwords do not match');
+        // Validate new password
+        const validation = validatePassword(passwordForm.newPassword);
+        if (!validation.isValid) {
+            setError(`Password requirements: ${validation.messages.join(', ')}`);
             return;
         }
 
-        if (passwordForm.newPassword.length < 6) {
-            setError('New password must be at least 6 characters long');
+        // Check passwords match
+        if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+            setError('New passwords do not match');
             return;
         }
 
@@ -117,6 +163,29 @@ export default function ManageAccount() {
             setLoading(false);
         }
     };
+
+    const renderPasswordRequirements = () => (
+        <div className="mt-2 text-sm text-gray-600">
+            <p className="font-medium mb-1">Password requirements:</p>
+            <ul className="list-disc pl-5 space-y-1">
+                <li className={passwordForm.newPassword.length >= 8 ? "text-green-600" : ""}>
+                    At least 8 characters
+                </li>
+                <li className={/\d/.test(passwordForm.newPassword) ? "text-green-600" : ""}>
+                    At least 1 number
+                </li>
+                <li className={/[a-z]/.test(passwordForm.newPassword) ? "text-green-600" : ""}>
+                    At least 1 lowercase letter
+                </li>
+                <li className={/[A-Z]/.test(passwordForm.newPassword) ? "text-green-600" : ""}>
+                    At least 1 uppercase letter
+                </li>
+                <li className={/[!@#$%^&*(),.?":{}|<>]/.test(passwordForm.newPassword) ? "text-green-600" : ""}>
+                    At least 1 special character
+                </li>
+            </ul>
+        </div>
+    );
 
     return (
         <div className="space-y-8 bg">
@@ -243,6 +312,10 @@ export default function ManageAccount() {
                                     {showNewPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
                                 </button>
                             </div>
+                            {renderPasswordRequirements()}
+                            {passwordErrors.newPassword && (
+                                <p className="text-red-500 text-sm mt-1">{passwordErrors.newPassword}</p>
+                            )}
                         </div>
                         <div className="space-y-2">
                             <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
@@ -265,6 +338,9 @@ export default function ManageAccount() {
                                     {showConfirmPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
                                 </button>
                             </div>
+                            {passwordErrors.confirmPassword && (
+                                <p className="text-red-500 text-sm mt-1">{passwordErrors.confirmPassword}</p>
+                            )}
                         </div>
                         {error && (
                             <p className="text-red-500 text-sm mt-2">{error}</p>

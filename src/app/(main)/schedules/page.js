@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
 // Replace the date-fns import with moment
 import moment from "moment" // Add this line
 import { useLoading } from "../../context/LoadingContext"
@@ -28,7 +28,7 @@ import {
 } from "@heroicons/react/24/outline"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation" // Add useSearchParams
 import dynamic from "next/dynamic"
 
 // Create a dynamic import for Select with SSR disabled
@@ -36,7 +36,22 @@ const NoSSRSelect = dynamic(() => import("react-select"), {
   ssr: false,
 })
 
-export default function SchedulePage() {
+// Create a client component for handling the search params
+function SearchParamsHandler({ onSectionChange }) {
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const sectionParam = searchParams.get('section')
+    if (sectionParam) {
+      onSectionChange(sectionParam)
+    }
+  }, [searchParams, onSectionChange])
+
+  return null
+}
+
+// Main content component
+function ScheduleContent() {
   const { user } = useAuthStore()
   const [selectedSection, setSelectedSection] = useState("")
   const [isNewScheduleModalOpen, setIsNewScheduleModalOpen] = useState(false)
@@ -69,8 +84,8 @@ export default function SchedulePage() {
   useEffect(() => {
     fetchActiveTerm()
     fetchSchedules()
-    fetchAllSections() // Add this new function call
-  }, [])
+    fetchAllSections()
+  }, []) // Remove searchParams dependency
 
   useEffect(() => {
     const handleScroll = () => {
@@ -289,27 +304,103 @@ export default function SchedulePage() {
             menu: (base) => ({
               ...base,
               zIndex: 9999,
+              backgroundColor: 'var(--select-bg, #ffffff)',
+              border: '1px solid var(--select-border, #e5e7eb)',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+              borderRadius: '0.375rem',
+              '.dark &': {
+                backgroundColor: '#1f2937',
+                borderColor: '#374151'
+              }
             }),
             control: (base, state) => ({
               ...base,
-              borderColor: state.isFocused ? "#3b82f6" : "#e5e7eb",
-              boxShadow: state.isFocused ? "0 0 0 1px #3b82f6" : "none",
-              "&:hover": {
-                borderColor: "#3b82f6",
+              backgroundColor: 'var(--select-bg, #ffffff)',
+              borderColor: state.isFocused ? '#3b82f6' : '#e5e7eb',
+              boxShadow: state.isFocused ? '0 0 0 1px #3b82f6' : 'none',
+              '&:hover': {
+                borderColor: '#3b82f6'
               },
+              '.dark &': {
+                backgroundColor: '#1f2937',
+                borderColor: state.isFocused ? '#3b82f6' : '#374151'
+              }
             }),
             option: (base, state) => ({
               ...base,
-              backgroundColor: state.isSelected
-                ? "#323E8F"
-                : state.isFocused
-                ? "#e5e7eb"
-                : "transparent",
-              color: state.isSelected ? "white" : "#111827",
-              "&:active": {
-                backgroundColor: "#323E8F",
+              backgroundColor: state.isSelected 
+                ? '#323E8F' 
+                : state.isFocused 
+                  ? 'var(--select-hover, #f3f4f6)' 
+                  : 'transparent',
+              color: state.isSelected ? '#ffffff' : 'var(--select-text, #111827)',
+              '.dark &': {
+                backgroundColor: state.isSelected 
+                  ? '#323E8F' 
+                  : state.isFocused 
+                    ? '#374151' 
+                    : 'transparent',
+                color: state.isSelected ? '#ffffff' : '#e5e7eb'
               },
+              '&:hover': {
+                backgroundColor: state.isSelected ? '#323E8F' : 'var(--select-hover, #f3f4f6)'
+              }
             }),
+            singleValue: (base) => ({
+              ...base,
+              color: 'var(--select-text, #111827)',
+              '.dark &': {
+                color: '#e5e7eb'
+              }
+            }),
+            input: (base) => ({
+              ...base,
+              color: 'var(--select-text, #111827)',
+              '.dark &': {
+                color: '#e5e7eb'
+              }
+            }),
+            placeholder: (base) => ({
+              ...base,
+              color: 'var(--select-placeholder, #6b7280)',
+              '.dark &': {
+                color: '#9ca3af'
+              }
+            }),
+            loadingMessage: (base) => ({
+              ...base,
+              color: 'var(--select-text, #111827)',
+              '.dark &': {
+                color: '#e5e7eb'
+              }
+            }),
+            noOptionsMessage: (base) => ({
+              ...base,
+              color: 'var(--select-text, #111827)',
+              '.dark &': {
+                color: '#e5e7eb'
+              }
+            }),
+            indicatorSeparator: (base) => ({
+              ...base,
+              backgroundColor: 'var(--select-border, #e5e7eb)',
+              '.dark &': {
+                backgroundColor: '#374151'
+              }
+            }),
+            dropdownIndicator: (base) => ({
+              ...base,
+              color: 'var(--select-placeholder, #6b7280)',
+              '&:hover': {
+                color: 'var(--select-text, #111827)'
+              },
+              '.dark &': {
+                color: '#9ca3af',
+                '&:hover': {
+                  color: '#e5e7eb'
+                }
+              }
+            })
           }}
         />
       )}
@@ -344,28 +435,20 @@ export default function SchedulePage() {
           background-color: #f8fafc;
         }
 
-        /* Add a subtle pattern to the background */
+        /* Simplified gradient background without pattern */
         .bg-gradient-to-b {
           background-image: linear-gradient(to bottom, #f8fafc, #f1f5f9);
           position: relative;
         }
 
-        .bg-gradient-to-b::before {
-          content: "";
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23e2e8f0' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-          opacity: 0.3;
-          z-index: 0;
-          pointer-events: none;
-        }
-
         .bg-gradient-to-b > * {
           position: relative;
           z-index: 1;
+        }
+
+        /* Dark mode modification */
+        .dark .bg-gradient-to-b {
+          background-image: linear-gradient(to bottom, #111827, #1f2937);
         }
 
         /* Calendar styles */
@@ -449,7 +532,82 @@ export default function SchedulePage() {
           visibility: visible;
           opacity: 1;
         }
+
+        /* Dark mode styles */
+        .dark .fc-col-header-cell {
+          background-color: #1e3a8a;
+          color: #f3f4f6;
+        }
+
+        .dark .fc-timegrid-axis,
+        .dark .fc-timegrid-slot-label {
+          color: #e5e7eb !important;
+        }
+
+        .dark .fc-theme-standard td,
+        .dark .fc-theme-standard th {
+          border-color: #374151 !important;
+        }
+
+        .dark .fc-theme-standard .fc-scrollgrid {
+          border-color: #374151;
+        }
+
+        .dark .fc-timegrid-event {
+          background-color: #3b82f6;
+          border-color: #2563eb;
+        }
+
+        .dark .bg-white {
+          background-color: #1f2937;
+        }
+
+        .dark .text-gray-800 {
+          color: #f3f4f6;
+        }
+
+        .dark .text-gray-600 {
+          color: #d1d5db;
+        }
+
+        .dark .text-gray-500 {
+          color: #9ca3af;
+        }
+
+        .dark .border-gray-300 {
+          border-color: #374151;
+        }
+
+        .dark .hover\\:bg-gray-50:hover {
+          background-color: #374151;
+        }
+
+        .dark .shadow-sm {
+          --tw-shadow-color: rgba(0, 0, 0, 0.1);
+        }
+
+        .dark button.bg-white {
+          background-color: #1f2937;
+          color: #f3f4f6;
+          border-color: #374151;
+        }
+
+        .dark button.bg-white:hover {
+          background-color: #374151;
+        }
+
+        .dark button.hover\\:bg-gray-50:hover {
+          background-color: #374151;
+        }
+
+        .dark .print-button {
+          --tw-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.25);
+        }
       `}</style>
+
+      <Suspense fallback={null}>
+        <SearchParamsHandler onSectionChange={setSelectedSection} />
+      </Suspense>
 
       {/* Tab Navigation */}
       <div className="mb-6">
@@ -682,6 +840,17 @@ export default function SchedulePage() {
     </div>
   )
 }
+
+// Main component
+export default function SchedulePage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ScheduleContent />
+    </Suspense>
+  )
+}
+
+// Keep the renderEventContent function as is
 function renderEventContent(eventInfo) {
   const schedule = eventInfo.event.extendedProps.schedule
 

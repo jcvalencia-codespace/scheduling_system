@@ -4,16 +4,25 @@ import { motion } from "framer-motion"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { getUnscheduledSections } from "../_actions"
+import useAuthStore from "@/store/useAuthStore"
 
 export default function UnscheduledClasses() {
   const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+  const { user } = useAuthStore()
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const data = await getUnscheduledSections()
+        const data = await getUnscheduledSections(
+          user?.role,
+          { 
+            department: user?.department,
+            course: user?.course // Make sure course ID is passed
+          }
+        )
+        console.log('Fetched unscheduled sections:', data.length) // Add debug log
         setClasses(data)
       } catch (error) {
         console.error('Error fetching unscheduled classes:', error)
@@ -21,8 +30,10 @@ export default function UnscheduledClasses() {
         setLoading(false)
       }
     }
-    fetchData()
-  }, [])
+    if (user) {
+      fetchData()
+    }
+  }, [user])
 
   const container = {
     hidden: { opacity: 0 },
@@ -69,7 +80,7 @@ export default function UnscheduledClasses() {
                   <span className="text-gray-900 dark:text-gray-200">{cls.code}</span>
                 </div>
                 <button 
-                  onClick={() => router.push(`/schedules/new?section=${cls.id}`)}
+                  onClick={() => router.push(`/schedules?section=${encodeURIComponent(cls.code.split(' - ')[1])}`)}
                   className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
                 >
                   Create Schedule

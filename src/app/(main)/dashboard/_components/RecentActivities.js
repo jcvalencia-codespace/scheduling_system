@@ -3,28 +3,87 @@
 import { motion } from "framer-motion"
 import { Activity, Clock, Filter, X } from "lucide-react"
 import { useEffect, useState } from "react"
-import { getRecentActivities } from "../_actions"
 import { useRouter } from "next/navigation"
+import { getRecentActivities } from "../_actions"
+import useAuthStore from "@/store/useAuthStore"
+import PusherClient from 'pusher-js'
 
-export default function RecentActivities() {
-  const [activities, setActivities] = useState([])
+export default function RecentActivities() {  const [activities, setActivities] = useState([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const [selectedActivity, setSelectedActivity] = useState(null)
+  const { user } = useAuthStore()
+
+  // Get appropriate title based on user role
+  const getActivityTitle = () => {
+    if (user?.role === 'Program Chair') {
+      return 'Course Schedule Activities'
+    } else if (user?.role === 'Dean') {
+      return 'Department Schedule Activities'
+    }
+    return 'Recent Activities'
+  }
+
+  const fetchActivities = async () => {
+    try {
+      const data = await getRecentActivities(user?.role, {
+        department: user?.department,
+        course: user?.course
+      })
+      setActivities(data)
+    } catch (error) {
+      console.error('Error fetching activities:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const fetchActivities = async () => {
-      try {
-        const data = await getRecentActivities()
-        setActivities(data)
-      } catch (error) {
-        console.error('Error fetching activities:', error)
-      } finally {
-        setLoading(false)
+    fetchActivities()
+
+    // Initialize Pusher
+    const pusher = new PusherClient('74f2d50d18d447032f41', {
+      cluster: 'ap1'
+    })
+
+    // Subscribe to the appropriate channel based on user role
+    const channelName = user?.role === 'Dean' ? `schedule-activities-${user.department}` : 'activities'
+    const channel = pusher.subscribe(channelName)
+
+    // Handle different types of updates
+    const handlers = {
+      'schedule-update': (newActivity) => {
+        setActivities(prev => {
+          // Add the new activity at the beginning of the list
+          const updated = [newActivity, ...prev]
+          // If we're a Dean, filter out non-schedule activities
+          if (user?.role === 'Dean') {
+            return updated.filter(activity => activity.type === 'schedule')
+          }
+          return updated
+        })
+      },
+      'activity-update': (newActivity) => {
+        if (user?.role !== 'Dean') {
+          setActivities(prev => [newActivity, ...prev])
+        }
       }
     }
-    fetchActivities()
-  }, [])
+
+    // Bind event handlers
+    Object.entries(handlers).forEach(([event, handler]) => {
+      channel.bind(event, handler)
+    })
+
+    // Cleanup function
+    return () => {
+      Object.keys(handlers).forEach(event => {
+        channel.unbind(event)
+      })
+      channel.unsubscribe()
+      pusher.disconnect()
+    }
+  }, [user])
 
   const container = {
     hidden: { opacity: 0 },
@@ -58,10 +117,9 @@ export default function RecentActivities() {
   return (
     <>
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden transition-colors h-[420px]">
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-2">
-            <Activity className="h-5 w-5 text-violet-500 dark:text-violet-400" />
-            <h3 className="font-medium text-gray-900 dark:text-white">Recent Activities</h3>
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">          <div className="flex items-center gap-2">            <Activity className="h-5 w-5 text-violet-500 dark:text-violet-400" />            <h3 className="font-medium text-gray-900 dark:text-white">
+              {getActivityTitle()}
+            </h3>
           </div>
           <div className="flex items-center gap-3">
             <button 

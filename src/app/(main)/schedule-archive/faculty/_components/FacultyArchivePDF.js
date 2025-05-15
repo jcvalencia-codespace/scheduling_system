@@ -9,9 +9,10 @@ const generatePDF = (props, isPreview = false) => {
   // Track schedule spans
   const scheduleSpans = {};
   
-  // Calculate spans first - Modified to handle room schedules
+  // Calculate spans first - Modified to handle faculty schedules
   timeSlots.forEach((time, timeIndex) => {
     weekDays.forEach((day, dayIndex) => {
+      // Modified to check schedule slots directly without section filter
       const schedule = schedules.find(s => 
         s.scheduleSlots.some(slot => 
           slot.days.includes(day) &&
@@ -49,14 +50,14 @@ const generatePDF = (props, isPreview = false) => {
   // Add header with centered logo
   doc.addImage("https://i.imgur.com/6yZFd27.png", "PNG", logoX, 5, logoWidth, logoHeight);
   
-  // Add titles with reduced spacing - Modified title
+  // Add titles with reduced spacing
   doc.setFontSize(12);
   doc.setTextColor(26, 35, 126);
-  doc.text("Room Schedule", 105, 25, { align: "center" });
+  doc.text("Archived Faculty Schedule", 105, 25, { align: "center" });
   
   doc.setFontSize(8);
   doc.setTextColor(0);
-  doc.text(`Room: ${selectedSection}`, 105, 30, { align: "center" });
+  doc.text(`Faculty: ${selectedSection}`, 105, 30, { align: "center" });
   doc.text(`${activeTerm.term} - AY ${activeTerm.academicYear}`, 105, 35, { align: "center" });
   
   // Draw table with adjusted dimensions
@@ -83,7 +84,7 @@ const generatePDF = (props, isPreview = false) => {
   
   // Time header (top-left corner)
   doc.rect(startX, startY, timeWidth, cellHeight, 'F');
-  doc.text("Time", startX + timeWidth/2, startY + 5, { 
+  doc.text("Time", startX + timeWidth/2, startY + (cellHeight/2), { 
     align: "center",
     baseline: "middle"
   });
@@ -112,8 +113,11 @@ const generatePDF = (props, isPreview = false) => {
     
     // Time cell
     doc.rect(startX, y, timeWidth, cellHeight);
-    doc.setFontSize(6); // Increased font size for time
-    doc.text(time, startX + timeWidth/2, y + 3.5, { align: "center" });
+    doc.setFontSize(6);
+    doc.text(time, startX + timeWidth/2, y + (cellHeight/2), { 
+      align: "center",
+      baseline: "middle"
+    });
     
     // Day cells
     weekDays.forEach((day, dayIndex) => {
@@ -125,7 +129,7 @@ const generatePDF = (props, isPreview = false) => {
         
         if (spanInfo?.span) {
           // Draw schedule cell with perfect fit
-          doc.setFillColor(255, 215, 0);
+          doc.setFillColor(...(spanInfo.isAdminHour ? [155, 233, 203] : [255, 215, 0]));
           doc.rect(x + 0.1, y + 0.1, dayWidth - 0.2, (spanInfo.span * cellHeight) - 0.1, 'F');
           
           // Adjust text positioning and size
@@ -136,19 +140,29 @@ const generatePDF = (props, isPreview = false) => {
           const cellTotalHeight = spanInfo.span * cellHeight;
           const textStartY = y + (cellTotalHeight / 2) - 3;
           
-          doc.text([
-            `${spanInfo.slot.timeFrom} - ${spanInfo.slot.timeTo}`,
-            spanInfo.schedule.subject?.subjectCode || "",
-            `${Array.isArray(spanInfo.schedule.section) 
-              ? spanInfo.schedule.section.map(s => s.sectionName).join(', ') 
-              : spanInfo.schedule.section?.sectionName || ""}`,
-            spanInfo.schedule.faculty ? 
-              `${spanInfo.schedule.faculty.firstName?.[0]}.${spanInfo.schedule.faculty.lastName}` : ""
-          ], x + (dayWidth/2), textStartY, { 
-            align: "center",
-            maxWidth: dayWidth - 1,
-            lineHeightFactor: 1.3
-          });
+          if (spanInfo.isAdminHour) {
+            doc.text([
+              `${spanInfo.slot.timeFrom} - ${spanInfo.slot.timeTo}`,
+              "Admin Hours"
+            ], x + (dayWidth/2), textStartY, { 
+              align: "center",
+              maxWidth: dayWidth - 1,
+              lineHeightFactor: 1.3
+            });
+          } else {
+            doc.text([
+              `${spanInfo.slot.timeFrom} - ${spanInfo.slot.timeTo}`,
+              spanInfo.schedule.subject?.subjectCode || "",
+              Array.isArray(spanInfo.schedule.section) 
+                ? spanInfo.schedule.section.map(s => s.sectionName).join(', ')
+                : spanInfo.schedule.section?.sectionName || "",
+              spanInfo.slot.room?.roomCode || ""
+            ].filter(Boolean), x + (dayWidth/2), textStartY, { 
+              align: "center",
+              maxWidth: dayWidth - 1,
+              lineHeightFactor: 1.3
+            });
+          }
         }
       }
     });
@@ -167,7 +181,7 @@ const generatePDF = (props, isPreview = false) => {
   doc.text(`Issued on ${currentDate} at ${currentTime}`, 105, footerY, { align: "center" });
   
   if (!isPreview) {
-    doc.save(`schedule-${selectedSection}.pdf`);
+    doc.save(`archived-faculty-schedule-${selectedSection}-${activeTerm.term}-${activeTerm.academicYear}.pdf`);
   }
   
   return doc;

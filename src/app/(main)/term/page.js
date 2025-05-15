@@ -9,7 +9,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/solid';
 import AddEditTermModal from './_components/AddEditTermModal';
-import { getTerms, activateTerm, deactivateTerm, removeTerm, endAllTerms } from './_actions';
+import { getTerms, activateTerm, deactivateTerm, removeTerm, endAllTerms, toggleTermVisibility, getAllAcademicYears } from './_actions';
 import Swal from 'sweetalert2';
 import { useLoading } from '../../context/LoadingContext';
 import NoData from '@/app/components/NoData';
@@ -21,36 +21,71 @@ export default function TermPage() {
   const [selectedTerm, setSelectedTerm] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [entriesPerPage, setEntriesPerPage] = useState(10);
+  const [availableYears, setAvailableYears] = useState([]);
 
   useEffect(() => {
     fetchTerms();
   }, []);
 
-  const fetchTerms = async () => {
-    setIsLoading(true);
+  const handleYearChange = async (year) => {
     try {
-      const response = await getTerms();
-      if (response.error) {
-        throw new Error(response.error);
-      }
+      const result = await Swal.fire({
+        title: 'Change Academic Year?',
+        text: `This will show terms from ${year} and hide current terms. Continue?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#323E8F',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, change year'
+      });
 
-      // If there are no visible terms, show a message
-      if (!response.terms || response.terms.length === 0) {
+      if (result.isConfirmed) {
+        const response = await toggleTermVisibility(year);
+        if (response.error) {
+          throw new Error(response.error);
+        }
+        await fetchTerms();
         Swal.fire({
-          icon: 'info',
-          title: 'No Active Terms',
-          text: 'There are no visible terms in the system.',
+          icon: 'success',
+          title: 'Academic Year Changed',
+          text: `Now showing terms from ${year}`,
           confirmButtonColor: '#323E8F'
         });
       }
-
-      setTerms(response.terms || []);
     } catch (error) {
-      console.error('Error fetching terms:', error);
+      console.error('Error changing academic year:', error);
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: 'Failed to load terms',
+        text: error.message || 'Failed to change academic year',
+        confirmButtonColor: '#323E8F'
+      });
+    }
+  };
+
+  const fetchTerms = async () => {
+    setIsLoading(true);
+    try {
+      const [termsResponse, yearsResponse] = await Promise.all([
+        getTerms(),
+        getAllAcademicYears()
+      ]);
+
+      if (termsResponse.error) {
+        throw new Error(termsResponse.error);
+      }
+      if (yearsResponse.error) {
+        throw new Error(yearsResponse.error);
+      }
+
+      setTerms(termsResponse.terms || []);
+      setAvailableYears(yearsResponse.years || []);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to load data',
         confirmButtonColor: '#323E8F'
       });
     } finally {
@@ -75,7 +110,6 @@ export default function TermPage() {
         
         if (!result.isConfirmed) return;
         
-        // Call API to deactivate
         const response = await deactivateTerm(id);
         if (response.error) {
           throw new Error(response.error);
@@ -89,7 +123,6 @@ export default function TermPage() {
           confirmButtonColor: '#323E8F'
         });
       } else {
-        // Activating a term
         let confirmText = `Are you sure you want to activate ${termInfo.term} (${termInfo.academicYear})?`;
         if (activeTerm) {
           confirmText += `\n\nThis will deactivate the current active term: ${activeTerm.term} (${activeTerm.academicYear})`;
@@ -107,7 +140,6 @@ export default function TermPage() {
         
         if (!result.isConfirmed) return;
         
-        // Call API to activate
         const response = await activateTerm(id);
         if (response.error) {
           throw new Error(response.error);
@@ -206,7 +238,6 @@ export default function TermPage() {
     }
   };
 
-  // Filtering and sorting function
   const filteredTerms = useMemo(() => {
     const termOrder = { 'Term 1': 1, 'Term 2': 2, 'Term 3': 3 };
     
@@ -219,11 +250,9 @@ export default function TermPage() {
         )
       )
       .sort((a, b) => {
-        // First sort by academic year
         if (a.academicYear !== b.academicYear) {
           return a.academicYear.localeCompare(b.academicYear);
         }
-        // Then sort by term sequence
         return termOrder[a.term] - termOrder[b.term];
       });
   }, [terms, searchQuery]);
@@ -244,7 +273,16 @@ export default function TermPage() {
             </p>
           </div>
           <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-row sm:items-center sm:space-x-2">
-          <button
+            <select
+              onChange={(e) => handleYearChange(e.target.value)}
+              className="mr-2 rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-[#323E8F] focus:outline-none focus:ring-[#323E8F] sm:text-sm text-black"
+            >
+              <option value="">Select Academic Year</option>
+              {availableYears.map((year) => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+            <button
               type="button"
               onClick={handleEndAllTerms}
               className="inline-flex items-center rounded-lg bg-red-600 px-5 py-2 text-sm font-semibold text-white shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600 transition-all"
@@ -261,28 +299,12 @@ export default function TermPage() {
             >
               <span className="mr-2">+</span> Add Term
             </button>
-            
           </div>
         </div>
 
         <div className="mt-8 bg-white shadow-lg rounded-lg overflow-hidden">
           <div className="p-6 sm:p-8">
-            {/* Controls */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-700">Show</span>
-                <select
-                  value={entriesPerPage}
-                  onChange={(e) => setEntriesPerPage(Number(e.target.value))}
-                  className="rounded-md border-gray-300 py-1.5 text-sm focus:border-[#323E8F] focus:ring-[#323E8F] text-black"
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-                <span className="text-sm text-gray-700">entries</span>
-              </div>
 
               <div className="mt-2 sm:mt-0 relative">
                 <input
@@ -303,7 +325,6 @@ export default function TermPage() {
               </div>
             </div>
 
-            {/* Table */}
             <div className="mt-8 flow-root">
               <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
                 <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
@@ -409,7 +430,6 @@ export default function TermPage() {
               </div>
             </div>
 
-            {/* Add Term Modal */}
             <AddEditTermModal
               open={isAddModalOpen}
               setOpen={setIsAddModalOpen}

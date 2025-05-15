@@ -3,26 +3,28 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { AcademicCapIcon, UserGroupIcon, BuildingOffice2Icon } from '@heroicons/react/24/outline'
+import useAuthStore from '@/store/useAuthStore'
 
 export default function TabNav() {
   const pathname = usePathname()
+  const { user } = useAuthStore()
 
   const tabs = [
-    {
+    ...(user?.role !== 'Faculty' ? [{
       name: 'By Section',
       href: '/schedule-archive',
       icon: AcademicCapIcon,
-    },
+    }] : []),
     {
       name: 'By Faculty',
       href: '/schedule-archive/faculty',
       icon: UserGroupIcon,
     },
-    {
+    ...(user?.role !== 'Faculty' ? [{
       name: 'By Room',
       href: '/schedule-archive/room',
       icon: BuildingOffice2Icon,
-    },
+    }] : [])
   ]
 
   return (

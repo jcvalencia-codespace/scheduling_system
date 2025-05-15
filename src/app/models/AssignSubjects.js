@@ -177,37 +177,40 @@ class AssignSubjectsModel {
       
       let user = null;
       if (userId) {
+        // Properly populate user with both course and department
         user = await this.models.User.findById(userId)
           .populate({
             path: 'course',
             model: this.models.Course,
-            populate: {
-              path: 'department',
-              model: this.models.Department
-            }
+            select: '_id courseCode courseTitle'
           })
           .populate({
             path: 'department',
             model: this.models.Department
-          });
+          })
+          .lean();
+
+        console.log('Fetched user for assignments:', user); // Debug log
       }
 
       let query = {};
       
-      // If user is program chair, only show assignments for their course
-      if (user?.role === 'Program Chair' && user?.course) {
-        query['classId.course'] = user.course._id;
+      if (user?.role?.toLowerCase() === 'program chair' && user?.course?._id) {
+        // Fix the query for program chair to look at the correct path
+        query = { 'classId.course': user.course._id };
+        console.log('Program Chair query:', query); // Debug log
+      } else if (user?.role?.toLowerCase() === 'dean' && user?.department?._id) {
+        query = { 'classId.course.department': user.department._id };
+        console.log('Dean query:', query); // Debug log
       }
-      // If user is dean, only show assignments for their department
-      else if (user?.role === 'Dean' && user?.department) {
-        query['classId.course.department'] = user.department._id;
-      }
+
+      // Add logging to see the actual query being executed
+      console.log('Final query:', query);
 
       const assignments = await this.models.AssignSubjects.find(query)
         .populate({
           path: 'classId',
           model: this.models.Section,
-          select: 'sectionName course yearLevel',
           populate: {
             path: 'course',
             model: this.models.Course,
@@ -235,7 +238,7 @@ class AssignSubjectsModel {
           sectionName: assignment.classId.sectionName,
           course: assignment.classId.course ? {
             _id: assignment.classId.course._id.toString(),
-            courseCode: assignment.classId.course.courseCode,
+            courseCode: assignment.classId.course.courseCode, // Ensure this is included
             courseTitle: assignment.classId.course.courseTitle,
             department: assignment.classId.course.department ? {
               _id: assignment.classId.course.department._id.toString(),

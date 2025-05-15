@@ -47,7 +47,7 @@ export default function NewScheduleModal({
     control: (base, state) => ({
       ...base,
       minHeight: '42px',
-      backgroundColor: 'white',
+      backgroundColor: 'var(--select-bg, #ffffff)',
       borderColor: state.isFocused ? '#323E8F' : '#E5E7EB',
       borderRadius: '0.375rem',
       boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
@@ -57,6 +57,11 @@ export default function NewScheduleModal({
       '&:focus': {
         borderColor: '#323E8F',
         boxShadow: '0 0 0 1px #323E8F'
+      },
+      '.dark &': {
+        backgroundColor: '#1f2937',
+        borderColor: state.isFocused ? '#3b82f6' : '#374151',
+        color: '#e5e7eb'
       }
     }),
     placeholder: (base) => ({
@@ -65,10 +70,26 @@ export default function NewScheduleModal({
     }),
     option: (base, state) => ({
       ...base,
-      backgroundColor: state.isSelected ? '#323E8F' : state.isFocused ? '#EFF6FF' : 'white',
-      color: state.isSelected ? 'white' : 'black',
+      backgroundColor: state.isSelected 
+        ? '#323E8F' 
+        : state.isFocused 
+          ? 'var(--select-hover, #f3f4f6)' 
+          : 'transparent',
+      color: state.isSelected 
+        ? '#ffffff' 
+        : 'var(--select-text, #111827)',
       cursor: 'pointer',
       padding: '8px 12px',
+      '.dark &': {
+        backgroundColor: state.isSelected 
+          ? '#323E8F' 
+          : state.isFocused 
+            ? '#374151' 
+            : 'transparent',
+        color: state.isSelected 
+          ? '#ffffff' 
+          : '#e5e7eb'
+      }
     }),
     menu: (base) => ({
       ...base,
@@ -90,6 +111,24 @@ export default function NewScheduleModal({
       },
       '&::-webkit-scrollbar-thumb:hover': {
         background: '#555'
+      },
+      '.dark &': {
+        backgroundColor: '#1f2937',
+        borderColor: '#374151'
+      }
+    }),
+    singleValue: (base) => ({
+      ...base,
+      color: 'var(--select-text, #111827)',
+      '.dark &': {
+        color: '#e5e7eb'
+      }
+    }),
+    input: (base) => ({
+      ...base,
+      color: 'var(--select-text, #111827)',
+      '.dark &': {
+        color: '#e5e7eb'
       }
     })
   };
@@ -201,7 +240,7 @@ export default function NewScheduleModal({
     const maxHours = isFullTime ? 40 : 24;
     const teachingHours = facultyLoad.teachingHours || 0;
     const actualAdminHours = facultyLoad.actualAdminHours || 0;
-    const adminHours = isFullTime ? maxHours - teachingHours - actualAdminHours: 0;
+    const adminHours = isFullTime ? maxHours - teachingHours - actualAdminHours : 0;
     const subjectCodes = facultyLoad.subjectCodes || [];
 
     return {
@@ -477,6 +516,35 @@ export default function NewScheduleModal({
         throw new Error('Class limit must be a positive number');
       }
 
+      // Add time validation
+      const convertTo24Hour = (time12h) => {
+        const [time, period] = time12h.split(' ');
+        let [hours, minutes] = time.split(':');
+        hours = parseInt(hours);
+
+        if (hours === 12) {
+          hours = period === 'PM' ? 12 : 0;
+        } else if (period === 'PM') {
+          hours += 12;
+        }
+
+        return hours * 60 + parseInt(minutes); // Convert to minutes since midnight
+      };
+
+      // Validate main schedule times
+      const mainTimeFrom = convertTo24Hour(selectedValues.timeFrom);
+      const mainTimeTo = convertTo24Hour(selectedValues.timeTo);
+     
+      // Start time must not be equal to end time
+      if (mainTimeFrom === mainTimeTo) {
+        throw new Error('Start time and end time cannot be the same.');
+      }
+
+      // Start time must be earlier than end time
+      if (mainTimeFrom > mainTimeTo) {
+        throw new Error('Start time must be earlier than end time.');
+      }
+
       if (selectedValues.isPaired) {
         if (selectedValues.days === pairedSchedule.days) {
           throw new Error('Paired schedule cannot be on the same day as the main schedule');
@@ -487,6 +555,14 @@ export default function NewScheduleModal({
 
         if (emptyPairedFields.length > 0) {
           throw new Error(`Please fill in all paired schedule fields: ${emptyPairedFields.join(', ')}`);
+        }
+
+        // Validate paired schedule times
+        const pairedTimeFrom = convertTo24Hour(pairedSchedule.timeFrom);
+        const pairedTimeTo = convertTo24Hour(pairedSchedule.timeTo);
+
+        if (pairedTimeFrom >= pairedTimeTo) {
+          throw new Error('Paired schedule start time must be earlier than end time');
         }
       }
 
@@ -529,7 +605,7 @@ export default function NewScheduleModal({
         icon: 'success',
         timer: 1500
       });
-      
+
       onClose();
       clearForm();
       onScheduleCreated();
@@ -764,7 +840,7 @@ export default function NewScheduleModal({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-xl bg-white text-left shadow-xl transition-all sm:my-8 w-full max-w-6xl max-h-[90vh] flex flex-col mx-4">
+              <Dialog.Panel className="relative transform overflow-hidden rounded-xl bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 w-full max-w-6xl max-h-[90vh] flex flex-col mx-4">
                 <div className="absolute right-0 top-0 pr-4 pt-4 block z-50">
                   <button
                     type="button"
@@ -777,7 +853,7 @@ export default function NewScheduleModal({
                 </div>
 
                 <div className="flex flex-col md:flex-row h-[calc(90vh-2rem)]">
-                  <ScheduleModalSidebar 
+                  <ScheduleModalSidebar
                     editMode={editMode}
                     termInfo={termInfo}
                     facultyLoadDisplay={selectedValues.faculty ? getFacultyLoadDisplay() : null}
@@ -791,10 +867,10 @@ export default function NewScheduleModal({
                     <div className="flex-1 p-4 md:p-8 overflow-y-auto">
                       {/* Title */}
                       <div className="pt-2 md:pt-4 mb-4 md:mb-6">
-                        <h3 className="text-base md:text-lg font-medium text-gray-900">
+                        <h3 className="text-base md:text-lg font-medium text-gray-900 dark:text-gray-100">
                           Schedule Information
                         </h3>
-                        <p className="mt-1 text-sm text-gray-500">
+                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                           Fill in the details for the schedule
                         </p>
                       </div>
@@ -803,9 +879,9 @@ export default function NewScheduleModal({
                         <ScheduleModalSkeleton />
                       ) : (
                         <>
-                          <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 mb-4 sm:mb-6">
+                          <div className="flex flex-col sm:flex-row gap-3  sm:gap-6 mb-4 sm:mb-6">
                             {isMultipleSectionsEnabled && (
-                              <label className="flex items-center gap-2 text-black text-sm md:text-base">
+                              <label className="flex items-center gap-2 text-black dark:text-gray-100 text-sm md:text-base">
                                 <input
                                   type="checkbox"
                                   name="isMultipleSections"
@@ -816,13 +892,13 @@ export default function NewScheduleModal({
                                 <span>Multiple Sections</span>
                               </label>
                             )}
-                            <label className="flex items-center gap-2 text-black text-sm md:text-base">
+                            <label className="flex items-center gap-2 text-black dark:text-gray-100 text-sm md:text-base">
                               <input
                                 type="checkbox"
                                 name="isPaired"
                                 checked={selectedValues.isPaired}
                                 onChange={handleInputChange}
-                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                className="rounded border-gray-300  text-blue-600 focus:ring-blue-500"
                               />
                               <span>Pairing Schedule</span>
                             </label>
@@ -844,7 +920,7 @@ export default function NewScheduleModal({
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                             <div className="space-y-4">
                               <div>
-                                <label className="block text-sm font-medium text-black mb-1">Section</label>
+                                <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Section</label>
                                 <Select
                                   name="section"
                                   value={selectedValues.isMultipleSections
@@ -856,8 +932,8 @@ export default function NewScheduleModal({
                                   styles={customStyles}
                                   className="text-black"
                                   placeholder={
-                                    filteredSectionOptions.length === 0 
-                                      ? "No sections available for your department" 
+                                    filteredSectionOptions.length === 0
+                                      ? "No sections available for your department"
                                       : "Select a Section"
                                   }
                                   isClearable
@@ -868,7 +944,7 @@ export default function NewScheduleModal({
 
                               {isFacultyDropdownEnabled && (
                                 <div>
-                                  <label className="block text-sm font-medium text-black mb-1">Faculty</label>
+                                  <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Faculty</label>
                                   <Select
                                     name="faculty"
                                     value={facultyOptions.find(option => option.value === selectedValues.faculty)}
@@ -883,7 +959,7 @@ export default function NewScheduleModal({
                               )}
 
                               <div>
-                                <label className="block text-sm font-medium text-black mb-1">Subject</label>
+                                <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Subject</label>
                                 <Select
                                   name="subject"
                                   value={subjectOptions.find(option => option.value === selectedValues.subject)}
@@ -896,18 +972,18 @@ export default function NewScheduleModal({
                                 />
                               </div>
                               <div>
-                                <label className="block text-sm font-medium text-black mb-1">Class Limit</label>
+                                <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Class Limit</label>
                                 <input
                                   type="number"
                                   name="classLimit"
                                   value={selectedValues.classLimit}
                                   onChange={handleInputChange}
-                                  className="w-full rounded-md border border-gray-300 p-2 text-black bg-white focus:border-[#323E8F] focus:ring-[#323E8F] shadow-sm"
+                                  className="w-full rounded-md border border-gray-300 dark:border-gray-600 p-2 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:border-[#323E8F] focus:ring-[#323E8F] shadow-sm"
                                   placeholder="Enter class limit"
                                 />
                               </div>
                               <div>
-                                <label className="block text-sm font-medium text-black mb-1">Student Type</label>
+                                <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Student Type</label>
                                 <Select
                                   name="studentType"
                                   value={studentTypeOptions.find(option => option.value === selectedValues.studentType)}
@@ -927,7 +1003,7 @@ export default function NewScheduleModal({
                             <div className="space-y-4">
                               <div>
                                 <div>
-                                  <label className="block text-sm font-medium text-black mb-1">Days of Week</label>
+                                  <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Days of Week</label>
                                   <Select
                                     name="days"
                                     value={dayOptions.find(option => option.value === selectedValues.days)}
@@ -941,7 +1017,7 @@ export default function NewScheduleModal({
                                 </div>
 
                                 <div className="pt-4">
-                                  <label className="block text-sm font-medium text-black mb-1">Time From</label>
+                                  <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Time From</label>
                                   <Select
                                     name="timeFrom"
                                     value={timeSlotOptions.find(option => option.value === selectedValues.timeFrom)}
@@ -955,7 +1031,7 @@ export default function NewScheduleModal({
                                 </div>
 
                                 <div className="pt-4">
-                                  <label className="block text-sm font-medium text-black mb-1">Time To</label>
+                                  <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Time To</label>
                                   <Select
                                     name="timeTo"
                                     value={timeSlotOptions.find(option => option.value === selectedValues.timeTo)}
@@ -969,7 +1045,7 @@ export default function NewScheduleModal({
                                 </div>
                               </div>
                               <div>
-                                <label className="block text-sm font-medium text-black mb-1">Room</label>
+                                <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Room</label>
                                 <Select
                                   name="room"
                                   value={roomOptions.flatMap(group => group.options).find(option => option.value === selectedValues.room)}
@@ -1001,7 +1077,7 @@ export default function NewScheduleModal({
                                 />
                               </div>
                               <div>
-                                <label className="block text-sm font-medium text-black mb-1">Schedule Type</label>
+                                <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Schedule Type</label>
                                 <Select
                                   name="scheduleType"
                                   value={scheduleTypeOptions.find(option => option.value === selectedValues.scheduleType)}
@@ -1022,13 +1098,13 @@ export default function NewScheduleModal({
                           {/* Update paired schedule section for mobile */}
                           {selectedValues.isPaired && (
                             <div className="mt-4 md:mt-6 border-t pt-4 md:pt-6">
-                              <h4 className="text-base md:text-lg font-semibold text-gray-900 mb-4">
+                              <h4 className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
                                 Paired Schedule Details
                               </h4>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-4">
                                   <div>
-                                    <label className="block text-sm font-medium text-black mb-1">Days of Week</label>
+                                    <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Days of Week</label>
                                     <Select
                                       name="days"
                                       value={dayOptions.find(option => option.value === pairedSchedule.days)}
@@ -1041,7 +1117,7 @@ export default function NewScheduleModal({
                                     />
                                   </div>
                                   <div>
-                                    <label className="block text-sm font-medium text-black mb-1">Room</label>
+                                    <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Room</label>
                                     <Select
                                       name="room"
                                       value={roomOptions.flatMap(group => group.options).find(option => option.value === pairedSchedule.room)}
@@ -1072,7 +1148,7 @@ export default function NewScheduleModal({
                                 </div>
                                 <div className="space-y-4">
                                   <div>
-                                    <label className="block text-sm font-medium text-black mb-1">Time From</label>
+                                    <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Time From</label>
                                     <Select
                                       name="timeFrom"
                                       value={timeSlotOptions.find(option => option.value === pairedSchedule.timeFrom)}
@@ -1085,7 +1161,7 @@ export default function NewScheduleModal({
                                     />
                                   </div>
                                   <div>
-                                    <label className="block text-sm font-medium text-black mb-1">Time To</label>
+                                    <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Time To</label>
                                     <Select
                                       name="timeTo"
                                       value={timeSlotOptions.find(option => option.value === pairedSchedule.timeTo)}
@@ -1098,7 +1174,7 @@ export default function NewScheduleModal({
                                     />
                                   </div>
                                   <div>
-                                    <label className="block text-sm font-medium text-black mb-1">Schedule Type</label>
+                                    <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Schedule Type</label>
                                     <Select
                                       name="scheduleType"
                                       value={scheduleTypeOptions.find(option => option.value === pairedSchedule.scheduleType)}
@@ -1119,7 +1195,7 @@ export default function NewScheduleModal({
                     </div>
 
                     {/* Footer */}
-                    <div className="flex justify-end space-x-3 p-4 md:p-6 bg-gray-50 border-t border-gray-200 shrink-0">
+                    <div className="flex justify-end space-x-3 p-4 md:p-6 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600 shrink-0">
                       <button
                         type="button"
                         disabled={isSubmitting}

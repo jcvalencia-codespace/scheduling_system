@@ -9,10 +9,11 @@ const generatePDF = (props, isPreview = false) => {
   // Track schedule spans
   const scheduleSpans = {};
   
-  // Calculate spans first - Modified to handle room schedules
+  // Calculate spans first
   timeSlots.forEach((time, timeIndex) => {
     weekDays.forEach((day, dayIndex) => {
       const schedule = schedules.find(s => 
+        s.section?.sectionName === selectedSection &&
         s.scheduleSlots.some(slot => 
           slot.days.includes(day) &&
           new Date(`2000/01/01 ${time}`).getTime() === new Date(`2000/01/01 ${slot.timeFrom}`).getTime()
@@ -49,14 +50,14 @@ const generatePDF = (props, isPreview = false) => {
   // Add header with centered logo
   doc.addImage("https://i.imgur.com/6yZFd27.png", "PNG", logoX, 5, logoWidth, logoHeight);
   
-  // Add titles with reduced spacing - Modified title
+  // Add titles with reduced spacing
   doc.setFontSize(12);
   doc.setTextColor(26, 35, 126);
-  doc.text("Room Schedule", 105, 25, { align: "center" });
-  
+  doc.text("Archived Class Schedule", 105, 25, { align: "center" }); // Changed title
+
   doc.setFontSize(8);
   doc.setTextColor(0);
-  doc.text(`Room: ${selectedSection}`, 105, 30, { align: "center" });
+  doc.text(`Section: ${selectedSection}`, 105, 30, { align: "center" }); // Changed label
   doc.text(`${activeTerm.term} - AY ${activeTerm.academicYear}`, 105, 35, { align: "center" });
   
   // Draw table with adjusted dimensions
@@ -139,9 +140,7 @@ const generatePDF = (props, isPreview = false) => {
           doc.text([
             `${spanInfo.slot.timeFrom} - ${spanInfo.slot.timeTo}`,
             spanInfo.schedule.subject?.subjectCode || "",
-            `${Array.isArray(spanInfo.schedule.section) 
-              ? spanInfo.schedule.section.map(s => s.sectionName).join(', ') 
-              : spanInfo.schedule.section?.sectionName || ""}`,
+            spanInfo.slot.room?.roomCode || "",
             spanInfo.schedule.faculty ? 
               `${spanInfo.schedule.faculty.firstName?.[0]}.${spanInfo.schedule.faculty.lastName}` : ""
           ], x + (dayWidth/2), textStartY, { 
@@ -167,7 +166,7 @@ const generatePDF = (props, isPreview = false) => {
   doc.text(`Issued on ${currentDate} at ${currentTime}`, 105, footerY, { align: "center" });
   
   if (!isPreview) {
-    doc.save(`schedule-${selectedSection}.pdf`);
+    doc.save(`archived-schedule-${selectedSection}-${activeTerm.term}-${activeTerm.academicYear}.pdf`); // Changed filename
   }
   
   return doc;

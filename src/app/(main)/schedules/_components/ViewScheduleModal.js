@@ -12,10 +12,13 @@ import {
   UsersIcon,
   UserGroupIcon,
   PresentationChartLineIcon,
-  ArrowsRightLeftIcon
+  ArrowsRightLeftIcon,
+  PencilIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
-import { deleteSchedule } from '../_actions';
+import { deleteSchedule, deleteAdminHours } from '../_actions';
 import NewScheduleModal from './NewScheduleModal';
+import EditAdminHoursModal from './EditAdminHoursModal';
 
 // Add useAuthStore to imports
 import useAuthStore from '@/store/useAuthStore';
@@ -27,6 +30,7 @@ export default function ViewScheduleModal({
   onScheduleDeleted, // Add this prop
   onScheduleUpdated  // Add this prop if not already present
 }) {
+  const [isEditAdminHoursModalOpen, setIsEditAdminHoursModalOpen] = useState(false);
   // Add user from auth store
   const { user } = useAuthStore();
   const [isEditMode, setIsEditMode] = useState(false);
@@ -53,7 +57,82 @@ export default function ViewScheduleModal({
     onClose();
   };
 
+  const handleAdminHoursEditSuccess = (updatedHours) => {
+    setIsEditAdminHoursModalOpen(false);
+    if (onScheduleUpdated) {
+      onScheduleUpdated(updatedHours);
+    }
+    if (onClose) {
+      onClose();
+    }
+  };
+
   const handleDelete = async () => {
+    if (currentSchedule.isAdminHours) {
+      try {
+        const result = await Swal.fire({
+          title: 'Are you sure?',
+          text: "You won't be able to revert this!",
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#1a237e',
+          cancelButtonColor: '#d33',
+          confirmButtonText: 'Yes, delete it!'
+        });
+
+        if (result.isConfirmed) {
+          setIsDeleting(true);
+
+          // Get the correct IDs
+          const adminHoursId = currentSchedule.parentId;  // Parent document ID
+          const slotId = currentSchedule._id;            // Individual slot ID
+
+          // Debug log
+          console.log('Deleting admin hours:', {
+            adminHoursId,
+            slotId,
+            currentSchedule
+          });
+
+          if (!adminHoursId || !slotId) {
+            throw new Error('Missing required IDs for deleting admin hours');
+          }
+
+          const response = await deleteAdminHours(adminHoursId, slotId);
+          
+          if (response.error) {
+            throw new Error(response.error);
+          }
+
+          await Swal.fire({
+            title: 'Deleted!',
+            text: 'Admin hours have been deleted.',
+            icon: 'success',
+            timer: 1500
+          });
+
+          // Ensure we call both callbacks
+          if (onClose) {
+            onClose();
+          }
+          if (onScheduleDeleted) {
+            onScheduleDeleted();
+          }
+        }
+      } catch (error) {
+        console.error('Error deleting admin hours:', error);
+        await Swal.fire({
+          title: 'Error!',
+          text: error.message || 'Failed to delete admin hours',
+          icon: 'error'
+        });
+      } finally {
+        setIsDeleting(false);
+      }
+      return;
+    }
+
+    // Regular schedule deletion logic
     try {
       const result = await Swal.fire({
         title: 'Are you sure?',
@@ -99,8 +178,26 @@ export default function ViewScheduleModal({
   };
 
   const handleEditClick = () => {
+    if (currentSchedule.isAdminHours) {
+      setIsEditAdminHoursModalOpen(true);
+      return;
+    }
     onClose(); // Close view modal first
     setIsEditModalOpen(true); // Then open edit modal
+  };
+
+  const canEditAdminHours = () => {
+    if (!user || !currentSchedule?.isAdminHours) return false;
+    
+    // Admins can edit all admin hours
+    if (user.role === 'Administrator') return true;
+    
+    // Deans can only edit admin hours for faculty in their department
+    if (user.role === 'Dean') {
+      return currentSchedule.faculty?.department?._id === user.department;
+    }
+    
+    return false;
   };
 
   if (!currentSchedule) return null;
@@ -342,15 +439,16 @@ export default function ViewScheduleModal({
                       )}
                     </div>
 
-                    {/* Action Buttons - Only show for regular schedules */}
-                    {!isAdminHours && (
+                    {/* Action Buttons */}
+                    {(!isAdminHours || canEditAdminHours()) && (
                       <div className="mt-8 flex justify-end gap-2">
                         <button
                           type="button"
                           className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-6 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 transition-colors"
                           onClick={handleEditClick}
                         >
-                          Edit
+                          <PencilIcon className="h-4 w-4 mr-2" />
+                          {isAdminHours ? 'Edit Hours' : 'Edit'}
                         </button>
 
                         <button
@@ -358,7 +456,8 @@ export default function ViewScheduleModal({
                           className="inline-flex items-center justify-center rounded-lg bg-red-600 px-6 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 transition-colors"
                           onClick={handleDelete}
                         >
-                          Delete
+                          <TrashIcon className="h-4 w-4 mr-2" />
+                          {isAdminHours ? 'Delete Hours' : 'Delete'}
                         </button>
                         <button
                           type="button"
@@ -370,7 +469,7 @@ export default function ViewScheduleModal({
                       </div>
                     )}
 
-                    {/* Close button for admin hours */}
+                    {/* Close button for admin hours
                     {isAdminHours && (
                       <div className="mt-8 flex justify-end">
                         <button
@@ -381,7 +480,7 @@ export default function ViewScheduleModal({
                           Close
                         </button>
                       </div>
-                    )}
+                    )} */}
                   </div>
                 </Dialog.Panel>
               </Transition.Child>
@@ -390,8 +489,15 @@ export default function ViewScheduleModal({
         </Dialog>
       </Transition.Root>
 
-      {/* Only render NewScheduleModal for regular schedules */}
-      {!isAdminHours && (
+      {/* Render appropriate modal based on schedule type */}
+      {isAdminHours ? (
+        <EditAdminHoursModal
+          isOpen={isEditAdminHoursModalOpen}
+          onClose={() => setIsEditAdminHoursModalOpen(false)}
+          adminHours={currentSchedule}
+          onSuccess={handleAdminHoursEditSuccess}
+        />
+      ) : (
         <NewScheduleModal
           isOpen={isEditModalOpen}
           onClose={() => {

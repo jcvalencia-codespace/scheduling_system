@@ -8,31 +8,105 @@ const ReactSelect = dynamic(() => import('react-select'), {
 });
 
 const customSelectStyles = {
-  option: (styles, { isSelected, isFocused }) => ({
-    ...styles,
-    backgroundColor: isSelected ? '#323E8F' : isFocused ? '#E2E8F0' : 'white',
-    color: isSelected ? 'white' : '#111827',
-    ':active': {
-      backgroundColor: '#323E8F',
-      color: 'white'
+  menu: (base) => ({
+    ...base,
+    zIndex: 9999,
+    backgroundColor: 'var(--select-bg, #ffffff)',
+    border: '1px solid var(--select-border, #e5e7eb)',
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+    borderRadius: '0.375rem',
+    '.dark &': {
+      backgroundColor: '#1f2937',
+      borderColor: '#374151'
     }
   }),
-  control: (styles) => ({
-    ...styles,
-    borderColor: '#D1D5DB',
+  control: (base, state) => ({
+    ...base,
+    backgroundColor: 'var(--select-bg, #ffffff)',
+    borderColor: state.isFocused ? '#3b82f6' : '#e5e7eb',
+    boxShadow: state.isFocused ? '0 0 0 1px #3b82f6' : 'none',
     '&:hover': {
-      borderColor: '#323E8F'
+      borderColor: '#3b82f6'
     },
-    boxShadow: 'none',
-    '&:focus-within': {
-      borderColor: '#323E8F',
-      boxShadow: '0 0 0 1px #323E8F'
+    '.dark &': {
+      backgroundColor: '#1f2937',
+      borderColor: state.isFocused ? '#3b82f6' : '#374151'
     }
   }),
-  placeholder: (styles) => ({
-    ...styles,
-    color: '#111827',
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected 
+      ? '#323E8F' 
+      : state.isFocused 
+        ? 'var(--select-hover, #f3f4f6)' 
+        : 'transparent',
+    color: state.isSelected ? '#ffffff' : 'var(--select-text, #111827)',
+    '.dark &': {
+      backgroundColor: state.isSelected 
+        ? '#323E8F' 
+        : state.isFocused 
+          ? '#374151' 
+          : 'transparent',
+      color: state.isSelected ? '#ffffff' : '#e5e7eb'
+    },
+    '&:hover': {
+      backgroundColor: state.isSelected ? '#323E8F' : 'var(--select-hover, #f3f4f6)'
+    }
   }),
+  singleValue: (base) => ({
+    ...base,
+    color: 'var(--select-text, #111827)',
+    '.dark &': {
+      color: '#e5e7eb'
+    }
+  }),
+  input: (base) => ({
+    ...base,
+    color: 'var(--select-text, #111827)',
+    '.dark &': {
+      color: '#e5e7eb'
+    }
+  }),
+  placeholder: (base) => ({
+    ...base,
+    color: 'var(--select-placeholder, #6b7280)',
+    '.dark &': {
+      color: '#9ca3af'
+    }
+  }),
+  clearIndicator: (base) => ({
+    ...base,
+    color: 'var(--select-placeholder, #6b7280)',
+    '&:hover': {
+      color: 'var(--select-text, #111827)'
+    },
+    '.dark &': {
+      color: '#9ca3af',
+      '&:hover': {
+        color: '#e5e7eb'
+      }
+    }
+  }),
+  dropdownIndicator: (base) => ({
+    ...base,
+    color: 'var(--select-placeholder, #6b7280)',
+    '&:hover': {
+      color: 'var(--select-text, #111827)'
+    },
+    '.dark &': {
+      color: '#9ca3af',
+      '&:hover': {
+        color: '#e5e7eb'
+      }
+    }
+  }),
+  indicatorSeparator: (base) => ({
+    ...base,
+    backgroundColor: 'var(--select-border, #e5e7eb)',
+    '.dark &': {
+      backgroundColor: '#374151'
+    }
+  })
 };
 
 export default function Filter({ filters, handleFilterChange, departments }) {
@@ -54,9 +128,9 @@ export default function Filter({ filters, handleFilterChange, departments }) {
   }
 
   return (
-    <div className="bg-white shadow rounded-lg p-6 mb-6">
+    <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Department</label>
         <ReactSelect
           value={filters.department ? {
             value: filters.department,

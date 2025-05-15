@@ -28,6 +28,17 @@ class TermsModel {
     }
   }
 
+  async getAllAcademicYears() {
+    try {
+      const Term = await this.initModel();
+      const years = await Term.distinct('academicYear');
+      return years.sort((a, b) => b.localeCompare(a)); // Sort in descending order
+    } catch (error) {
+      console.error('Error in getAllAcademicYears:', error);
+      throw error;
+    }
+  }
+
   async getTermById(id) {
     try {
       const Term = await this.initModel();
@@ -267,6 +278,35 @@ class TermsModel {
     } catch (error) {
       console.error('Error in getAllArchivedTerms:', error)
       throw error
+    }
+  }
+
+  async toggleTermVisibility(academicYear) {
+    try {
+      const Term = await this.initModel();
+      const session = await Term.startSession();
+      
+      await session.withTransaction(async () => {
+        // First, set all currently visible terms to invisible
+        await Term.updateMany(
+          { isVisible: true },
+          { isVisible: false },
+          { session }
+        );
+
+        // Then set all terms of the selected academic year to visible
+        await Term.updateMany(
+          { academicYear: academicYear },
+          { isVisible: true },
+          { session }
+        );
+      });
+
+      await session.endSession();
+      return true;
+    } catch (error) {
+      console.error('Error in toggleTermVisibility:', error);
+      throw error;
     }
   }
 

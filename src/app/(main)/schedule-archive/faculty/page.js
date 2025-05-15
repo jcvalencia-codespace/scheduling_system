@@ -9,6 +9,7 @@ import moment from "moment"
 import ArchiveCalendarView from "../_components/ArchiveCalendarView"
 import { Calendar, Clock, User } from "lucide-react"
 import { components } from "react-select"
+import FacultyArchivePDF from './_components/FacultyArchivePDF'
 
 const NoSSRSelect = dynamic(() => import("react-select"), { ssr: false })
 
@@ -28,6 +29,10 @@ export default function FacultyArchive() {
       console.log('🔄 Faculty Archive: User loaded, fetching initial data')
       fetchArchivedTerms()
       fetchFacultyData()
+      // Pre-select faculty if user is faculty
+      if (user.role === 'Faculty') {
+        setSelectedFaculty(user._id)
+      }
     }
   }, [user?._id])
 
@@ -131,13 +136,36 @@ export default function FacultyArchive() {
                 room: slot.room,
               },
             },
-            backgroundColor: "#4285F4",
+            backgroundColor: "#3b82f6",
             borderColor: "#3b7ddb",
           }
         })
       })
     })
   }
+
+  const handlePrint = async () => {
+    if (!selectedFaculty || !selectedTerm) return;
+    
+    try {
+      const activeTerm = archivedTerms[selectedYear]?.find(t => t._id === selectedTerm);
+      const selectedFacultyName = facultyOptions.find(f => f.value === selectedFaculty)?.label;
+      
+      const facultySchedules = schedules.filter(schedule => 
+        schedule.faculty?._id === selectedFaculty
+      );
+
+      const doc = await FacultyArchivePDF({ 
+        activeTerm,
+        schedules: facultySchedules,
+        selectedSection: selectedFacultyName
+      });
+
+      doc.save(`archived-faculty-schedule-${selectedFacultyName}-${activeTerm?.term || ''}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    }
+  };
 
   const FacultyOption = ({ children, ...props }) => {
     return (
@@ -200,10 +228,10 @@ export default function FacultyArchive() {
     }),
     option: (base, state) => ({
       ...base,
-      backgroundColor: state.isSelected ? "#4f46e5" : state.isFocused ? "#f3f4f6" : "white",
+      backgroundColor: state.isSelected ? "#3b82f6" : state.isFocused ? "#f3f4f6" : "white",
       color: state.isSelected ? "white" : "#1f2937",
       "&:hover": {
-        backgroundColor: state.isSelected ? "#4f46e5" : "#f3f4f6",
+        backgroundColor: state.isSelected ? "#3b82f6" : "#f3f4f6",
       }
     }),
     singleValue: (base) => ({
@@ -247,7 +275,10 @@ export default function FacultyArchive() {
                   onChange={(option) => {
                     setSelectedYear(option?.value || null)
                     setSelectedTerm(null)
-                    setSelectedFaculty(null)
+                    // Only reset faculty selection if user is not faculty
+                    if (user?.role !== 'Faculty') {
+                      setSelectedFaculty(null)
+                    }
                   }}
                   options={yearOptions}
                   placeholder="Select Academic Year"
@@ -270,7 +301,10 @@ export default function FacultyArchive() {
                   value={termOptions.find(opt => opt.value === selectedTerm)}
                   onChange={(option) => {
                     setSelectedTerm(option?.value || null)
-                    setSelectedFaculty(null)
+                    // Only reset faculty selection if user is not faculty
+                    if (user?.role !== 'Faculty') {
+                      setSelectedFaculty(null)
+                    }
                   }}
                   options={termOptions}
                   placeholder="Select Term"
@@ -302,9 +336,22 @@ export default function FacultyArchive() {
                   styles={selectStyles}
                   menuPortalTarget={portalTarget}
                   menuPosition="fixed"
+                  isDisabled={user?.role === 'Faculty'}
                 />
               </div>
             </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={handlePrint}
+              disabled={!selectedFaculty || !selectedTerm}
+              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium 
+                ${!selectedFaculty || !selectedTerm 
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+            >
+              <span className="hidden sm:inline">Generate</span> PDF
+            </button>
           </div>
         </div>
       </div>
@@ -339,6 +386,92 @@ export default function FacultyArchive() {
           </div>
         </div>
       )}
+
+      <style jsx global>{`
+        body {
+          background-color: var(--bg-color, #f8fafc);
+        }
+
+        .bg-gradient-to-b {
+          background-image: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+          position: relative;
+        }
+
+        .dark body {
+          background-color: #111827;
+        }
+
+        .dark .bg-gradient-to-b {
+          background-image: linear-gradient(to bottom, #111827, #1f2937);
+        }
+
+        .dark .bg-white {
+          background-color: #1f2937;
+        }
+
+        .dark .text-gray-800 {
+          color: #f3f4f6;
+        }
+
+        .dark .text-gray-600 {
+          color: #d1d5db;
+        }
+
+        .dark .text-gray-500 {
+          color: #9ca3af;
+        }
+
+        .dark .border-gray-100 {
+          border-color: #374151;
+        }
+
+        .dark .shadow-md {
+          --tw-shadow-color: rgba(0, 0, 0, 0.3);
+        }
+
+        .dark .shadow-sm {
+          --tw-shadow-color: rgba(0, 0, 0, 0.2);
+        }
+
+        /* Calendar Styles */
+        .dark .fc-col-header-cell {
+          background-color: #1e3a8a;
+          color: #f3f4f6;
+        }
+
+        .dark .fc-timegrid-axis,
+        .dark .fc-timegrid-slot-label {
+          color: #e5e7eb !important;
+        }
+
+        .dark .fc-theme-standard td,
+        .dark .fc-theme-standard th {
+          border-color: #374151 !important;
+        }
+
+        .dark .fc-theme-standard .fc-scrollgrid {
+          border-color: #374151;
+        }
+
+        .dark .fc-timegrid-event {
+          background-color: #3b82f6;
+          border-color: #2563eb;
+        }
+
+        .dark button.bg-white {
+          background-color: #1f2937;
+          color: #f3f4f6;
+          border-color: #374151;
+        }
+
+        .dark button.bg-white:hover {
+          background-color: #374151;
+        }
+
+        .dark .hover\\:bg-gray-50:hover {
+          background-color: #374151;
+        }
+      `}</style>
     </div>
   )
 }

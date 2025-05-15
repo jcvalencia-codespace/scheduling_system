@@ -60,24 +60,102 @@ const SelectWrapper = ({ value, onChange, options, isDisabled, placeholder, isLo
       styles={{
         menu: (base) => ({
           ...base,
-          zIndex: 9999
+          zIndex: 9999,
+          backgroundColor: 'var(--select-bg, #ffffff)',
+          border: '1px solid var(--select-border, #e5e7eb)',
+          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+          borderRadius: '0.375rem',
+          '.dark &': {
+            backgroundColor: '#1f2937',
+            borderColor: '#374151'
+          }
         }),
         control: (base, state) => ({
           ...base,
+          backgroundColor: 'var(--select-bg, #ffffff)',
           borderColor: state.isFocused ? '#3b82f6' : '#e5e7eb',
           boxShadow: state.isFocused ? '0 0 0 1px #3b82f6' : 'none',
           '&:hover': {
             borderColor: '#3b82f6'
           },
-          backgroundColor: isDisabled ? '#f9fafb' : 'white',
-          cursor: isDisabled ? 'not-allowed' : 'default'
+          '.dark &': {
+            backgroundColor: '#1f2937',
+            borderColor: state.isFocused ? '#3b82f6' : '#374151'
+          }
         }),
         option: (base, state) => ({
           ...base,
-          backgroundColor: state.isSelected ? '#323E8F' : state.isFocused ? '#e5e7eb' : 'transparent',
-          color: state.isSelected ? 'white' : '#111827',
-          '&:active': {
-            backgroundColor: '#323E8F'
+          backgroundColor: state.isSelected 
+            ? '#323E8F' 
+            : state.isFocused 
+              ? 'var(--select-hover, #f3f4f6)' 
+              : 'transparent',
+          color: state.isSelected ? '#ffffff' : 'var(--select-text, #111827)',
+          '.dark &': {
+            backgroundColor: state.isSelected 
+              ? '#323E8F' 
+              : state.isFocused 
+                ? '#374151' 
+                : 'transparent',
+            color: state.isSelected ? '#ffffff' : '#e5e7eb'
+          },
+          '&:hover': {
+            backgroundColor: state.isSelected ? '#323E8F' : 'var(--select-hover, #f3f4f6)'
+          }
+        }),
+        singleValue: (base) => ({
+          ...base,
+          color: 'var(--select-text, #111827)',
+          '.dark &': {
+            color: '#e5e7eb'
+          }
+        }),
+        input: (base) => ({
+          ...base,
+          color: 'var(--select-text, #111827)',
+          '.dark &': {
+            color: '#e5e7eb'
+          }
+        }),
+        placeholder: (base) => ({
+          ...base,
+          color: 'var(--select-placeholder, #6b7280)',
+          '.dark &': {
+            color: '#9ca3af'
+          }
+        }),
+        loadingMessage: (base) => ({
+          ...base,
+          color: 'var(--select-text, #111827)',
+          '.dark &': {
+            color: '#e5e7eb'
+          }
+        }),
+        noOptionsMessage: (base) => ({
+          ...base,
+          color: 'var(--select-text, #111827)',
+          '.dark &': {
+            color: '#e5e7eb'
+          }
+        }),
+        indicatorSeparator: (base) => ({
+          ...base,
+          backgroundColor: 'var(--select-border, #e5e7eb)',
+          '.dark &': {
+            backgroundColor: '#374151'
+          }
+        }),
+        dropdownIndicator: (base) => ({
+          ...base,
+          color: 'var(--select-placeholder, #6b7280)',
+          '&:hover': {
+            color: 'var(--select-text, #111827)'
+          },
+          '.dark &': {
+            color: '#9ca3af',
+            '&:hover': {
+              color: '#e5e7eb'
+            }
           }
         })
       }}
@@ -106,6 +184,8 @@ export default function SchedulePage() {
   const [adminHours, setAdminHours] = useState([]);
   const [isFacultyLoading, setIsFacultyLoading] = useState(true);
   const [filteredFacultyOptions, setFilteredFacultyOptions] = useState([]);
+  // Add new state variable after other state declarations
+  const [adminHoursDocId, setAdminHoursDocId] = useState(null);
 
   const formatDate = (dateStr) => {
     return moment(dateStr).format('MMMM D, YYYY')
@@ -158,12 +238,13 @@ export default function SchedulePage() {
         throw new Error(scheduleResponse.error);
       }
 
-      // Combine regular schedules with admin hours
       const regularSchedules = scheduleResponse.schedules || [];
       const adminHours = adminHoursResponse.hours?.slots || [];
-
+      
+      // Store the admin hours document ID
+      setAdminHoursDocId(adminHoursResponse.hours?._id || null);
       setSchedules(regularSchedules);
-      setAdminHours(adminHours); // Add this state
+      setAdminHours(adminHours);
 
     } catch (error) {
       console.error('Error fetching schedules:', error);
@@ -300,7 +381,14 @@ export default function SchedulePage() {
           borderColor: "#488b73",
           extendedProps: {
             isAdminHours: true,
-            adminHours: slot
+            adminHours: {
+              ...slot,
+              _id: slot._id,
+              parentId: adminHoursDocId, // Use the stored document ID
+              isAdminHours: true,
+              term: activeTerm,
+              status: slot.status
+            }
           }
         };
       });
@@ -351,6 +439,84 @@ export default function SchedulePage() {
 
   return (
     <div className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-slate-50 to-slate-100">
+      <style jsx global>{`
+        body {
+          background-color: var(--bg-color, #f8fafc);
+        }
+
+        .bg-gradient-to-b {
+          background-image: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+          position: relative;
+        }
+
+        .dark body {
+          background-color: #111827;
+        }
+
+        .dark .bg-gradient-to-b {
+          background-image: linear-gradient(to bottom, #111827, #1f2937);
+        }
+
+        .dark .bg-white {
+          background-color: #1f2937;
+        }
+
+        .dark .text-gray-800 {
+          color: #f3f4f6;
+        }
+
+        .dark .text-gray-600 {
+          color: #d1d5db;
+        }
+
+        .dark .text-gray-500 {
+          color: #9ca3af;
+        }
+
+        .dark .border-gray-100 {
+          border-color: #374151;
+        }
+
+        .dark .shadow-md {
+          --tw-shadow-color: rgba(0, 0, 0, 0.3);
+        }
+
+        /* Calendar Styles */
+        .dark .fc-col-header-cell {
+          background-color: #1e3a8a;
+          color: #f3f4f6;
+        }
+
+        .dark .fc-timegrid-axis,
+        .dark .fc-timegrid-slot-label {
+          color: #e5e7eb !important;
+        }
+
+        .dark .fc-theme-standard td,
+        .dark .fc-theme-standard th {
+          border-color: #374151 !important;
+        }
+
+        .dark .fc-theme-standard .fc-scrollgrid {
+          border-color: #374151;
+        }
+
+        .dark .fc-timegrid-event {
+          background-color: #3b82f6;
+          border-color: #2563eb;
+        }
+
+        .dark button.bg-white {
+          background-color: #1f2937;
+          color: #f3f4f6;
+          border-color: #374151;
+        }
+
+        .dark button.bg-white:hover {
+          background-color: #374151;
+        }
+      `}</style>
+
       {/* Conditionally render TabNav */}
       {canSeeTabNav && (
         <div className="mb-6">
@@ -504,14 +670,16 @@ export default function SchedulePage() {
             justify-end sm:justify-start mt-4 sm:mt-0
             ${isScrolled ? 'opacity-0 transform translate-y-[-20px]' : 'opacity-100 transform translate-y-0'}
           `}>
-            <button
-              onClick={() => setIsAdminHoursModalOpen(true)}
-              className="inline-flex items-center px-3 sm:px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-white bg-[#579980] hover:bg-[#488b73] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#77DD77]"
-            >
-              <ClockIcon className="h-5 w-5 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Set Admin Hours</span>
-              <span className="sm:hidden">Admin Hours</span>
-            </button>
+            {user?.employmentType !== 'part-time' && (
+              <button
+                onClick={() => setIsAdminHoursModalOpen(true)}
+                className="inline-flex items-center px-3 sm:px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-white bg-[#579980] hover:bg-[#488b73] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#77DD77]"
+              >
+                <ClockIcon className="h-5 w-5 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Set Admin Hours</span>
+                <span className="sm:hidden">Admin Hours</span>
+              </button>
+            )}
             {canCreateSchedule && (
               <button
                 onClick={() => setIsNewScheduleModalOpen(true)}
@@ -533,17 +701,20 @@ export default function SchedulePage() {
           </div>
         </div>
 
+        {/* Fixed buttons on scroll */}
         <div className={`fixed right-8 bottom-8 flex flex-col gap-4 transition-all duration-300 ease-in-out z-[60]
           ${isScrolled ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-[20px] pointer-events-none'}`}>
-          <div className="tooltip">
-            <button
-              onClick={() => setIsAdminHoursModalOpen(true)}
-              className="w-12 h-12 rounded-full flex items-center justify-center text-white bg-[#579980] hover:bg-[#488b73] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#77DD77] shadow-lg transition-all duration-200"
-            >
-              <ClockIcon className="h-6 w-6" />
-            </button>
-            <span className="tooltiptext">Set Admin Hours</span>
-          </div>
+          {user?.employmentType !== 'part-time' && (
+            <div className="tooltip">
+              <button
+                onClick={() => setIsAdminHoursModalOpen(true)}
+                className="w-12 h-12 rounded-full flex items-center justify-center text-white bg-[#579980] hover:bg-[#488b73] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#77DD77] shadow-lg transition-all duration-200"
+              >
+                <ClockIcon className="h-6 w-6" />
+              </button>
+              <span className="tooltiptext">Set Admin Hours</span>
+            </div>
+          )}
 
           {canCreateSchedule && (
             <div className="tooltip">
@@ -643,10 +814,22 @@ export default function SchedulePage() {
 
         <AdminHoursModal
           isOpen={isAdminHoursModalOpen}
-          onClose={() => setIsAdminHoursModalOpen(false)}
+          onClose={() => {
+            setIsAdminHoursModalOpen(false);
+            // Add refresh after modal closes
+            if (selectedFaculty) {
+              fetchFacultySchedules(selectedFaculty);
+            }
+          }}
           maxHours={40}
           currentUser={user}
           termId={activeTerm?.id}
+          onSuccess={() => {
+            // Add refresh after successful creation
+            if (selectedFaculty) {
+              fetchFacultySchedules(selectedFaculty);
+            }
+          }}
         />
 
         <PreviewPDFModal

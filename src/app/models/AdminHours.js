@@ -103,21 +103,23 @@ class AdminHoursModel {
           }
         }
 
-        // Check against existing admin hours (keep existing admin hours conflict check)
+        // Check against existing admin hours (modified conflict check)
         const adminHoursConflicts = await AdminHours.find({
           user: userId,
           term: termObjectId,
           isActive: true,
           'slots.day': slot.day,
-          'slots.status': { $in: ['pending', 'approved'] }
+          'slots.status': { $in: ['pending', 'approved'] } // Only check pending and approved slots
         });
 
-        // Filter to only count conflicts with non-rejected slots in the current term
+        // Filter to only count conflicts with active slots in the current term
         const actualConflicts = adminHoursConflicts.filter(ah => 
           ah.term.toString() === termObjectId.toString() && // Double-check term matching
           ah.slots.some(s => 
             s.day === slot.day && 
             s.status !== 'rejected' && 
+            s.status !== 'cancelled' && // Exclude cancelled slots
+            s.status !== 'deleted' &&   // Exclude deleted slots
             ((s.startTime <= slot.startTime && s.endTime > slot.startTime) ||
              (s.startTime < slot.endTime && s.endTime >= slot.endTime))
           )
@@ -125,6 +127,71 @@ class AdminHoursModel {
 
         if (actualConflicts.length > 0) {
           throw new Error(`Admin hours conflict found for ${slot.day} at ${slot.startTime}-${slot.endTime}`);
+        }
+
+        // Improved admin hours conflict check
+        const slotStartMoment = moment(slot.startTime, 'h:mm A');
+        const slotEndMoment = moment(slot.endTime, 'h:mm A');
+
+        // Find existing admin hours that might conflict
+        const existingAdminHours = await AdminHours.findOne({
+          user: userId,
+          term: termObjectId,
+          isActive: true,
+          slots: {
+            $elemMatch: {
+              day: slot.day,
+              status: { $in: ['pending', 'approved'] },
+              $or: [
+                // Case 1: New slot starts during an existing slot
+                {
+                  startTime: { $lte: slot.startTime },
+                  endTime: { $gt: slot.startTime }
+                },
+                // Case 2: New slot ends during an existing slot
+                {
+                  startTime: { $lt: slot.endTime },
+                  endTime: { $gte: slot.endTime }
+                },
+                // Case 3: New slot completely contains an existing slot
+                {
+                  startTime: { $gte: slot.startTime },
+                  endTime: { $lte: slot.endTime }
+                }
+              ]
+            }
+          }
+        });
+
+        if (existingAdminHours) {
+          // Find the specific conflicting slot(s)
+          const conflictingSlots = existingAdminHours.slots.filter(existingSlot => {
+            if (existingSlot.day !== slot.day) return false;
+            if (!['pending', 'approved'].includes(existingSlot.status)) return false;
+
+            const existingStart = moment(existingSlot.startTime, 'h:mm A');
+            const existingEnd = moment(existingSlot.endTime, 'h:mm A');
+
+            // Check for time overlap
+            const hasOverlap = (
+              (slotStartMoment.isSameOrAfter(existingStart) && slotStartMoment.isBefore(existingEnd)) ||
+              (slotEndMoment.isAfter(existingStart) && slotEndMoment.isSameOrBefore(existingEnd)) ||
+              (slotStartMoment.isSameOrBefore(existingStart) && slotEndMoment.isSameOrAfter(existingEnd))
+            );
+
+            return hasOverlap;
+          });
+
+          if (conflictingSlots.length > 0) {
+            const conflictDetails = conflictingSlots.map(conflictSlot => 
+              `${conflictSlot.day} at ${conflictSlot.startTime}-${conflictSlot.endTime} (${conflictSlot.status})`
+            ).join(', ');
+
+            throw new Error(
+              `Admin hours conflict found: New slot ${slot.day} (${slot.startTime}-${slot.endTime}) ` +
+              `conflicts with existing admin hours: ${conflictDetails}`
+            );
+          }
         }
       }
 
@@ -470,6 +537,281 @@ class AdminHoursModel {
     }
   }
 
+  async editApprovedAdminHours(adminHoursId, slotId, updatedData) {
+    try {
+      const AdminHours = await this.initModel();
+      const Schedules = mongoose.models.Schedules || mongoose.model('Schedules', ScheduleSchema);
+
+      // Convert IDs to ObjectIds if they're strings
+      const adminHoursObjectId = typeof adminHoursId === 'string' ? new mongoose.Types.ObjectId(adminHoursId) : adminHoursId;
+      const slotObjectId = typeof slotId === 'string' ? new mongoose.Types.ObjectId(slotId) : slotId;
+
+      // Get the existing admin hours document
+      const document = await AdminHours.findOne({
+        _id: adminHoursObjectId,
+        'slots._id': slotObjectId,
+        'slots.status': 'approved'
+      }).populate('user term');
+
+      if (!document) {
+        throw new Error('Admin hours document not found or slot is not in approved status');
+      }
+      // Find the specific slot
+      const slot = document.slots.find(s => s._id.toString() === slotObjectId.toString());
+      if (!slot) {
+        throw new Error('Admin hours slot not found');
+      }
+
+      // Convert times for comparison
+      const parseTime = (timeStr) => moment(timeStr, 'h:mm A').format('HH:mm');
+      const newStartTime = parseTime(updatedData.startTime);
+      const newEndTime = parseTime(updatedData.endTime);
+
+      // First, check for conflicts with existing admin hours
+      const existingOverlaps = await AdminHours.find({
+        user: document.user._id,
+        term: document.term._id,
+        isActive: true,
+        slots: {
+          $elemMatch: {
+            day: updatedData.day,
+            status: { $in: ['pending', 'approved'] },
+            _id: { $ne: slotObjectId },
+            $or: [
+              { // Case 1: Slot starts during existing
+                startTime: { $lte: updatedData.startTime },
+                endTime: { $gt: updatedData.startTime }
+              },
+              { // Case 2: Slot ends during existing
+                startTime: { $lt: updatedData.endTime },
+                endTime: { $gte: updatedData.endTime }
+              },
+              { // Case 3: Slot contains existing
+                startTime: { $gte: updatedData.startTime },
+                endTime: { $lte: updatedData.endTime }
+              },
+              { // Case 4: Existing slot contains new slot 
+                $and: [
+                  { startTime: { $lte: updatedData.startTime } },
+                  { endTime: { $gte: updatedData.endTime } }
+                ]
+              }
+            ]
+          }
+        }
+      });
+
+      if (existingOverlaps.length > 0) {
+        // Find the specific conflicting slots
+        const conflicts = existingOverlaps.flatMap(doc => 
+          doc.slots.filter(slot => 
+            slot._id.toString() !== slotObjectId.toString() &&
+            slot.day === updatedData.day &&
+            ['pending', 'approved'].includes(slot.status) &&
+            moment(slot.startTime, 'h:mm A').isBefore(moment(updatedData.endTime, 'h:mm A')) &&
+            moment(slot.endTime, 'h:mm A').isAfter(moment(updatedData.startTime, 'h:mm A'))
+          )
+        );
+
+        if (conflicts.length > 0) {
+          const conflictDetails = conflicts.map(s => 
+            `${s.day} at ${s.startTime}-${s.endTime} (${s.status})`
+          ).join(', ');
+
+          throw new Error(
+            `Time slot conflicts with existing admin hours: ${conflictDetails}`
+          );
+        }
+      }
+
+      // 1. Check for class schedule conflicts
+      const scheduleConflicts = await Schedules.find({
+        isActive: true,
+        term: document.term._id,
+        faculty: document.user._id,
+        'scheduleSlots.days': updatedData.day
+      }).populate(['subject', 'section']);
+
+      for (const schedule of scheduleConflicts) {
+        for (const scheduleSlot of schedule.scheduleSlots) {
+          if (scheduleSlot.days.includes(updatedData.day)) {
+            const classStartTime = parseTime(scheduleSlot.timeFrom);
+            const classEndTime = parseTime(scheduleSlot.timeTo);
+
+            if (
+              (newStartTime >= classStartTime && newStartTime < classEndTime) ||
+              (newEndTime > classStartTime && newEndTime <= classEndTime) ||
+              (newStartTime <= classStartTime && newEndTime >= classEndTime)
+            ) {
+              const sectionNames = Array.isArray(schedule.section) 
+                ? schedule.section.map(s => s.sectionName).join(', ')
+                : schedule.section.sectionName;
+
+              throw new Error(
+                `Schedule conflict found for ${updatedData.day} at ${updatedData.startTime}-${updatedData.endTime}. ` +
+                `Conflicts with class schedule: ${schedule.subject.subjectCode} ` +
+                `(${scheduleSlot.timeFrom}-${scheduleSlot.timeTo}) ` +
+                `for section ${sectionNames}`
+              );
+            }
+          }
+        }
+      }
+
+      // 2. Check for other admin hours conflicts
+      const adminHoursConflicts = await AdminHours.find({
+        user: document.user._id,
+        term: document.term._id,
+        isActive: true,
+        'slots.day': updatedData.day,
+        'slots.status': { $in: ['pending', 'approved'] },
+        'slots._id': { $ne: slotObjectId } // Exclude the current slot
+      });
+
+      for (const adminHours of adminHoursConflicts) {
+        const conflictingSlots = adminHours.slots.filter(s => 
+          s.day === updatedData.day && 
+          s.status !== 'rejected' &&
+          s.status !== 'cancelled' &&
+          s.status !== 'deleted' &&
+          s._id.toString() !== slotObjectId.toString() && // Double check exclusion
+          ((parseTime(s.startTime) <= newStartTime && parseTime(s.endTime) > newStartTime) ||
+           (parseTime(s.startTime) < newEndTime && parseTime(s.endTime) >= newEndTime) ||
+           (parseTime(s.startTime) >= newStartTime && parseTime(s.endTime) <= newEndTime))
+        );
+
+        if (conflictingSlots.length > 0) {
+          const conflictDetails = conflictingSlots.map(s => 
+            `${s.day} at ${s.startTime}-${s.endTime} (${s.status})`
+          ).join(', ');
+
+          throw new Error(
+            `Admin hours conflict found: New slot ${updatedData.day} (${updatedData.startTime}-${updatedData.endTime}) ` +
+            `conflicts with existing admin hours: ${conflictDetails}`
+          );
+        }
+      }
+
+      // Add this additional conflict check before proceeding with existing checks
+      // Check for conflicts with existing admin hours
+      const existingAdminHours = await AdminHours.findOne({
+        user: document.user._id,
+        term: document.term._id,
+        isActive: true,
+        slots: {
+          $elemMatch: {
+            day: updatedData.day,
+            status: { $in: ['pending', 'approved'] },
+            _id: { $ne: slotObjectId }, // Exclude current slot
+            $or: [
+              // Case 1: New slot starts during an existing slot
+              {
+                startTime: { $lte: updatedData.startTime },
+                endTime: { $gt: updatedData.startTime }
+              },
+              // Case 2: New slot ends during an existing slot
+              {
+                startTime: { $lt: updatedData.endTime },
+                endTime: { $gte: updatedData.endTime }
+              },
+              // Case 3: New slot completely contains an existing slot
+              {
+                startTime: { $gte: updatedData.startTime },
+                endTime: { $lte: updatedData.endTime }
+              }
+            ]
+          }
+        }
+      });
+
+      if (existingAdminHours) {
+        // Find specific conflicting slots
+        const conflictingSlots = existingAdminHours.slots.filter(existingSlot => {
+          if (existingSlot._id.toString() === slotObjectId.toString()) return false;
+          if (existingSlot.day !== updatedData.day) return false;
+          if (!['pending', 'approved'].includes(existingSlot.status)) return false;
+
+          const existingStart = moment(existingSlot.startTime, 'h:mm A');
+          const existingEnd = moment(existingSlot.endTime, 'h:mm A');
+          const newStart = moment(updatedData.startTime, 'h:mm A');
+          const newEnd = moment(updatedData.endTime, 'h:mm A');
+
+          // Check for time overlap
+          return (
+            (newStart.isSameOrAfter(existingStart) && newStart.isBefore(existingEnd)) ||
+            (newEnd.isAfter(existingStart) && newEnd.isSameOrBefore(existingEnd)) ||
+            (newStart.isSameOrBefore(existingStart) && newEnd.isSameOrAfter(existingEnd))
+          );
+        });
+
+        if (conflictingSlots.length > 0) {
+          const conflictDetails = conflictingSlots.map(s => 
+            `${s.day} at ${s.startTime}-${s.endTime} (${s.status})`
+          ).join(', ');
+
+          throw new Error(
+            `Time slot conflict with existing admin hours: ${conflictDetails}`
+          );
+        }
+      }
+
+      // If no conflicts, proceed with update
+      const result = await AdminHours.findOneAndUpdate(
+        { 
+          _id: adminHoursObjectId,
+          'slots._id': slotObjectId,
+          'slots.status': 'approved'
+        },
+        {
+          $set: {
+            'slots.$.day': updatedData.day,
+            'slots.$.startTime': updatedData.startTime,
+            'slots.$.endTime': updatedData.endTime,
+            'slots.$.updatedAt': new Date()
+          }
+        },
+        { 
+          new: true,
+          runValidators: true
+        }
+      ).populate({
+        path: 'user',
+        select: 'firstName lastName department _id',
+        model: 'Users',
+        populate: {
+          path: 'department',
+          model: 'Departments',
+          select: 'departmentCode'
+        }
+      });
+
+      if (!result) {
+        throw new Error('Failed to update approved admin hours');
+      }
+
+      // Find the specific slot that was updated
+      const updatedSlot = result.slots.find(s => s._id.toString() === slotId);
+
+      // Create notification for the requester
+      await createNotification({
+        userId: result.user._id,
+        title: 'Admin Hours Updated',
+        message: `Your approved admin hours for ${updatedSlot.day} (${updatedSlot.startTime} - ${updatedSlot.endTime}) has been updated.`,
+        type: 'info'
+      });
+
+      // Trigger Pusher event for updated request
+      await pusherServer.trigger('admin-hours', 'request-updated', {
+        request: JSON.parse(JSON.stringify(result))
+      });
+
+      return result;
+    } catch (error) {
+      console.error('Error in editApprovedAdminHours:', error);
+      throw error;
+    }
+  }
+
   async getFullTimeUsers(userRole, userDepartment) {
     try {
       await connectDB();
@@ -622,6 +964,93 @@ class AdminHoursModel {
     } catch (error) {
       console.error('Error fetching admin hour requests:', error);
       throw new Error('Failed to fetch admin hour requests');
+    }
+  }
+
+  async deleteAdminHours(adminHoursId, slotId) {
+    try {
+      const AdminHours = await this.initModel();
+
+      // Debug logging
+      console.log('Deleting admin hours with IDs:', { adminHoursId, slotId });
+      
+      // Convert string IDs to ObjectIds if they're not already
+      const adminHoursObjectId = typeof adminHoursId === 'string' ? new mongoose.Types.ObjectId(adminHoursId) : adminHoursId;
+      const slotObjectId = typeof slotId === 'string' ? new mongoose.Types.ObjectId(slotId) : slotId;
+
+      // Find the document first to verify it exists
+      const document = await AdminHours.findOne({
+        _id: adminHoursObjectId,
+        'slots._id': slotObjectId
+      });
+
+      if (!document) {
+        throw new Error('Admin hours document not found');
+      }
+
+      // Find the specific slot
+      const slot = document.slots.find(s => s._id.toString() === slotObjectId.toString());
+      
+      if (!slot) {
+        throw new Error('Admin hours slot not found');
+      }
+
+      if (slot.status !== 'approved') {
+        throw new Error('Can only delete approved admin hours');
+      }
+
+      // Update the slot status
+      const result = await AdminHours.findOneAndUpdate(
+        {
+          _id: adminHoursObjectId,
+          'slots._id': slotObjectId,
+          'slots.status': 'approved'
+        },
+        {
+          $set: {
+            'slots.$.status': 'deleted',
+            'slots.$.updatedAt': new Date()
+          }
+        },
+        {
+          new: true,
+          runValidators: true
+        }
+      ).populate({
+        path: 'user',
+        select: 'firstName lastName department _id',
+        model: 'Users',
+        populate: {
+          path: 'department',
+          model: 'Departments',
+          select: 'departmentCode'
+        }
+      });
+
+      if (!result) {
+        throw new Error('Failed to delete admin hours');
+      }
+
+      // Find the specific slot that was updated
+      const updatedSlot = result.slots.find(s => s._id.toString() === slotId);
+      
+      // Create notification for the requester
+      await createNotification({
+        userId: result.user._id,
+        title: 'Admin Hours Deleted',
+        message: `Your admin hours for ${updatedSlot.day} (${updatedSlot.startTime} - ${updatedSlot.endTime}) has been deleted.`,
+        type: 'info'
+      });
+
+      // Trigger Pusher event for deleted request
+      await pusherServer.trigger('admin-hours', 'request-updated', {
+        request: JSON.parse(JSON.stringify(result))
+      });
+
+      return result;
+    } catch (error) {
+      console.error('Error in deleteAdminHours:', error);
+      throw error;
     }
   }
 }

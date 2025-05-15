@@ -7,8 +7,6 @@ export const rolePermissions = {
     '/dashboard',
     '/schedules',
     '/entry',
-    '/entry/subjects',
-    '/entry/sections',
     '/entry/class-load',
     '/logs',
     '/activity-logs/schedule-history',
@@ -26,8 +24,6 @@ export const rolePermissions = {
     '/dashboard',
     '/schedules',
     '/entry',
-    '/entry/subjects',
-    '/entry/sections',
     '/entry/class-load',
     '/logs',
     '/activity-logs/schedule-history',
@@ -47,6 +43,7 @@ export const rolePermissions = {
     '/chats',
     '/schedule-archive',
     '/schedule-archive/faculty',
+    '/settings',
     '/schedule-archive/block'
   ]
 };

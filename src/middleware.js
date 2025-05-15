@@ -55,6 +55,16 @@ export async function middleware(request) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
+    // Redirect faculty users trying to access dashboard to faculty schedules
+    if (session.user.role === 'Faculty' && pathname === '/dashboard') {
+      return NextResponse.redirect(new URL('/schedules/faculty', request.url))
+    }
+
+    // Add Faculty-specific redirect for archive
+    if (session.user.role === 'Faculty' && pathname === '/schedule-archive') {
+      return NextResponse.redirect(new URL('/schedule-archive/faculty', request.url))
+    }
+
     // Add Faculty-specific redirect
     if (session.user.role === 'Faculty' && pathname === '/schedules') {
       return NextResponse.redirect(new URL('/schedules/faculty', request.url))
