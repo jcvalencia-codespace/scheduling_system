@@ -185,74 +185,83 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
   }
 
   const handleTermChange = async (e) => {
-    const term = e.target.value
+    const term = e.target.value;
 
     if (editData?.subjects) {
-      const termSubjects =
-        editData.subjects
-          ?.filter((subj) => subj?.term === Number.parseInt(term))
-          ?.map((subj) => ({
-            subjectId: subj?.subject?._id,
-            hours: subj?.hours?.toString() || ""
-          }))
-          ?.filter(Boolean) || []
+      // Filter subjects for the selected term
+      const termSubjects = editData.subjects
+        ?.filter(subj => subj?.term === Number(term))
+        ?.map(subj => ({
+          subjectId: subj?.subject?._id,
+          hours: subj?.hours?.toString() || ""
+        }))
+        ?.filter(Boolean) || [];
 
-      setFormData((prev) => ({
+      setFormData(prev => ({
         ...prev,
         term,
         subjectAssignments: termSubjects
-      }))
+      }));
     } else {
-      setFormData((prev) => ({ ...prev, term }))
+      setFormData(prev => ({ ...prev, term }));
     }
-  }
+  };
 
   useEffect(() => {
     const loadEditData = async () => {
       if (editData) {
         try {
-          const termSubjects =
-            editData.subjects
-              ?.filter((subj) => subj?.term === Number.parseInt(editData.term))
-              ?.map((subj) => ({
-                subjectId: subj?.subject?._id,
-                hours: subj?.hours?.toString() || ""
-              }))
-              ?.filter((item) => item.subjectId && item.hours) || []
+          // Extract subjects for the current term
+          const termSubjects = editData.subjects
+            ?.filter(subj => subj?.term === Number(editData.term))
+            ?.map(subj => ({
+              subjectId: subj?.subject?._id,
+              hours: subj?.hours?.toString() || ""
+            }))
+            ?.filter(Boolean) || [];
 
+          // Initialize form data
           const initialFormData = {
-            yearLevel: `${editData.yearLevel} Year`,
+            yearLevel: editData.yearLevel ? `${editData.yearLevel} Year` : "",
             term: editData.term?.toString() || "",
             classes: editData.classId ? [editData.classId._id] : [],
-            subjectAssignments: termSubjects
-          }
+            subjectAssignments: termSubjects // Make sure subjects are properly mapped
+          };
 
+          // Fetch classes for the year level
           if (initialFormData.yearLevel) {
-            const classes = await getClasses(initialFormData.yearLevel)
-            setAvailableClasses(classes || [])
+            const classes = await getClasses(initialFormData.yearLevel, userId);
+            setAvailableClasses(classes || []);
           }
 
-          // Fetch subjects first before setting form data
-          const subjects = await getSubjects(editData.classId?.course?.department?._id)
-          setAvailableSubjects(subjects || [])
-          setAllSubjects(subjects || [])
+          // Fetch all subjects
+          const subjects = await getSubjects();
+          setAvailableSubjects(subjects || []);
+          setAllSubjects(subjects || []);
 
-          // Set form data after subjects are loaded
-          setFormData(initialFormData)
+          // Set form data after all data is loaded
+          setFormData(initialFormData);
+
+          console.log('Edit Data:', {
+            editData,
+            initialFormData,
+            termSubjects,
+            subjects: subjects?.length
+          });
         } catch (error) {
-          console.error("Error loading edit data:", error)
+          console.error("Error loading edit data:", error);
           setFormData({
             yearLevel: "",
             term: "",
             classes: [],
-            subjectAssignments: [],
-          })
+            subjectAssignments: []
+          });
         }
       }
-    }
+    };
 
-    loadEditData()
-  }, [editData])
+    loadEditData();
+  }, [editData, userId]);
 
   useEffect(() => {
     const loadAllSubjects = async () => {
