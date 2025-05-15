@@ -366,6 +366,40 @@ function ScheduleContent() {
               '.dark &': {
                 color: '#9ca3af'
               }
+            }),
+            loadingMessage: (base) => ({
+              ...base,
+              color: 'var(--select-text, #111827)',
+              '.dark &': {
+                color: '#e5e7eb'
+              }
+            }),
+            noOptionsMessage: (base) => ({
+              ...base,
+              color: 'var(--select-text, #111827)',
+              '.dark &': {
+                color: '#e5e7eb'
+              }
+            }),
+            indicatorSeparator: (base) => ({
+              ...base,
+              backgroundColor: 'var(--select-border, #e5e7eb)',
+              '.dark &': {
+                backgroundColor: '#374151'
+              }
+            }),
+            dropdownIndicator: (base) => ({
+              ...base,
+              color: 'var(--select-placeholder, #6b7280)',
+              '&:hover': {
+                color: 'var(--select-text, #111827)'
+              },
+              '.dark &': {
+                color: '#9ca3af',
+                '&:hover': {
+                  color: '#e5e7eb'
+                }
+              }
             })
           }}
         />

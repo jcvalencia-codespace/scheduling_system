@@ -206,19 +206,19 @@ export default function RoomsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-100 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="sm:flex sm:items-center">
           <div className="sm:flex-auto">
-            <h1 className="text-xl font-semibold text-gray-900">Rooms</h1>
-            <p className="mt-2 text-sm text-gray-700">
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Rooms</h1>
+            <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
               A list of all rooms in the system.
             </p>
           </div>
@@ -240,79 +240,79 @@ export default function RoomsPage() {
                 Search
               </label>
               <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <MagnifyingGlassIcon
-                className="h-5 w-5 text-gray-400"
-                aria-hidden="true"
-              />
-            </div>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="block w-full rounded-md border-0 py-2 pl-10 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] sm:text-sm sm:leading-6"
-              placeholder="Search rooms..."
-            />
-            {searchQuery && (
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="text-gray-400 hover:text-gray-500"
-                >
-                  <XMarkIcon className="h-5 w-5" aria-hidden="true" />
-                </button>
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                  <MagnifyingGlassIcon
+                    className="h-5 w-5 text-gray-400"
+                    aria-hidden="true"
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="block w-full rounded-md border-0 py-2 pl-10 pr-10 text-gray-900 dark:text-gray-100 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-[#323E8F] dark:focus:ring-[#4151B0] dark:bg-gray-800 sm:text-sm sm:leading-6"
+                  placeholder="Search rooms..."
+                />
+                {searchQuery && (
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="text-gray-400 hover:text-gray-500"
+                    >
+                      <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+            <Filter 
+              filters={filters}
+              handleFilterChange={handleFilterChange}
+              departments={departments}
+            />
           </div>
-        </div>
-        <Filter 
-          filters={filters}
-          handleFilterChange={handleFilterChange}
-          departments={departments}
-        />
-      </div>
 
-          <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-            <table className="min-w-full divide-y divide-gray-300">
-              <thead className="bg-gray-50">
+          <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 dark:ring-opacity-20 sm:rounded-lg">
+            <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-600">
+              <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
                   <th
                     scope="col"
-                    className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6 cursor-pointer"
+                    className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-200 sm:pl-6 cursor-pointer"
                     onClick={() => handleSort('roomCode')}
                   >
                     Room Code {getSortIcon('roomCode')}
                   </th>
                   <th
                     scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
+                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-200 cursor-pointer"
                     onClick={() => handleSort('roomName')}
                   >
                     Room Name {getSortIcon('roomName')}
                   </th>
                   <th
                     scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
+                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-200 cursor-pointer"
                     onClick={() => handleSort('type')}
                   >
                     Type {getSortIcon('type')}
                   </th>
                   <th
                     scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
+                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-200 cursor-pointer"
                     onClick={() => handleSort('floor')}
                   >
                     Floor {getSortIcon('floor')}
                   </th>
                   <th
                     scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-200"
                   >
                     Department
                   </th>
                   <th
                     scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 cursor-pointer"
+                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-200 cursor-pointer"
                     onClick={() => handleSort('capacity')}
                   >
                     Capacity {getSortIcon('capacity')}
@@ -325,7 +325,7 @@ export default function RoomsPage() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
                 {filteredRooms.length === 0 ? (
                   <tr>
                     <td colSpan="7">
@@ -341,22 +341,22 @@ export default function RoomsPage() {
                 ) : (
                   filteredRooms.map((room) => (
                     <tr key={room.roomCode}>
-                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-gray-200 sm:pl-6">
                         {room.roomCode}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                         {room.roomName}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                         {room.type}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                         {room.floor}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                         {getDepartmentName(room.department)}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                         {room.capacity}
                       </td>
                       <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">

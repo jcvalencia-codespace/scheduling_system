@@ -28,61 +28,50 @@ const initialFormState = {
   capacity: '',
 };
 
+const customStyles = {
+  menu: (base) => ({
+    ...base,
+    zIndex: 100,
+    backgroundColor: 'var(--select-bg, #ffffff)',
+    border: '1px solid var(--select-border, #e5e7eb)',
+    '.dark &': {
+      backgroundColor: '#1f2937',
+      borderColor: '#374151'
+    }
+  }),
+  control: (base, state) => ({
+    ...base,
+    backgroundColor: 'var(--select-bg, #ffffff)',
+    borderColor: state.isFocused ? '#3b82f6' : '#e5e7eb',
+    '.dark &': {
+      backgroundColor: '#1f2937',
+      borderColor: state.isFocused ? '#3b82f6' : '#374151',
+      color: '#e5e7eb'
+    }
+  }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected 
+      ? '#323E8F' 
+      : state.isFocused 
+        ? 'var(--select-hover, #f3f4f6)' 
+        : 'transparent',
+    color: state.isSelected ? '#ffffff' : 'var(--select-text, #111827)',
+    '.dark &': {
+      backgroundColor: state.isSelected 
+        ? '#323E8F' 
+        : state.isFocused 
+          ? '#374151' 
+          : 'transparent',
+      color: state.isSelected ? '#ffffff' : '#e5e7eb'
+    }
+  })
+};
+
 export default function AddEditRoomModal({ show, onClose, room, departments, onSuccess }) {
   const { user } = useAuthStore();
   const [formData, setFormData] = useState(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const customStyles = {
-    control: (base, state) => ({
-      ...base,
-      minHeight: '38px',
-      backgroundColor: 'white',
-      borderColor: state.isFocused ? '#323E8F' : '#E5E7EB',
-      borderRadius: '0.375rem',
-      boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-      '&:hover': {
-        borderColor: '#323E8F'
-      },
-      '&:focus': {
-        borderColor: '#323E8F',
-        boxShadow: '0 0 0 1px #323E8F'
-      }
-    }),
-    placeholder: (base) => ({
-      ...base,
-      color: '#6B7280',
-    }),
-    option: (base, state) => ({
-      ...base,
-      backgroundColor: state.isSelected ? '#323E8F' : state.isFocused ? '#EFF6FF' : 'white',
-      color: state.isSelected ? 'white' : 'black',
-      cursor: 'pointer',
-      padding: '8px 12px',
-    }),
-    menu: (base) => ({
-      ...base,
-      zIndex: 100,
-    }),
-    menuList: (base) => ({
-      ...base,
-      maxHeight: '160px',
-      overflowY: 'auto',
-      '&::-webkit-scrollbar': {
-        width: '8px'
-      },
-      '&::-webkit-scrollbar-track': {
-        background: '#f1f1f1'
-      },
-      '&::-webkit-scrollbar-thumb': {
-        background: '#888',
-        borderRadius: '4px'
-      },
-      '&::-webkit-scrollbar-thumb:hover': {
-        background: '#555'
-      }
-    })
-  };
 
   const departmentOptions = departments.map(dept => ({
     value: dept.departmentCode,
@@ -210,11 +199,11 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-xl bg-white text-left shadow-xl transition-all sm:my-8 w-full max-w-5xl">
+              <Dialog.Panel className="relative transform overflow-hidden rounded-xl bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 w-full max-w-5xl">
                 <div className="absolute right-0 top-0 pr-4 pt-4 block z-[9999]">
                   <button
                     type="button"
-                    className="rounded-full bg-white text-gray-400 hover:text-gray-500 hover:bg-gray-100 p-1.5 transition-colors shadow-sm"
+                    className="rounded-full bg-white dark:bg-gray-800 text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 p-1.5 transition-colors shadow-sm"
                     onClick={handleClose}
                   >
                     <span className="sr-only">Close</span>
@@ -229,13 +218,13 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                   <div className="w-full md:w-2/3 flex flex-col">
                     <form onSubmit={handleSubmit} className="flex-1 flex flex-col h-full">
                       {/* Form content */}
-                      <div className="flex-1 p-8 space-y-8"> {/* Changed space-y-6 to space-y-8 */}
+                      <div className="flex-1 p-8 space-y-8">
                         {/* Title */}
-                        <div className="pt-4"> {/* Added padding top */}
-                          <h3 className="text-lg font-semibold text-gray-900">
+                        <div className="pt-4">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                             Room Information
                           </h3>
-                          <p className="mt-1 text-sm text-gray-500">
+                          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                             Fill in the details for the room
                           </p>
                         </div>
@@ -243,7 +232,7 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                         {/* Room Code & Name */}
                         <div className="grid grid-cols-2 gap-6">
                           <div>
-                            <label htmlFor="roomCode" className="block text-sm font-medium text-gray-700 mb-1">
+                            <label htmlFor="roomCode" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                               Room Code
                             </label>
                             <input
@@ -253,13 +242,13 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                               value={formData.roomCode}
                               onChange={handleInputChange}
                               disabled={isSubmitting}
-                              className="block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
+                              className="block w-full text-black dark:text-gray-100 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm dark:bg-gray-700 dark:placeholder-gray-400"
                               required
                             />
                           </div>
 
                           <div>
-                            <label htmlFor="roomName" className="block text-sm font-medium text-gray-700 mb-1">
+                            <label htmlFor="roomName" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                               Room Name
                             </label>
                             <input
@@ -269,7 +258,7 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                               value={formData.roomName}
                               onChange={handleInputChange}
                               disabled={isSubmitting}
-                              className="block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
+                              className="block w-full text-black dark:text-gray-100 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm dark:bg-gray-700 dark:placeholder-gray-400"
                               required
                             />
                           </div>
@@ -278,7 +267,7 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                         {/* Room Type & Floor */}
                         <div className="grid grid-cols-2 gap-6">
                           <div>
-                            <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">
+                            <label htmlFor="type" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                               Room Type
                             </label>
                             <Select
@@ -298,7 +287,7 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                           </div>
 
                           <div>
-                            <label htmlFor="floor" className="block text-sm font-medium text-gray-700 mb-1">
+                            <label htmlFor="floor" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                               Floor
                             </label>
                             <Select
@@ -321,7 +310,7 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                         {/* Department & Capacity */}
                         <div className="grid grid-cols-2 gap-6">
                           <div>
-                            <label htmlFor="departmentCode" className="block text-sm font-medium text-gray-700 mb-1">
+                            <label htmlFor="departmentCode" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                               Department
                             </label>
                             <Select
@@ -341,7 +330,7 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                           </div>
 
                           <div>
-                            <label htmlFor="capacity" className="block text-sm font-medium text-gray-700 mb-1">
+                            <label htmlFor="capacity" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                               Capacity
                             </label>
                             <input
@@ -351,7 +340,7 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                               value={formData.capacity}
                               onChange={handleInputChange}
                               disabled={isSubmitting}
-                              className="block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
+                              className="block w-full text-black dark:text-gray-100 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm dark:bg-gray-700 dark:placeholder-gray-400"
                               min="0"
                               required
                             />
@@ -360,11 +349,11 @@ export default function AddEditRoomModal({ show, onClose, room, departments, onS
                       </div>
 
                       {/* Footer */}
-                      <div className="flex justify-end space-x-3 p-6 bg-gray-50 border-t border-gray-200">
+                      <div className="flex justify-end space-x-3 p-6 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600">
                         <button
                           type="button"
                           disabled={isSubmitting}
-                          className="inline-flex justify-center rounded-md bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors"
+                          className="inline-flex justify-center rounded-md bg-white dark:bg-gray-800 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                           onClick={handleClose}
                         >
                           Cancel

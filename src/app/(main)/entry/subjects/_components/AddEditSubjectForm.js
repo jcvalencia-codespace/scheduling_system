@@ -114,56 +114,88 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
       onClose();
     }
   };
+
   const customStyles = {
+    menu: (base) => ({
+      ...base,
+      zIndex: 100,
+      backgroundColor: 'var(--select-bg, #ffffff)',
+      border: '1px solid var(--select-border, #e5e7eb)',
+      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+      borderRadius: '0.375rem',
+      '.dark &': {
+        backgroundColor: '#1f2937',
+        borderColor: '#374151'
+      }
+    }),
     control: (base, state) => ({
       ...base,
       minHeight: '38px',
-      backgroundColor: 'white',
-      borderColor: state.isFocused ? '#323E8F' : '#E5E7EB',
-      borderRadius: '0.375rem',
-      boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+      backgroundColor: 'var(--select-bg, #ffffff)',
+      borderColor: state.isFocused ? '#3b82f6' : '#e5e7eb',
+      boxShadow: state.isFocused ? '0 0 0 1px #3b82f6' : 'none',
       '&:hover': {
-        borderColor: '#323E8F'
+        borderColor: '#3b82f6'
       },
-      '&:focus': {
-        borderColor: '#323E8F',
-        boxShadow: '0 0 0 1px #323E8F'
+      '.dark &': {
+        backgroundColor: '#1f2937',
+        borderColor: state.isFocused ? '#3b82f6' : '#374151'
+      }
+    }),
+    option: (base, state) => ({
+      ...base,
+      backgroundColor: state.isSelected 
+        ? '#323E8F' 
+        : state.isFocused 
+          ? 'var(--select-hover, #f3f4f6)' 
+          : 'transparent',
+      color: state.isSelected ? '#ffffff' : 'var(--select-text, #111827)',
+      '.dark &': {
+        backgroundColor: state.isSelected 
+          ? '#323E8F' 
+          : state.isFocused 
+            ? '#374151' 
+            : 'transparent',
+        color: state.isSelected ? '#ffffff' : '#e5e7eb'
+      },
+      '&:hover': {
+        backgroundColor: state.isSelected ? '#323E8F' : 'var(--select-hover, #f3f4f6)'
+      }
+    }),
+    singleValue: (base) => ({
+      ...base,
+      color: 'var(--select-text, #111827)',
+      '.dark &': {
+        color: '#e5e7eb'
+      }
+    }),
+    input: (base) => ({
+      ...base,
+      color: 'var(--select-text, #111827)',
+      '.dark &': {
+        color: '#e5e7eb'
       }
     }),
     placeholder: (base) => ({
       ...base,
-      color: '#6B7280',
-    }),
-    option: (base, state) => ({
-      ...base,
-      backgroundColor: state.isSelected ? '#323E8F' : state.isFocused ? '#EFF6FF' : 'white',
-      color: state.isSelected ? 'white' : 'black',
-      cursor: 'pointer',
-      padding: '8px 12px',
-    }),
-    menu: (base) => ({
-      ...base,
-      zIndex: 100,
+      color: 'var(--select-placeholder, #6b7280)',
+      '.dark &': {
+        color: '#9ca3af'
+      }
     }),
     menuList: (base) => ({
       ...base,
       maxHeight: '160px',
       overflowY: 'auto',
-      '&::-webkit-scrollbar': {
-        width: '8px'
-      },
-      '&::-webkit-scrollbar-track': {
-        background: '#f1f1f1'
-      },
-      '&::-webkit-scrollbar-thumb': {
-        background: '#888',
-        borderRadius: '4px'
-      },
-      '&::-webkit-scrollbar-thumb:hover': {
-        background: '#555'
+      '.dark &': {
+        '*': {
+          scrollbarColor: '#4b5563 #1f2937',
+          scrollbarWidth: 'thin'
+        }
       }
     })
   };
+
   return (
     <Transition.Root show={show} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={handleClose}>
@@ -190,7 +222,7 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-xl bg-white text-left shadow-xl transition-all sm:my-8 w-full max-w-5xl">
+              <Dialog.Panel className="relative transform overflow-hidden rounded-xl bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 w-full max-w-5xl">
                 <div className="absolute right-0 top-0 pr-4 pt-4 block z-[9999]">
                   <button
                     type="button"
@@ -212,17 +244,17 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
                       <div className="flex-1 p-8 space-y-8">
                         {/* Title */}
                         <div className="pt-4">
-                          <h3 className="text-lg font-medium text-gray-900">
+                          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
                             Subject Information
                           </h3>
-                          <p className="mt-1 text-sm text-gray-500">
+                          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                             Fill in the details for the subject
                           </p>
                         </div>
 
                         <div className="space-y-6">
                           <div>
-                            <label htmlFor="subjectCode" className="block text-sm font-medium text-gray-700 mb-1">
+                            <label htmlFor="subjectCode" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                               Subject Code
                             </label>
                             <input
@@ -234,12 +266,12 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
                               onChange={handleChange}
                               disabled={isSubmitting}
                               placeholder="Subject Code... e.g. COMP101"
-                              className="block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm uppercase"
+                              className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 uppercase"
                             />
                           </div>
 
                           <div>
-                            <label htmlFor="subjectName" className="block text-sm font-medium text-gray-700 mb-1">
+                            <label htmlFor="subjectName" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                               Subject Name
                             </label>
                             <input
@@ -251,12 +283,12 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
                               onChange={handleChange}
                               disabled={isSubmitting}
                               placeholder="Subject Name..."
-                              className="block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
+                              className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
                             />
                           </div>
 
                           <div>
-                            <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-1">
+                            <label htmlFor="department" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                               Department
                             </label>
                             <Select
@@ -288,11 +320,11 @@ export default function AddEditSubjectForm({ show, onClose, subject, onSuccess }
                       </div>
 
                       {/* Footer */}
-                      <div className="flex justify-end space-x-3 p-6 bg-gray-50 border-t border-gray-200">
+                      <div className="flex justify-end space-x-3 p-6 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600">
                         <button
                           type="button"
                           disabled={isSubmitting}
-                          className="inline-flex justify-center rounded-md bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors"
+                          className="inline-flex justify-center rounded-md bg-white dark:bg-gray-800 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                           onClick={handleClose}
                         >
                           Cancel

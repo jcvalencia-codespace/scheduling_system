@@ -7,20 +7,64 @@ import Select from 'react-select';
 
 export default function Filter({ filters, handleFilterChange, departments, courses }) {
   const customStyles = {
-    control: (base, state) => ({
-      ...base,
-      minHeight: '38px',
-      backgroundColor: 'white',
-      borderColor: state.isFocused ? '#323E8F' : '#E5E7EB',
-      borderRadius: '0.375rem',
-      boxShadow: state.isFocused ? '0 0 0 1px #323E8F' : 'none',
-      '&:hover': {
-        borderColor: '#323E8F'
-      }
-    }),
     menu: (base) => ({
       ...base,
       zIndex: 9999,
+      backgroundColor: 'var(--select-bg, #ffffff)',
+      border: '1px solid var(--select-border, #e5e7eb)',
+      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+      '.dark &': {
+        backgroundColor: '#1f2937',
+        borderColor: '#374151'
+      }
+    }),
+    control: (base, state) => ({
+      ...base,
+      backgroundColor: 'var(--select-bg, #ffffff)',
+      borderColor: state.isFocused ? '#3b82f6' : '#e5e7eb',
+      boxShadow: state.isFocused ? '0 0 0 1px #3b82f6' : 'none',
+      '.dark &': {
+        backgroundColor: '#1f2937',
+        borderColor: state.isFocused ? '#3b82f6' : '#374151'
+      }
+    }),
+    option: (base, state) => ({
+      ...base,
+      backgroundColor: state.isSelected 
+        ? '#323E8F' 
+        : state.isFocused 
+          ? 'var(--select-hover, #f3f4f6)' 
+          : 'transparent',
+      color: state.isSelected ? '#ffffff' : 'var(--select-text, #111827)',
+      '.dark &': {
+        backgroundColor: state.isSelected 
+          ? '#323E8F' 
+          : state.isFocused 
+            ? '#374151' 
+            : 'transparent',
+        color: state.isSelected ? '#ffffff' : '#e5e7eb'
+      }
+    }),
+    singleValue: (base) => ({
+      ...base,
+      color: 'var(--select-text, #111827)',
+      '.dark &': {
+        color: '#e5e7eb'
+      }
+    }),
+    input: (base) => ({
+      ...base,
+      color: 'var(--select-text, #111827)',
+      '.dark &': {
+        color: '#e5e7eb'
+      }
+    }),
+    placeholder: (base) => ({
+      ...base,
+      color: 'var(--select-placeholder, #6b7280)',
+      '.dark &': {
+        color: '#9ca3af'
+      }
     })
   };
 
@@ -47,7 +91,7 @@ export default function Filter({ filters, handleFilterChange, departments, cours
   return (
     <div className="flex justify-end">
       <Menu as="div" className="relative inline-block text-left">
-        <Menu.Button className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+        <Menu.Button className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700">
           <FunnelIcon className="w-5 h-5 mr-2" />
           Filter
           {Object.values(filters).some(value => value) && (
@@ -66,11 +110,11 @@ export default function Filter({ filters, handleFilterChange, departments, cours
           leaveFrom="transform scale-100 opacity-100"
           leaveTo="transform scale-95 opacity-0"
         >
-          <Menu.Items className="absolute text-black right-0 mt-2 w-72 origin-top-right bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-10">
+          <Menu.Items className="absolute right-0 mt-2 w-72 origin-top-right bg-white dark:bg-gray-800 text-black dark:text-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 dark:ring-opacity-20 focus:outline-none z-10">
             <div className="p-4">
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Department</label>
                   <Select
                     value={departmentOptions.find(opt => opt.value === filters.department)}
                     onChange={(option) => handleFilterChange('department', option?.value || '')}
@@ -82,7 +126,7 @@ export default function Filter({ filters, handleFilterChange, departments, cours
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Course</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Course</label>
                   <Select
                     value={courseOptions.find(opt => opt.value === filters.course)}
                     onChange={(option) => handleFilterChange('course', option?.value || '')}
@@ -94,7 +138,7 @@ export default function Filter({ filters, handleFilterChange, departments, cours
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Year Level</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Year Level</label>
                   <Select
                     value={filters.yearLevel ? { value: filters.yearLevel, label: filters.yearLevel } : null}
                     onChange={(option) => handleFilterChange('yearLevel', option?.value || '')}
