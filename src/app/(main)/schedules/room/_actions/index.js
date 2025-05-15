@@ -125,6 +125,8 @@ export async function getRoomSchedules(roomId) {
         subjectCode: schedule.subject.subjectCode,
         subjectName: schedule.subject.subjectName
       },
+      classLimit: schedule.classLimit,
+      studentType: schedule.studentType,
       faculty: schedule.faculty ? {
         _id: schedule.faculty._id.toString(),
         firstName: schedule.faculty.firstName,

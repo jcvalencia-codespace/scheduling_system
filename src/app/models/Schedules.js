@@ -1052,6 +1052,7 @@ export default class SchedulesModel {
             classLimit: { $first: '$classLimit' },
             studentType: { $first: '$studentType' },
             isPaired: { $first: '$isPaired' },
+            scheduleType: { $first: '$scheduleSlots.scheduleType' },
             faculty: {
               $first: {
                 $cond: {
@@ -1075,9 +1076,23 @@ export default class SchedulesModel {
               }
             }
           }
+        },
+        {
+          $project: {
+            _id: 1,
+            term: 1,
+            section: 1,
+            subject: 1,
+            classLimit: 1,
+            studentType: 1,
+            isPaired: 1,
+            scheduleType: 1,
+            faculty: 1,
+            scheduleSlots: 1
+          }
         }
       ]);
-
+      console.log('Fetched Schedules:', schedules);
       return schedules;
     } catch (error) {
       console.error('Error fetching room schedules:', error);
