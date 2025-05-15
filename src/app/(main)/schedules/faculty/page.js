@@ -60,24 +60,68 @@ const SelectWrapper = ({ value, onChange, options, isDisabled, placeholder, isLo
       styles={{
         menu: (base) => ({
           ...base,
-          zIndex: 9999
+          zIndex: 9999,
+          backgroundColor: 'var(--select-bg, #ffffff)',
+          border: '1px solid var(--select-border, #e5e7eb)',
+          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+          borderRadius: '0.375rem',
+          '.dark &': {
+            backgroundColor: '#1f2937',
+            borderColor: '#374151'
+          }
         }),
         control: (base, state) => ({
           ...base,
+          backgroundColor: 'var(--select-bg, #ffffff)',
           borderColor: state.isFocused ? '#3b82f6' : '#e5e7eb',
           boxShadow: state.isFocused ? '0 0 0 1px #3b82f6' : 'none',
           '&:hover': {
             borderColor: '#3b82f6'
           },
-          backgroundColor: isDisabled ? '#f9fafb' : 'white',
-          cursor: isDisabled ? 'not-allowed' : 'default'
+          '.dark &': {
+            backgroundColor: '#1f2937',
+            borderColor: state.isFocused ? '#3b82f6' : '#374151'
+          }
         }),
         option: (base, state) => ({
           ...base,
-          backgroundColor: state.isSelected ? '#323E8F' : state.isFocused ? '#e5e7eb' : 'transparent',
-          color: state.isSelected ? 'white' : '#111827',
-          '&:active': {
-            backgroundColor: '#323E8F'
+          backgroundColor: state.isSelected 
+            ? '#323E8F' 
+            : state.isFocused 
+              ? 'var(--select-hover, #f3f4f6)' 
+              : 'transparent',
+          color: state.isSelected ? '#ffffff' : 'var(--select-text, #111827)',
+          '.dark &': {
+            backgroundColor: state.isSelected 
+              ? '#323E8F' 
+              : state.isFocused 
+                ? '#374151' 
+                : 'transparent',
+            color: state.isSelected ? '#ffffff' : '#e5e7eb'
+          },
+          '&:hover': {
+            backgroundColor: state.isSelected ? '#323E8F' : 'var(--select-hover, #f3f4f6)'
+          }
+        }),
+        singleValue: (base) => ({
+          ...base,
+          color: 'var(--select-text, #111827)',
+          '.dark &': {
+            color: '#e5e7eb'
+          }
+        }),
+        input: (base) => ({
+          ...base,
+          color: 'var(--select-text, #111827)',
+          '.dark &': {
+            color: '#e5e7eb'
+          }
+        }),
+        placeholder: (base) => ({
+          ...base,
+          color: 'var(--select-placeholder, #6b7280)',
+          '.dark &': {
+            color: '#9ca3af'
           }
         })
       }}
@@ -361,6 +405,84 @@ export default function SchedulePage() {
 
   return (
     <div className="mx-auto max-w-7xl py-8 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-slate-50 to-slate-100">
+      <style jsx global>{`
+        body {
+          background-color: var(--bg-color, #f8fafc);
+        }
+
+        .bg-gradient-to-b {
+          background-image: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+          position: relative;
+        }
+
+        .dark body {
+          background-color: #111827;
+        }
+
+        .dark .bg-gradient-to-b {
+          background-image: linear-gradient(to bottom, #111827, #1f2937);
+        }
+
+        .dark .bg-white {
+          background-color: #1f2937;
+        }
+
+        .dark .text-gray-800 {
+          color: #f3f4f6;
+        }
+
+        .dark .text-gray-600 {
+          color: #d1d5db;
+        }
+
+        .dark .text-gray-500 {
+          color: #9ca3af;
+        }
+
+        .dark .border-gray-100 {
+          border-color: #374151;
+        }
+
+        .dark .shadow-md {
+          --tw-shadow-color: rgba(0, 0, 0, 0.3);
+        }
+
+        /* Calendar Styles */
+        .dark .fc-col-header-cell {
+          background-color: #1e3a8a;
+          color: #f3f4f6;
+        }
+
+        .dark .fc-timegrid-axis,
+        .dark .fc-timegrid-slot-label {
+          color: #e5e7eb !important;
+        }
+
+        .dark .fc-theme-standard td,
+        .dark .fc-theme-standard th {
+          border-color: #374151 !important;
+        }
+
+        .dark .fc-theme-standard .fc-scrollgrid {
+          border-color: #374151;
+        }
+
+        .dark .fc-timegrid-event {
+          background-color: #3b82f6;
+          border-color: #2563eb;
+        }
+
+        .dark button.bg-white {
+          background-color: #1f2937;
+          color: #f3f4f6;
+          border-color: #374151;
+        }
+
+        .dark button.bg-white:hover {
+          background-color: #374151;
+        }
+      `}</style>
+
       {/* Conditionally render TabNav */}
       {canSeeTabNav && (
         <div className="mb-6">

@@ -9,7 +9,8 @@ import moment from "moment"
 import ArchiveCalendarView from "../_components/ArchiveCalendarView"
 import { Calendar, Clock, Building } from "lucide-react"
 import { components } from "react-select"
-import SchedulePDF from "../_components/SchedulePDF"
+import RoomArchivePDF from './_components/RoomArchivePDF'
+import Swal from "sweetalert2"
 
 const NoSSRSelect = dynamic(() => import("react-select"), { ssr: false })
 
@@ -134,20 +135,38 @@ export default function RoomArchive() {
   }
 
   const handlePrint = async () => {
-    if (!selectedRoom || !selectedTerm) return;
+    if (!selectedRoom) {
+      Swal.fire({
+        icon: "warning",
+        title: "No Room Selected",
+        text: "Please select a room before printing the schedule.",
+        confirmButtonColor: "#323E8F",
+      });
+      return;
+    }
     
     try {
       const activeTerm = archivedTerms[selectedYear]?.find(t => t._id === selectedTerm);
-      const selectedRoomName = roomOptions.find(r => r.value === selectedRoom)?.label;
-      
-      const doc = await SchedulePDF({ 
+      const roomDetails = rooms.find(r => r._id === selectedRoom);
+      const roomName = roomDetails ? `${roomDetails.roomCode} - ${roomDetails.roomName}` : selectedRoom;
+
+      // Generate PDF directly without preview
+      const doc = await RoomArchivePDF({
         activeTerm,
-        schedules,
-        selectedSection: selectedRoomName 
+        schedules: schedules,
+        selectedSection: roomName
       });
-      doc.save(`Room_Schedule_${selectedRoomName}_${activeTerm?.term || ''}.pdf`);
+
+      // Save the PDF
+      doc.save(`archived-room-schedule-${roomName}-${activeTerm.term}-${activeTerm.academicYear}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to generate PDF',
+        confirmButtonColor: "#323E8F",
+      });
     }
   };
 
@@ -364,6 +383,92 @@ export default function RoomArchive() {
           </div>
         </div>
       )}
+
+      <style jsx global>{`
+        body {
+          background-color: var(--bg-color, #f8fafc);
+        }
+
+        .bg-gradient-to-b {
+          background-image: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+          position: relative;
+        }
+
+        .dark body {
+          background-color: #111827;
+        }
+
+        .dark .bg-gradient-to-b {
+          background-image: linear-gradient(to bottom, #111827, #1f2937);
+        }
+
+        .dark .bg-white {
+          background-color: #1f2937;
+        }
+
+        .dark .text-gray-800 {
+          color: #f3f4f6;
+        }
+
+        .dark .text-gray-600 {
+          color: #d1d5db;
+        }
+
+        .dark .text-gray-500 {
+          color: #9ca3af;
+        }
+
+        .dark .border-gray-100 {
+          border-color: #374151;
+        }
+
+        .dark .shadow-md {
+          --tw-shadow-color: rgba(0, 0, 0, 0.3);
+        }
+
+        .dark .shadow-sm {
+          --tw-shadow-color: rgba(0, 0, 0, 0.2);
+        }
+
+        /* Calendar Styles */
+        .dark .fc-col-header-cell {
+          background-color: #1e3a8a;
+          color: #f3f4f6;
+        }
+
+        .dark .fc-timegrid-axis,
+        .dark .fc-timegrid-slot-label {
+          color: #e5e7eb !important;
+        }
+
+        .dark .fc-theme-standard td,
+        .dark .fc-theme-standard th {
+          border-color: #374151 !important;
+        }
+
+        .dark .fc-theme-standard .fc-scrollgrid {
+          border-color: #374151;
+        }
+
+        .dark .fc-timegrid-event {
+          background-color: #3b82f6;
+          border-color: #2563eb;
+        }
+
+        .dark button.bg-white {
+          background-color: #1f2937;
+          color: #f3f4f6;
+          border-color: #374151;
+        }
+
+        .dark button.bg-white:hover {
+          background-color: #374151;
+        }
+
+        .dark .hover\\:bg-gray-50:hover {
+          background-color: #374151;
+        }
+      `}</style>
     </div>
   )
 }

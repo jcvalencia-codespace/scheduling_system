@@ -1,48 +1,51 @@
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment, useEffect, useState } from 'react';
-import SchedulePDF from './SchedulePDF';
+import generatePDF from './SchedulePDF';
 
 export default function PreviewPDFModal({ isOpen, onClose, pdfProps }) {
-  const [pdfUrl, setPdfUrl] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [pdfUrl, setPdfUrl] = useState(null);
 
   useEffect(() => {
-    async function generatePDF() {
-      if (isOpen && pdfProps) {
+    async function generatePreview() {
+      if (isOpen) {
         try {
           setIsLoading(true);
-          // Generate PDF
-          const PDFGenerator = pdfProps.pdfGenerator || SchedulePDF;
-          const doc = await PDFGenerator(pdfProps);
+          // Use the provided PDF generator or fall back to default
+          const pdfGenerator = pdfProps.pdfGenerator || generatePDF;
+          const doc = await pdfGenerator(pdfProps, true);
           
-          // Wait for a moment to ensure doc is ready
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-          // Generate URL
-          const url = doc.output('datauristring');
-          setPdfUrl(url);
+          // Ensure doc is a jsPDF instance
+          if (doc && typeof doc.output === 'function') {
+            const blob = doc.output('blob');
+            const url = URL.createObjectURL(blob);
+            setPdfUrl(url);
+          } else {
+            console.error('Invalid PDF document returned');
+          }
         } catch (error) {
           console.error('Error generating PDF:', error);
-          setPdfUrl(null);
         } finally {
           setIsLoading(false);
         }
       }
     }
 
-    generatePDF();
+    generatePreview();
 
-    // Cleanup function
     return () => {
-      setPdfUrl(null);
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+        setPdfUrl(null);
+      }
     };
   }, [isOpen, pdfProps]);
 
   const handleDownload = async () => {
     try {
-      const PDFGenerator = pdfProps.pdfGenerator || SchedulePDF;
-      const doc = await PDFGenerator(pdfProps);
-      doc.save(`Schedule_${pdfProps.selectedSection || 'All'}_${pdfProps.activeTerm?.term || ''}.pdf`);
+      const pdfGenerator = pdfProps.pdfGenerator || generatePDF;
+      const doc = await pdfGenerator(pdfProps, false);
+      // The generator will handle the saving internally
     } catch (error) {
       console.error('Error downloading PDF:', error);
     }
@@ -88,7 +91,7 @@ export default function PreviewPDFModal({ isOpen, onClose, pdfProps }) {
                     </button>
                     <button
                       onClick={onClose}
-                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
                     >
                       Close
                     </button>
@@ -99,18 +102,14 @@ export default function PreviewPDFModal({ isOpen, onClose, pdfProps }) {
                     <div className="flex items-center justify-center h-full">
                       <span className="text-gray-500">Loading...</span>
                     </div>
-                  ) : pdfUrl ? (
+                  ) : (
                     <iframe
-                      src={pdfUrl}
                       width="100%"
                       height="100%"
                       style={{ border: 'none' }}
-                      title="PDF Preview"
+                      src={pdfUrl}
+                      type="application/pdf"
                     />
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <span className="text-red-500">Failed to generate PDF</span>
-                    </div>
                   )}
                 </div>
               </Dialog.Panel>

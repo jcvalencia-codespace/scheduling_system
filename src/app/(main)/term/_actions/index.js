@@ -120,3 +120,27 @@ export async function endAllTerms() {
     return { error: error.message || 'Failed to deactivate terms' };
   }
 }
+
+export async function toggleTermVisibility(academicYear) {
+  try {
+    const success = await termsModel.toggleTermVisibility(academicYear);
+    if (!success) {
+      throw new Error('Failed to toggle term visibility');
+    }
+    revalidatePath('/term');
+    return { success: true };
+  } catch (error) {
+    console.error('Error in toggleTermVisibility:', error);
+    return { error: error.message || 'Failed to toggle term visibility' };
+  }
+}
+
+export async function getAllAcademicYears() {
+  try {
+    const years = await termsModel.getAllAcademicYears();
+    return { years };
+  } catch (error) {
+    console.error('Error in getAllAcademicYears:', error);
+    return { error: error.message || 'Failed to fetch academic years' };
+  }
+}

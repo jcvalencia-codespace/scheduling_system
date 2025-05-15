@@ -9,7 +9,7 @@ import moment from "moment"
 import ArchiveCalendarView from "../_components/ArchiveCalendarView"
 import { Calendar, Clock, User } from "lucide-react"
 import { components } from "react-select"
-import SchedulePDF from "../_components/SchedulePDF"
+import FacultyArchivePDF from './_components/FacultyArchivePDF'
 
 const NoSSRSelect = dynamic(() => import("react-select"), { ssr: false })
 
@@ -151,18 +151,17 @@ export default function FacultyArchive() {
       const activeTerm = archivedTerms[selectedYear]?.find(t => t._id === selectedTerm);
       const selectedFacultyName = facultyOptions.find(f => f.value === selectedFaculty)?.label;
       
-      // Filter schedules for the selected faculty
       const facultySchedules = schedules.filter(schedule => 
         schedule.faculty?._id === selectedFaculty
       );
 
-      const doc = await SchedulePDF({ 
+      const doc = await FacultyArchivePDF({ 
         activeTerm,
-        schedules: facultySchedules, // Pass filtered schedules
-        selectedSection: selectedFacultyName,
-        type: 'faculty' // Add type to indicate this is a faculty schedule
+        schedules: facultySchedules,
+        selectedSection: selectedFacultyName
       });
-      doc.save(`Faculty_Schedule_${selectedFacultyName}_${activeTerm?.term || ''}.pdf`);
+
+      doc.save(`archived-faculty-schedule-${selectedFacultyName}-${activeTerm?.term || ''}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
     }
@@ -387,6 +386,92 @@ export default function FacultyArchive() {
           </div>
         </div>
       )}
+
+      <style jsx global>{`
+        body {
+          background-color: var(--bg-color, #f8fafc);
+        }
+
+        .bg-gradient-to-b {
+          background-image: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+          position: relative;
+        }
+
+        .dark body {
+          background-color: #111827;
+        }
+
+        .dark .bg-gradient-to-b {
+          background-image: linear-gradient(to bottom, #111827, #1f2937);
+        }
+
+        .dark .bg-white {
+          background-color: #1f2937;
+        }
+
+        .dark .text-gray-800 {
+          color: #f3f4f6;
+        }
+
+        .dark .text-gray-600 {
+          color: #d1d5db;
+        }
+
+        .dark .text-gray-500 {
+          color: #9ca3af;
+        }
+
+        .dark .border-gray-100 {
+          border-color: #374151;
+        }
+
+        .dark .shadow-md {
+          --tw-shadow-color: rgba(0, 0, 0, 0.3);
+        }
+
+        .dark .shadow-sm {
+          --tw-shadow-color: rgba(0, 0, 0, 0.2);
+        }
+
+        /* Calendar Styles */
+        .dark .fc-col-header-cell {
+          background-color: #1e3a8a;
+          color: #f3f4f6;
+        }
+
+        .dark .fc-timegrid-axis,
+        .dark .fc-timegrid-slot-label {
+          color: #e5e7eb !important;
+        }
+
+        .dark .fc-theme-standard td,
+        .dark .fc-theme-standard th {
+          border-color: #374151 !important;
+        }
+
+        .dark .fc-theme-standard .fc-scrollgrid {
+          border-color: #374151;
+        }
+
+        .dark .fc-timegrid-event {
+          background-color: #3b82f6;
+          border-color: #2563eb;
+        }
+
+        .dark button.bg-white {
+          background-color: #1f2937;
+          color: #f3f4f6;
+          border-color: #374151;
+        }
+
+        .dark button.bg-white:hover {
+          background-color: #374151;
+        }
+
+        .dark .hover\\:bg-gray-50:hover {
+          background-color: #374151;
+        }
+      `}</style>
     </div>
   )
 }
