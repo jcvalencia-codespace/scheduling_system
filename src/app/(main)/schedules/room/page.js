@@ -578,7 +578,13 @@ export default function RoomSchedulePage() {
 
         <ViewScheduleModal
           isOpen={isViewScheduleModalOpen}
-          onClose={() => setIsViewScheduleModalOpen(false)}
+          onClose={() => {
+            setIsViewScheduleModalOpen(false);
+            // Refresh schedules after view modal closes (in case of edits)
+            if (selectedRoom) {
+              fetchRoomSchedules(selectedRoom);
+            }
+          }}
           schedule={selectedSchedule}
           onDeleted={() => fetchRoomSchedules(selectedRoom?._id)}
         />

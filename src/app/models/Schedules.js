@@ -1052,6 +1052,7 @@ export default class SchedulesModel {
             classLimit: { $first: '$classLimit' },
             studentType: { $first: '$studentType' },
             isPaired: { $first: '$isPaired' },
+            scheduleType: { $first: '$scheduleSlots.scheduleType' },
             faculty: {
               $first: {
                 $cond: {
@@ -1075,9 +1076,23 @@ export default class SchedulesModel {
               }
             }
           }
+        },
+        {
+          $project: {
+            _id: 1,
+            term: 1,
+            section: 1,
+            subject: 1,
+            classLimit: 1,
+            studentType: 1,
+            isPaired: 1,
+            scheduleType: 1,
+            faculty: 1,
+            scheduleSlots: 1
+          }
         }
       ]);
-
+      console.log('Fetched Schedules:', schedules);
       return schedules;
     } catch (error) {
       console.error('Error fetching room schedules:', error);
@@ -1228,7 +1243,9 @@ export default class SchedulesModel {
         roomConflicts: [],
         facultyConflicts: [],
         sectionConflicts: [],
-        durationConflicts: [] // Add duration conflicts array
+        durationConflicts: [],
+        adminHoursConflicts: [],
+        subjectFrequencyConflicts: [] // Add new conflict type
       };
 
       const calculateDuration = (timeFrom, timeTo) => {
@@ -1274,6 +1291,16 @@ export default class SchedulesModel {
         }
       };
 
+      // Add isTimeOverlap helper function
+      const isTimeOverlap = (slot1, slot2) => {
+        const timeFrom1 = moment(slot1.timeFrom, 'h:mm A');
+        const timeTo1 = moment(slot1.timeTo, 'h:mm A');
+        const timeFrom2 = moment(slot2.timeFrom || slot2.startTime, 'h:mm A');
+        const timeTo2 = moment(slot2.timeTo || slot2.endTime, 'h:mm A');
+
+        return !(timeTo1.isSameOrBefore(timeFrom2) || timeFrom1.isSameOrAfter(timeTo2));
+      };
+
       // Process all schedule slots (main and paired if exists)
       const allSlots = [
         {
@@ -1306,30 +1333,107 @@ export default class SchedulesModel {
         return conflicts;
       }
 
-      // Helper function to check time overlap
-      const isTimeOverlap = (slot1, slot2) => {
-        // Parse times using moment
-        const timeFrom1 = moment(slot1.timeFrom, 'h:mm A');
-        const timeTo1 = moment(slot1.timeTo, 'h:mm A');
-        const timeFrom2 = moment(slot2.timeFrom, 'h:mm A');
-        const timeTo2 = moment(slot2.timeTo, 'h:mm A');
+      // Modify admin hours conflict check
+      if (scheduleData.faculty) {
+        const AdminHours = mongoose.models.AdminHours || mongoose.model('AdminHours', require('../../../db/schema').AdminHourSchema);
+        const Users = mongoose.models.Users || mongoose.model('Users', require('../../../db/schema').UserSchema);
+        
+        // Get approved admin hours and faculty info
+        const [adminHours, facultyInfo] = await Promise.all([
+          AdminHours.findOne({
+            user: new mongoose.Types.ObjectId(scheduleData.faculty),
+            term: new mongoose.Types.ObjectId(scheduleData.term),
+            isActive: true,
+            'slots.status': 'approved'
+          }),
+          Users.findById(scheduleData.faculty).select('firstName lastName')
+        ]);
 
-        // Debug logs to verify time parsing
-        console.log('Time comparison:', {
-          slot1: { from: slot1.timeFrom, to: slot1.timeTo },
-          slot2: { from: slot2.timeFrom, to: slot2.timeTo },
-          parsed1: { from: timeFrom1.format('HH:mm'), to: timeTo1.format('HH:mm') },
-          parsed2: { from: timeFrom2.format('HH:mm'), to: timeTo2.format('HH:mm') }
-        });
+        if (adminHours && facultyInfo) {
+          // Check each schedule slot against admin hours
+          for (const slot of allSlots) {
+            const scheduleDay = Array.isArray(slot.days) ? slot.days[0] : slot.days;
+            const facultyName = `${facultyInfo.lastName}, ${facultyInfo.firstName}`;
 
-        // Check if one time range is completely before or after the other
-        // A conflict exists if one range doesn't end before the other starts
-        // and doesn't start after the other ends
-        return !(
-          timeTo1.isSameOrBefore(timeFrom2) ||
-          timeFrom1.isSameOrAfter(timeTo2)
-        );
-      };
+            // Check against each approved admin hour slot
+            const conflictingAdminSlots = adminHours.slots.filter(adminSlot => {
+              if (adminSlot.status !== 'approved' || adminSlot.day !== scheduleDay) {
+                return false;
+              }
+
+              // Convert admin hours to same format
+              const adminSlotFormatted = {
+                timeFrom: adminSlot.startTime,
+                timeTo: adminSlot.endTime
+              };
+
+              return isTimeOverlap(slot, adminSlotFormatted);
+            });
+
+            if (conflictingAdminSlots.length > 0) {
+              conflicts.hasConflicts = true;
+              conflicts.adminHoursConflicts.push({
+                day: scheduleDay,
+                timeFrom: slot.timeFrom,
+                timeTo: slot.timeTo,
+                faculty: facultyName,
+                conflictingSlots: conflictingAdminSlots.map(adminSlot => ({
+                  day: adminSlot.day,
+                  startTime: adminSlot.startTime,
+                  endTime: adminSlot.endTime,
+                  type: adminSlot.type || 'Administrative'
+                }))
+              });
+            }
+          }
+        }
+      }
+
+      // Add subject frequency check right after admin hours check and before room checks
+      const sections = Array.isArray(scheduleData.section) 
+        ? scheduleData.section 
+        : [scheduleData.section];
+
+      for (const sectionId of sections) {
+        // Get existing schedules for this section and subject
+        const existingSubjectSchedules = await Schedules.find({
+          isActive: true,
+          term: new mongoose.Types.ObjectId(scheduleData.term),
+          section: new mongoose.Types.ObjectId(sectionId),
+          subject: new mongoose.Types.ObjectId(scheduleData.subject),
+          _id: { $ne: scheduleIdToExclude ? new mongoose.Types.ObjectId(scheduleIdToExclude) : null }
+        }).populate('subject', 'subjectCode subjectName');
+
+        // Count weekly occurrences
+        let weeklyOccurrences = existingSubjectSchedules.reduce((count, schedule) => {
+          return count + schedule.scheduleSlots.reduce((slotCount, slot) => {
+            return slotCount + (Array.isArray(slot.days) ? slot.days.length : 1);
+          }, 0);
+        }, 0);
+
+        // Add current schedule's occurrences
+        const newOccurrences = (Array.isArray(scheduleData.days) ? scheduleData.days.length : 1) +
+          (scheduleData.isPaired && scheduleData.pairedSchedule ? 
+            (Array.isArray(scheduleData.pairedSchedule.days) ? 
+              scheduleData.pairedSchedule.days.length : 1) : 0);
+
+        weeklyOccurrences += newOccurrences;
+
+        if (weeklyOccurrences > 2) {
+          const section = await mongoose.model('Sections').findById(sectionId);
+          const subject = await mongoose.model('Subjects').findById(scheduleData.subject);
+          
+          conflicts.hasConflicts = true;
+          conflicts.subjectFrequencyConflicts.push({
+            section: section.sectionName,
+            subject: subject.subjectCode,
+            currentCount: weeklyOccurrences - newOccurrences,
+            attemptedAdd: newOccurrences,
+            maxAllowed: 2,
+            message: `${subject.subjectCode} is already scheduled ${weeklyOccurrences - newOccurrences} times this week for section ${section.sectionName}`
+          });
+        }
+      }
 
       // Check each slot for conflicts
       for (const slot of allSlots) {

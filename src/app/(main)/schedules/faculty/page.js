@@ -504,14 +504,16 @@ export default function SchedulePage() {
             justify-end sm:justify-start mt-4 sm:mt-0
             ${isScrolled ? 'opacity-0 transform translate-y-[-20px]' : 'opacity-100 transform translate-y-0'}
           `}>
-            <button
-              onClick={() => setIsAdminHoursModalOpen(true)}
-              className="inline-flex items-center px-3 sm:px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-white bg-[#579980] hover:bg-[#488b73] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#77DD77]"
-            >
-              <ClockIcon className="h-5 w-5 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Set Admin Hours</span>
-              <span className="sm:hidden">Admin Hours</span>
-            </button>
+            {user?.employmentType !== 'part-time' && (
+              <button
+                onClick={() => setIsAdminHoursModalOpen(true)}
+                className="inline-flex items-center px-3 sm:px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-white bg-[#579980] hover:bg-[#488b73] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#77DD77]"
+              >
+                <ClockIcon className="h-5 w-5 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Set Admin Hours</span>
+                <span className="sm:hidden">Admin Hours</span>
+              </button>
+            )}
             {canCreateSchedule && (
               <button
                 onClick={() => setIsNewScheduleModalOpen(true)}
@@ -533,17 +535,20 @@ export default function SchedulePage() {
           </div>
         </div>
 
+        {/* Fixed buttons on scroll */}
         <div className={`fixed right-8 bottom-8 flex flex-col gap-4 transition-all duration-300 ease-in-out z-[60]
           ${isScrolled ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-[20px] pointer-events-none'}`}>
-          <div className="tooltip">
-            <button
-              onClick={() => setIsAdminHoursModalOpen(true)}
-              className="w-12 h-12 rounded-full flex items-center justify-center text-white bg-[#579980] hover:bg-[#488b73] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#77DD77] shadow-lg transition-all duration-200"
-            >
-              <ClockIcon className="h-6 w-6" />
-            </button>
-            <span className="tooltiptext">Set Admin Hours</span>
-          </div>
+          {user?.employmentType !== 'part-time' && (
+            <div className="tooltip">
+              <button
+                onClick={() => setIsAdminHoursModalOpen(true)}
+                className="w-12 h-12 rounded-full flex items-center justify-center text-white bg-[#579980] hover:bg-[#488b73] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#77DD77] shadow-lg transition-all duration-200"
+              >
+                <ClockIcon className="h-6 w-6" />
+              </button>
+              <span className="tooltiptext">Set Admin Hours</span>
+            </div>
+          )}
 
           {canCreateSchedule && (
             <div className="tooltip">
