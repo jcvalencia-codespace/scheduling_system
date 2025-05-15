@@ -238,12 +238,12 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
             // Include dean's own account
             (user._id === currentUser._id) ||
             // Include department members (faculty and program chairs)
-            (user.department?._id && 
-             user.department._id.toString() === currentUser.department.toString() &&
-             ['Faculty', 'Program Chair'].includes(user.role))
+            (user.department?._id &&
+              user.department._id.toString() === currentUser.department.toString() &&
+              ['Faculty', 'Program Chair'].includes(user.role))
           );
         }
-        
+
         // For Admin: Include all non-admin users
         if (isAdmin) {
           return !['Administrator'].includes(user.role);
@@ -701,7 +701,7 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
                               className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center cursor-pointer"
                               onClick={() => setIsSubmittedHoursOpen(!isSubmittedHoursOpen)}
                             >
-                              <h4 className="text-base font-semibold text-gray-900">Submitted Admin Hours</h4>
+                              <h4 className="text-base font-semibold text-gray-900">View Submitted Admin Hours</h4>
                               <button className="text-gray-500 hover:text-gray-700">
                                 {isSubmittedHoursOpen ? (
                                   <ChevronUpIcon className="h-5 w-5" />
@@ -741,15 +741,16 @@ export default function AdminHoursModal({ isOpen, onClose, maxHours, currentUser
                                             </td>
                                             <td className="px-4 py-3">
                                               <span
-                                                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                                                  slot.status === "approved"
+                                                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${slot.status === "approved"
                                                     ? "bg-green-100 text-green-800"
                                                     : slot.status === "rejected"
                                                       ? "bg-red-100 text-red-800"
                                                       : slot.status === "cancelled"
                                                         ? "bg-gray-100 text-gray-800"
-                                                        : "bg-yellow-100 text-yellow-800"
-                                                }`}
+                                                        : slot.status === "deleted"
+                                                          ? "bg-red-100 text-red-800"
+                                                          : "bg-yellow-100 text-yellow-800"
+                                                  }`}
                                               >
                                                 {slot.status.charAt(0).toUpperCase() + slot.status.slice(1)}
                                               </span>

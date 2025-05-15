@@ -106,6 +106,8 @@ export default function SchedulePage() {
   const [adminHours, setAdminHours] = useState([]);
   const [isFacultyLoading, setIsFacultyLoading] = useState(true);
   const [filteredFacultyOptions, setFilteredFacultyOptions] = useState([]);
+  // Add new state variable after other state declarations
+  const [adminHoursDocId, setAdminHoursDocId] = useState(null);
 
   const formatDate = (dateStr) => {
     return moment(dateStr).format('MMMM D, YYYY')
@@ -158,12 +160,13 @@ export default function SchedulePage() {
         throw new Error(scheduleResponse.error);
       }
 
-      // Combine regular schedules with admin hours
       const regularSchedules = scheduleResponse.schedules || [];
       const adminHours = adminHoursResponse.hours?.slots || [];
-
+      
+      // Store the admin hours document ID
+      setAdminHoursDocId(adminHoursResponse.hours?._id || null);
       setSchedules(regularSchedules);
-      setAdminHours(adminHours); // Add this state
+      setAdminHours(adminHours);
 
     } catch (error) {
       console.error('Error fetching schedules:', error);
@@ -300,7 +303,14 @@ export default function SchedulePage() {
           borderColor: "#488b73",
           extendedProps: {
             isAdminHours: true,
-            adminHours: slot
+            adminHours: {
+              ...slot,
+              _id: slot._id,
+              parentId: adminHoursDocId, // Use the stored document ID
+              isAdminHours: true,
+              term: activeTerm,
+              status: slot.status
+            }
           }
         };
       });
@@ -648,10 +658,22 @@ export default function SchedulePage() {
 
         <AdminHoursModal
           isOpen={isAdminHoursModalOpen}
-          onClose={() => setIsAdminHoursModalOpen(false)}
+          onClose={() => {
+            setIsAdminHoursModalOpen(false);
+            // Add refresh after modal closes
+            if (selectedFaculty) {
+              fetchFacultySchedules(selectedFaculty);
+            }
+          }}
           maxHours={40}
           currentUser={user}
           termId={activeTerm?.id}
+          onSuccess={() => {
+            // Add refresh after successful creation
+            if (selectedFaculty) {
+              fetchFacultySchedules(selectedFaculty);
+            }
+          }}
         />
 
         <PreviewPDFModal
