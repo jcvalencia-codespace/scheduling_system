@@ -278,7 +278,7 @@ export default function ViewScheduleModal({
                                 <UserIcon className="h-5 w-5" />
                                 <p className="text-sm">
                                   {isAdminHours ? 'Faculty' : 'Scheduled for'}: {' '}
-                                  <span className="font-semibold text-gray-900">
+                                  <span className="font-semibold text-gray-900 dark:text-white">
                                     {currentSchedule.faculty 
                                       ? `${currentSchedule.faculty.firstName} ${currentSchedule.faculty.lastName}` 
                                       : 'TBA (To Be Assigned)'}
@@ -292,7 +292,7 @@ export default function ViewScheduleModal({
                               <div className="flex items-center gap-x-2 text-gray-600">
                                 <ClockIcon className="h-5 w-5" />
                                 <p className="text-sm">
-                                  Time: <span className="font-semibold text-gray-900">
+                                  Time: <span className="font-semibold text-gray-900 dark:text-white">
                                     {isAdminHours 
                                       ? `${currentSchedule.startTime} - ${currentSchedule.endTime}`
                                       : `${currentSchedule.timeFrom} - ${currentSchedule.timeTo}`}
@@ -306,7 +306,7 @@ export default function ViewScheduleModal({
                               <div className="flex items-center gap-x-2 text-gray-600">
                                 <CalendarIcon className="h-5 w-5" />
                                 <p className="text-sm">
-                                  Day: <span className="font-semibold text-gray-900">
+                                  Day: <span className="font-semibold text-gray-900 dark:text-white">
                                     {isAdminHours ? currentSchedule.day : currentSchedule.days?.join(', ')}
                                   </span>
                                 </p>
@@ -320,7 +320,7 @@ export default function ViewScheduleModal({
                                   <div className="flex items-center gap-x-2 text-gray-600">
                                     <AcademicCapIcon className="h-5 w-5" />
                                     <p className="text-sm">
-                                      Section: <span className="font-semibold text-gray-900">
+                                      Section: <span className="font-semibold text-gray-900 dark:text-white">
                                         {currentSchedule.section?.sectionName}
                                       </span>
                                     </p>
@@ -331,7 +331,7 @@ export default function ViewScheduleModal({
                                   <div className="flex items-center gap-x-2 text-gray-600">
                                     <BookOpenIcon className="h-5 w-5" />
                                     <p className="text-sm">
-                                      Subject: <span className="font-semibold text-gray-900">
+                                      Subject: <span className="font-semibold text-gray-900 dark:text-white">
                                         {currentSchedule.subject?.subjectCode} - {currentSchedule.subject?.subjectName}
                                       </span>
                                     </p>
@@ -342,7 +342,7 @@ export default function ViewScheduleModal({
                                   <div className="flex items-center gap-x-2 text-gray-600">
                                     <BuildingOfficeIcon className="h-5 w-5" />
                                     <p className="text-sm">
-                                      Room: <span className="font-semibold text-gray-900">
+                                      Room: <span className="font-semibold text-gray-900 dark:text-white">
                                         {currentSchedule.room?.roomCode}
                                       </span>
                                     </p>
@@ -368,7 +368,7 @@ export default function ViewScheduleModal({
                                 <div className="flex items-center gap-x-2 text-gray-600">
                                   <UsersIcon className="h-5 w-5" />
                                   <p className="text-sm">
-                                    Class Limit: <span className="font-semibold text-gray-900">
+                                    Class Limit: <span className="font-semibold text-gray-900 dark:text-white">
                                       {schedule?.classLimit || currentSchedule?.classLimit}
                                     </span>
                                   </p>
@@ -379,7 +379,7 @@ export default function ViewScheduleModal({
                                 <div className="flex items-center gap-x-2 text-gray-600">
                                   <UserGroupIcon className="h-5 w-5" />
                                   <p className="text-sm">
-                                    Student Type: <span className="font-semibold text-gray-900">
+                                    Student Type: <span className="font-semibold text-gray-900 dark:text-white">
                                       {schedule?.studentType || currentSchedule?.studentType}
                                     </span>
                                   </p>
@@ -390,7 +390,7 @@ export default function ViewScheduleModal({
                                 <div className="flex items-center gap-x-2 text-gray-600">
                                   <PresentationChartLineIcon className="h-5 w-5" />
                                   <p className="text-sm">
-                                    Schedule Type: <span className="font-semibold text-gray-900">
+                                    Schedule Type: <span className="font-semibold text-gray-900 dark:text-white">
                                       {(schedule?.scheduleType || currentSchedule?.scheduleType)?.charAt(0).toUpperCase() + 
                                        (schedule?.scheduleType || currentSchedule?.scheduleType)?.slice(1)}
                                     </span>
@@ -402,7 +402,7 @@ export default function ViewScheduleModal({
                                 <div className="flex items-center gap-x-2 text-gray-600">
                                   <ArrowsRightLeftIcon className="h-5 w-5" />
                                   <p className="text-sm">
-                                    Pairing: <span className="font-semibold text-gray-900">
+                                    Pairing: <span className="font-semibold text-gray-900 dark:text-white">
                                       {(schedule?.isPaired || currentSchedule?.isPaired) ? 'Yes' : 'No'}
                                     </span>
                                   </p>

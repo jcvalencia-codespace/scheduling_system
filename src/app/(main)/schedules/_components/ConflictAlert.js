@@ -341,7 +341,7 @@ export default function ConflictAlert({
               </svg>
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Schedule Conflicts Detected</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-red-400">Schedule Conflicts Detected</h2>
               <p className="text-gray-600 text-sm">
                 We've identified {totalConflicts} potential schedule {totalConflicts === 1 ? "conflict" : "conflicts"}{" "}
                 that require your attention
@@ -394,13 +394,13 @@ export default function ConflictAlert({
                   onChange={(e) => setOverrideEnabled(e.target.checked)}
                   className="w-4 h-4 text-[#35408E] border-gray-300 rounded focus:ring-[#35408E]"
                 />
-                <label htmlFor="enableOverride" className="ml-2 text-sm text-gray-700">
+                <label htmlFor="enableOverride" className="ml-2 text-sm text-gray-700 dark:text-white">
                   I have reviewed all conflicts and understand the scheduling issues
                 </label>
               </div>
 
               {(!overrideEnabled || !allConflictsViewed()) && (
-                <p className="text-red-600 text-xs mb-4 flex items-center">
+                <p className="text-red-600 text-xs mb-4 flex items-cente dark:text-white">
                   {/* Heroicon - Exclamation Triangle (mini) - Now Red */}
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
