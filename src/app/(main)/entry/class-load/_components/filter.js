@@ -19,17 +19,22 @@ const customSelectStyles = {
       color: 'white'
     }
   }),
-  control: (styles) => ({
-    ...styles,
-    borderColor: '#D1D5DB',
+  control: (baseStyles, state) => ({
+    ...baseStyles,
+    backgroundColor: 'var(--bg-control, white)',
+    borderColor: state.isFocused ? '#323E8F' : '#D1D5DB',
     '&:hover': {
       borderColor: '#323E8F'
     },
-    boxShadow: 'none',
-    '&:focus-within': {
-      borderColor: '#323E8F',
-      boxShadow: '0 0 0 1px #323E8F'
-    }
+    boxShadow: state.isFocused ? '0 0 0 1px #323E8F' : 'none',
+  }),
+  menuList: (base) => ({
+    ...base,
+    backgroundColor: 'var(--bg-menu, white)',
+  }),
+  singleValue: (base) => ({
+    ...base,
+    color: 'var(--text-primary, #111827)',
   }),
   placeholder: (styles) => ({
     ...styles,
@@ -129,10 +134,10 @@ export default function Filter({ filters, handleFilterChange, filterOptions, dep
   }
 
   return (
-    <div className="bg-white shadow rounded-lg p-6 mb-6">
+    <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Department</label>
           <ReactSelect
             value={filters.department ? {
               value: filters.department,
@@ -146,11 +151,20 @@ export default function Filter({ filters, handleFilterChange, filterOptions, dep
             isClearable
             placeholder="All Departments"
             styles={customSelectStyles}
+            theme={(theme) => ({
+              ...theme,
+              colors: {
+                ...theme.colors,
+                neutral0: 'var(--bg-control, white)',
+                neutral80: 'var(--text-primary, #111827)',
+                neutral30: '#D1D5DB',
+              },
+            })}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Course</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Course</label>
           <ReactSelect
             value={filters.course ? { 
               value: filters.course, 
@@ -164,11 +178,20 @@ export default function Filter({ filters, handleFilterChange, filterOptions, dep
             isClearable
             placeholder="All Courses"
             styles={customSelectStyles}
+            theme={(theme) => ({
+              ...theme,
+              colors: {
+                ...theme.colors,
+                neutral0: 'var(--bg-control, white)',
+                neutral80: 'var(--text-primary, #111827)',
+                neutral30: '#D1D5DB',
+              },
+            })}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Year Level</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Year Level</label>
           <ReactSelect
             value={filters.yearLevel ? { 
               value: filters.yearLevel, 
@@ -182,11 +205,20 @@ export default function Filter({ filters, handleFilterChange, filterOptions, dep
             isClearable
             placeholder="All Year Levels"
             styles={customSelectStyles}
+            theme={(theme) => ({
+              ...theme,
+              colors: {
+                ...theme.colors,
+                neutral0: 'var(--bg-control, white)',
+                neutral80: 'var(--text-primary, #111827)',
+                neutral30: '#D1D5DB',
+              },
+            })}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Section</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Section</label>
           <ReactSelect
             value={filters.section ? { 
               value: filters.section, 
@@ -200,6 +232,15 @@ export default function Filter({ filters, handleFilterChange, filterOptions, dep
             isClearable
             placeholder="All Sections"
             styles={customSelectStyles}
+            theme={(theme) => ({
+              ...theme,
+              colors: {
+                ...theme.colors,
+                neutral0: 'var(--bg-control, white)',
+                neutral80: 'var(--text-primary, #111827)',
+                neutral30: '#D1D5DB',
+              },
+            })}
           />
         </div>
       </div>
