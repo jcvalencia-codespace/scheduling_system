@@ -272,13 +272,13 @@ function AssignSubjectsPageContent() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 px-2 sm:px-6 lg:px-8 py-4 sm:py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 px-2 sm:px-6 lg:px-8 py-4 sm:py-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-8">
           <div>
-            <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Assigned Subjects</h1>
-            <p className="mt-1 sm:mt-2 text-sm text-gray-700">
+            <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">Assigned Subjects</h1>
+            <p className="mt-1 sm:mt-2 text-sm text-gray-700 dark:text-gray-300">
               Manage and view all assigned subjects for {activeTerm?.sy || 'Current Academic Year'} - All Terms
             </p>
           </div>
@@ -310,32 +310,32 @@ function AssignSubjectsPageContent() {
         />
 
         {/* Assignments Table - Mobile Responsive */}
-        <div className="bg-white shadow rounded-lg overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
             <div className="hidden sm:block">
               {/* Desktop Table */}
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Year Level
                     </th>
                     {/* Removed term column */}
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Section
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Course
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       View Subjects
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
                   {filteredAssignments.length === 0 ? (
                     <tr>
                       <td colSpan="5">
@@ -348,14 +348,14 @@ function AssignSubjectsPageContent() {
                   ) : (
                     currentItems.map((assignment) => (
                       <tr key={assignment._id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">
                           {assignment.yearLevel} Year
                         </td>
                         {/* Removed term column */}
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">
                           {assignment.classId?.sectionName || 'N/A'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">
                           {assignment.classId?.course?.courseCode || 'N/A'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -409,12 +409,12 @@ function AssignSubjectsPageContent() {
             {/* Mobile View */}
             <div className="block sm:hidden">
               {currentItems.map((assignment) => (
-                <div key={assignment._id} className="p-4 border-b border-gray-200">
+                <div key={assignment._id} className="p-4 border-b border-gray-200 dark:border-gray-700">
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <div className="font-medium text-gray-900">{assignment.yearLevel} Year</div>
-                      <div className="text-sm text-gray-500">{assignment.classId?.sectionName || 'N/A'}</div>
-                      <div className="text-sm text-gray-500">{assignment.classId?.course?.courseCode || 'N/A'}</div>
+                      <div className="font-medium text-gray-900 dark:text-gray-200">{assignment.yearLevel} Year</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{assignment.classId?.sectionName || 'N/A'}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{assignment.classId?.course?.courseCode || 'N/A'}</div>
                     </div>
                     <div className="flex space-x-3">
                       <button 
@@ -447,7 +447,7 @@ function AssignSubjectsPageContent() {
                 </div>
               ))}
               {currentItems.length === 0 && (
-                <div className="px-4 py-6 text-center text-sm text-gray-500">
+                <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
                   No assignments found
                 </div>
               )}

@@ -16,6 +16,7 @@ const customSelectStyles = {
     borderColor: "#E2E8F0",
     boxShadow: "none",
     minHeight: "42px",
+    backgroundColor: 'var(--bg-control, white)',
     "&:hover": {
       borderColor: "#323E8F",
     },
@@ -70,6 +71,7 @@ const customSelectStyles = {
     zIndex: 9999999,
     padding: "6px",
     borderRadius: "0.5rem",
+    backgroundColor: 'var(--bg-menu, white)',
   }),
   container: (provided) => ({
     ...provided,
@@ -437,11 +439,11 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-xl bg-white text-left shadow-xl transition-all sm:my-8 w-full max-w-5xl">
+              <Dialog.Panel className="relative transform overflow-hidden rounded-xl bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 w-full max-w-5xl">
                 <div className="absolute right-0 top-0 pr-4 pt-4 block z-[9999]">
                   <button
                     type="button"
-                    className="rounded-full bg-white text-gray-400 hover:text-gray-500 hover:bg-gray-100 p-1.5 transition-colors shadow-sm"
+                    className="rounded-full bg-white dark:bg-gray-800 text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 p-1.5 transition-colors shadow-sm"
                     onClick={onClose}
                   >
                     <span className="sr-only">Close</span>
@@ -456,12 +458,12 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                     <form onSubmit={handleSubmit} className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Year Level</label>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Year Level</label>
                           <select
                             name="yearLevel"
                             onChange={handleYearLevelChange}
                             value={formData.yearLevel}
-                            className="block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm h-[42px]"
+                            className="block w-full text-black dark:text-white rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm h-[42px] dark:bg-gray-700"
                             required
                           >
                             <option value="">Select Year Level</option>
@@ -474,12 +476,12 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Term</label>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Term</label>
                           <select
                             name="term"
                             onChange={handleTermChange}
                             value={formData.term}
-                            className="block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm h-[42px]"
+                            className="block w-full text-black dark:text-white rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm h-[42px] dark:bg-gray-700"
                             required
                             disabled={isTermLoading}
                           >
@@ -499,7 +501,7 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Classes</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Classes</label>
                         {isLoadingClasses ? (
                           <DropdownSkeleton />
                         ) : (
@@ -540,7 +542,7 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                               menuShouldBlockScroll={true}
                               menuPlacement="auto"
                             />
-                            <p className="mt-1 text-xs text-gray-500">
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                               {availableClasses.length > 0
                                 ? "You can select multiple classes"
                                 : "Select a year level to view available classes"}
@@ -553,7 +555,7 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                         <div className="flex justify-between items-center">
                           <div className="flex items-center">
                             <BookOpenIcon className="h-5 w-5 text-[#323E8F] mr-2" />
-                            <h3 className="text-base font-medium text-gray-900">Subjects and Hours</h3>
+                            <h3 className="text-base font-medium text-gray-900 dark:text-gray-100">Subjects and Hours</h3>
                           </div>
                           <button
                             type="button"
@@ -567,33 +569,33 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                         </div>
 
                         {formData.subjectAssignments.length > 0 ? (
-                          <div className="overflow-hidden rounded-lg overflow-y-auto max-h-[350px] border border-gray-200 shadow-sm">
-                            <table className="min-w-full divide-y divide-gray-200">
+                          <div className="overflow-hidden rounded-lg overflow-y-auto max-h-[350px] border border-gray-200 dark:border-gray-700 shadow-sm">
+                            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                               <thead>
-                                <tr className="bg-gray-50">
+                                <tr className="bg-gray-50 dark:bg-gray-700">
                                   <th
                                     scope="col"
-                                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                                   >
                                     Subject
                                   </th>
                                   <th
                                     scope="col"
-                                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24"
+                                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-24"
                                   >
                                     Hours
                                   </th>
                                   <th
                                     scope="col"
-                                    className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-16"
+                                    className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-16"
                                   >
                                     <span className="sr-only">Actions</span>
                                   </th>
                                 </tr>
                               </thead>
-                              <tbody className="bg-white divide-y divide-gray-200">
+                              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                 {formData.subjectAssignments.map((assignment, index) => (
-                                  <tr key={index} className="hover:bg-gray-50 transition-colors">
+                                  <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                                     <td className="px-4 py-3">
                                       <Select
                                         value={availableSubjects
@@ -654,7 +656,7 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                                         value={assignment.hours}
                                         onChange={(e) => handleSubjectFieldChange(index, "hours", e.target.value)}
                                         placeholder="Hours"
-                                        className="block text-black w-full rounded-md border-gray-300 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm"
+                                        className="block text-black dark:text-white w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-[#323E8F] focus:ring-[#323E8F] sm:text-sm dark:bg-gray-700"
                                         required
                                         min="0"
                                         step="0.001"
@@ -664,7 +666,7 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                                       <button
                                         type="button"
                                         onClick={() => removeSubjectField(index)}
-                                        className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                                        className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-700 rounded-full transition-colors"
                                         aria-label="Remove subject"
                                       >
                                         <TrashIcon className="h-4 w-4" />
@@ -676,17 +678,17 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                             </table>
                           </div>
                         ) : (
-                          <div className="py-8 flex flex-col items-center justify-center bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                          <div className="py-8 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-700 rounded-lg border border-dashed border-gray-200 dark:border-gray-600">
                             {formData.classes.length === 0 ? (
                               <div className="text-center">
-                                <BookOpenIcon className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-                                <p className="text-sm text-gray-500 mb-1">Select a class first to add subjects</p>
-                                <p className="text-xs text-gray-400">Year level and class selection is required</p>
+                                <BookOpenIcon className="h-10 w-10 text-gray-300 dark:text-gray-500 mx-auto mb-2" />
+                                <p className="text-sm text-gray-500 dark:text-gray-300 mb-1">Select a class first to add subjects</p>
+                                <p className="text-xs text-gray-400 dark:text-gray-500">Year level and class selection is required</p>
                               </div>
                             ) : (
                               <div className="text-center">
-                                <BookOpenIcon className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-                                <p className="text-sm text-gray-500 mb-3">No subjects added yet</p>
+                                <BookOpenIcon className="h-10 w-10 text-gray-300 dark:text-gray-500 mx-auto mb-2" />
+                                <p className="text-sm text-gray-500 dark:text-gray-300 mb-3">No subjects added yet</p>
                                 <button
                                   type="button"
                                   onClick={addSubjectField}
@@ -701,10 +703,10 @@ export default function AssignSubjectModal({ isOpen, onClose, onSubmit, editData
                         )}
                       </div>
 
-                      <div className="flex justify-end space-x-3 pt-4 border-t border-gray-100">
+                      <div className="flex justify-end space-x-3 pt-4 border-t border-gray-100 dark:border-gray-700">
                         <button
                           type="button"
-                          className="inline-flex justify-center rounded-md bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors"
+                          className="inline-flex justify-center rounded-md bg-white dark:bg-gray-800 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                           onClick={onClose}
                         >
                           Cancel
