@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # SCHED-NU (NUB Schedule Management Application)
 
 ## Overview
